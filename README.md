@@ -1,6 +1,10 @@
 # Free Underground Tekno
 
-24/7/365 Free Tekno Radio, Live Streaming, TAZ, Teknivals and Rave culture. Upload your own music now!
+24/7/365 Free Tekno Radio, Live Streaming, TAZ, Teknivals and Rave culture. 
+
+## DJ and producers 
+
+Upload your own music now on [Free Sounds](https://sound.freeundergroundtekno.org), a place for free tekno lovers. Download the [Free Sounds app for Android](https://play.google.com/store/apps/details?id=org.freeundergroundtekno.sound) and listen tons of free tekno tracks and mixes for free. Any user will have 10GB upload free space.
 
 ## Source code
 
@@ -9,7 +13,7 @@ Welcome to Free Underground Tekno website source code repository. The website is
 ## Contribute
 
 Anybody can contribute now using a GitHub account.
-Write [me](mailto:fabrizio.salmi@gmail.com) to join collaborators
+Write [me](mailto:fabrizio.salmi@gmail.com) to join collaborators.
 
 ## Hosting
 
