@@ -38,105 +38,77 @@
 </script>
     
     <style>
-      body {
-    display: flex;
-    justify-content: center;
-    align-items: center;
+body {
+    margin: 0;
     height: 100vh;
-    background-color: #000;
-    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: black;
 }
 
-h1 {
+.neon {
     position: relative;
-    font-family: 'Montserrat', Arial, sans-serif;
-    font-size: calc(20px + 5vw);
-    font-weight: 700;
-    color: #fff;
-    letter-spacing: 0.02em;
+    overflow: hidden;
+    filter: brightness(200%);
+}
+
+.text {
+    background-color: black;
+    color: white;
+    font-size: 80px;
+    font-weight: bold;
+    font-family: sans-serif;
     text-transform: uppercase;
-    text-shadow: 0 0 0.15em #1da9cc;
+    position: relative;
     user-select: none;
-    white-space: nowrap;
-    filter: blur(0.007em);
-    animation: shake 2.5s linear forwards;
 }
 
-h1 span {
-    position: absolute;
-    top: 0;
-    left: 0;
-    transform: translate(-50%, -50%);
-    -webkit-clip-path: polygon(10% 0%, 44% 0%, 70% 100%, 55% 100%);
-            clip-path: polygon(10% 0%, 44% 0%, 70% 100%, 55% 100%);
-}
-
-h1::before,
-h1::after {
+.text::before {
     content: attr(data-text);
     position: absolute;
+    color: white;
+    filter: blur(0.02em);
+    mix-blend-mode: difference;
+}
+
+.gradient {
+    position: absolute;
+    background: linear-gradient(45deg, red, gold, blue, white, red);
     top: 0;
     left: 0;
+    right: 0;
+    bottom: 0;
+    mix-blend-mode: multiply;
 }
 
-h1::before {
-    animation: crack1 2.5s linear forwards;
-    -webkit-clip-path: polygon(0% 0%, 10% 0%, 55% 100%, 0% 100%);
-            clip-path: polygon(0% 0%, 10% 0%, 55% 100%, 0% 100%);
+.spotlight {
+    position: absolute;
+    top: -100%;
+    left: -100%;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(
+            circle,
+            white,
+            transparent 25%
+        ) center / 25% 25%,
+        radial-gradient(
+            circle,
+            white,
+            black 25%
+        ) center / 12.5% 12.5%;
+    animation: light 0.8s linear infinite;
+    mix-blend-mode: color-dodge;
 }
 
-h1::after {
-    animation: crack2 2.5s linear forwards;
-    -webkit-clip-path: polygon(44% 0%, 100% 0%, 100% 100%, 70% 100%);
-            clip-path: polygon(44% 0%, 100% 0%, 100% 100%, 70% 100%);
-}
-
-@keyframes shake {
-    5%, 15%, 25%, 35%, 55%, 65%, 75%, 95% {
-        filter: blur(0.018em);
-        transform: translateY(0.018em) rotate(0deg);
-    }
-
-    10%, 30%, 40%, 50%, 70%, 80%, 90% {
-        filter: blur(0.01em);
-        transform: translateY(-0.018em) rotate(0deg);
-    }
-
-    20%, 60% {
-        filter: blur(0.03em);
-        transform: translate(-0.018em, 0.018em) rotate(0deg);
-    }
-
-    45%, 85% {
-        filter: blur(0.03em);
-        transform: translate(0.018em, -0.018em) rotate(0deg);
-    }
-
-    100% {
-        filter: blur(0.007em);
-        transform: translate(0) rotate(-0.5deg);
+@keyframes light {
+    to {
+        transform: translate(50%, 50%);
     }
 }
 
-@keyframes crack1 {
-    0%, 95% {
-        transform: translate(-50%, -50%);
-    }
-
-    100% {
-        transform: translate(-51%, -48%);
-    }
-}
-
-@keyframes crack2 {
-    0%, 95% {
-        transform: translate(-50%, -50%);
-    }
-
-    100% {
-        transform: translate(-49%, -53%);
-    }
-}
     </style>
   </head>
 
@@ -174,7 +146,12 @@ h1::after {
       <div class="container">
         <div class="row">
         <img class="img-fluid mb-5 d-block mx-auto" src="img/freeundergroundtekno.jpg" alt="Free Underground Tekno" width="256px" height="256px">
-        <h1 class="text-uppercase mb-0">Free Underground Tekno</h1> 
+        <!-- <h1 class="text-uppercase mb-0">Free Underground Tekno</h1> -->
+          <div class="neon">
+  <span class="text" data-text="FREE UNDERGROUND TEKNO">FREE UNDERGROUND TEKNO</span>
+  <span class="gradient"></span>
+  <span class="spotlight"></span>
+</div>
         <!-- <h1 class="img-fluid mb-5 d-block mx-auto" data-text="black mirror">Free Underground Tekno</h1> -->     
         <h2 class="font-weight-light mb-0">24/7 free tekno radio, parties, live streaming and underground artists community</h2>
        </div> </div>
