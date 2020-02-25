@@ -4,7 +4,7 @@
 
 ## Links
 
-- [Free Underground Tekno](https://www.freeundergroundtekno.org): 
+- [Free Underground Tekno](https://www.freeundergroundtekno.org)
 - [Web Radio](https://radio.freeundergroundtekno.org)
 - [Free Sounds](https://sound.freeundergroundtekno.org)
 - [YouTube](https://www.youtube.com/channel/UC4Qa1dYujyjeilj1YCIGJtw)
