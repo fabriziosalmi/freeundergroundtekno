@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+
+<head>
     <base href="https://www.freeundergroundtekno.org" target="_top">
     <meta http-equiv="content-language" content="en">
     <meta charset="utf-8">
@@ -21,7 +22,7 @@
     <meta name="cache-control" content="cache">
     <meta name="MSSmartTagsPreventParsing" content="true">
     <meta name="imagetoolbar" content="false">
-    <meta name="format-detection" content="telephone=no">              
+    <meta name="format-detection" content="telephone=no">
     <meta name="publisher" content="Free Underground Tekno">
     <meta name="copyright" content="Copyright of respective owners">
     <meta name="robots" content="index, follow">
@@ -40,17 +41,17 @@
     <meta name="geo.region" content="IT">
     <meta name="DC.title" content="Free Underground Tekno">
     <title>
-      Free Underground Tekno</title>
+        Free Underground Tekno</title>
     <meta property="og:image" content="https://www.freeundergroundtekno.org/img/af_logo_web.png">
     <meta property="og:title" content="Free Underground Tekno Radio">
     <meta property="og:description" content="24/7/365 free tekno radio, streaming and rave culture." />
     <meta property="og:url" content="https://www.freeundergroundtekno.org">
     <meta property="og:country-name" content="IT">
     <meta property="og:email" content="fabrizio.salmi@gmail.com">
-   <meta name="twitter:card" content="summary">
+    <meta name="twitter:card" content="summary">
     <meta name="twitter:site" content="@freetekno23">
     <meta name="twitter:creator" content="@freetekno23">
-   <meta name="twitter:title" content="Free Underground Tekno">
+    <meta name="twitter:title" content="Free Underground Tekno">
     <meta name="twitter:description" content="24/7/365 free tekno radio, streaming and rave culture.">
     <meta name="twitter:image" content="https://www.freeundergroundtekno.org/img/af_logo_web.png">
     <link href="css/styles.css" rel="stylesheet" type="text/css">
@@ -59,141 +60,139 @@
      <script src="js/html5shiv-printshiv.js"></script>
      <script src="js/css3-mediaqueries.js"></script>
    <![endif]-->
-       <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async=""></script>
-<script>
-  var OneSignal = window.OneSignal || [];
-  OneSignal.push(function() {
-    OneSignal.init({
-      appId: "ac6ac1a6-d1bb-49b9-ab10-dffcbe6d9810",
-      notifyButton: {
-        enable: true,
-      },
-    });
-  });
-</script>
+    <script src="https://cdn.onesignal.com/sdks/OneSignalSDK.js" async=""></script>
+    <script>
+        var OneSignal = window.OneSignal || [];
+        OneSignal.push(function() {
+            OneSignal.init({
+                appId: "ac6ac1a6-d1bb-49b9-ab10-dffcbe6d9810",
+                notifyButton: {
+                    enable: true,
+                },
+            });
+        });
+    </script>
     <!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=UA-5693861-2"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'UA-5693861-2');
-</script>
-<style>
-  body {
-    color: white;
-    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
-      margin: 0;
-    background-color: black;
-  }
-  title {
-   height: 50vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  a {
-    color: red;
-    text-decoration: none;
-  }
-  .radio-player-widget i.material-icons {
-    color: #CC0000;
-  }
-  .now-playing-details h4 {
-    font-size: xx-large;
-  }
-  .now-playing-details h5 {
-    font-size: xx-large;
-  }
+    <script async src="https://www.googletagmanager.com/gtag/js?id=UA-5693861-2"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
 
+        function gtag() {
+            dataLayer.push(arguments);
+        }
+        gtag('js', new Date());
+        gtag('config', 'UA-5693861-2');
+    </script>
+    <style>
+        body {
+            color: white;
+            font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: black;
+        }
+        
+        title {
+            height: 50vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        a {
+            color: red;
+            text-decoration: none;
+        }
+        
+        .radio-player-widget i.material-icons {
+            color: #CC0000;
+        }
+        
+        .now-playing-details h4 {
+            font-size: xx-large;
+        }
+        
+        .now-playing-details h5 {
+            font-size: xx-large;
+        }
+        
+        .neon {
+            position: relative;
+            overflow: hidden;
+            filter: brightness(200%);
+        }
+        
+        .text {
+            background-color: black;
+            color: white;
+            font-size: 3em;
+            font-weight: bold;
+            font-family: sans-serif;
+            text-transform: uppercase;
+            position: relative;
+            user-select: none;
+        }
+        
+        .text::before {
+            content: attr(data-text);
+            position: absolute;
+            color: white;
+            filter: blur(0.02em);
+            mix-blend-mode: difference;
+        }
+        
+        .gradient {
+            position: absolute;
+            background: linear-gradient(90deg, black, white);
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            mix-blend-mode: multiply;
+        }
+        
+        .spotlight {
+            position: absolute;
+            top: -100%;
+            left: -100%;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient( circle, white, transparent 25%) center / 25% 25%, radial-gradient( circle, white, black 25%) center / 12.5% 12.5%;
+            animation: light 3s linear infinite;
+            mix-blend-mode: color-dodge;
+        }
+        
+        @keyframes light {
+            to {
+                transform: translate(50%, 50%);
+            }
+        }
+    </style>
+</head>
 
-.neon {
-    position: relative;
-    overflow: hidden;
-    filter: brightness(200%);
-}
-
-.text {
-    background-color: black;
-    color: white;
-    font-size: 3em;
-    font-weight: bold;
-    font-family: sans-serif;
-    text-transform: uppercase;
-    position: relative;
-    user-select: none;
-}
-
-.text::before {
-    content: attr(data-text);
-    position: absolute;
-    color: white;
-    filter: blur(0.02em);
-    mix-blend-mode: difference;
-}
-
-.gradient {
-    position: absolute;
-    background: linear-gradient(90deg, black, white);
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    mix-blend-mode: multiply;
-}
-
-.spotlight {
-    position: absolute;
-    top: -100%;
-    left: -100%;
-    right: 0;
-    bottom: 0;
-    background: 
-        radial-gradient(
-            circle,
-            white,
-            transparent 25%
-        ) center / 25% 25%,
-        radial-gradient(
-            circle,
-            white,
-            black 25%
-        ) center / 12.5% 12.5%;
-    animation: light 3s linear infinite;
-    mix-blend-mode: color-dodge;
-}
-
-@keyframes light {
-    to {
-        transform: translate(50%, 50%);
-    }
-}
-
-</style>
-  </head>
-  <body bgcolor="#000000">
+<body bgcolor="#000000">
     <div class="container">
-      <div class="title">
-        <div class="neon">
-          <span class="text" data-text="FREE UNDERGROUND TEKNO">FREE UNDERGROUND TEKNO</span>
-          <span class="gradient"></span>
-          <span class="spotlight"></span>
+        <div class="title">
+            <div class="neon">
+                <span class="text" data-text="FREE UNDERGROUND TEKNO">FREE UNDERGROUND TEKNO</span>
+                <span class="gradient"></span>
+                <span class="spotlight"></span>
+            </div>
         </div>
-      </div>
-      <div class="fut_radio" style="padding: 23px;">
-        <iframe src="https://radio.freeundergroundtekno.org/public/free_underground_tekno/embed" frameborder="0" allowtransparency="true" style="width: 100%; min-height: 150px; border: 0;"></iframe>
-      </div>
-      <div class="fut_freesounds">
-        <h1>Free Underground Tekno</h1>
-        <h2>Radio</h2>
-        <ul>
-          <li><a class="" href="https://sound.freeundergroundtekno.org" target="_blank">Free Sounds: 10GB free space for any free tekno lover</a></li>
-          <li><a class="" href="https://play.google.com/store/apps/details?id=org.freeundergroundtekno.sound" target="_blank">Get Free Sounds for Android!</a></li>
-          <li><a class="" href="https://www.youtube.com/channel/UC4Qa1dYujyjeilj1YCIGJtw" target="_blank">Free Underground Tekno - YouTube</a></li>
-          <li><a class="" href="https://t.me/freeundergroundtekno" target="_blank">Free Underground Tekno - Telegram</a></li>
-          <li>Free Underground Tekno - Facebook <a class="" href="https://www.facebook.com/Free.Underground.Tekno.Radio/" target="_blank">page</a> | <a class="" href="https://www.facebook.com/groups/free.underground.tekno/" target="_blank">group</a></li>
-        </ul>
-      </div>
-    </div>  
- </body>
+        <div class="fut_radio" style="padding: 23px;">
+            <iframe src="https://radio.freeundergroundtekno.org/public/free_underground_tekno/embed" frameborder="0" allowtransparency="true" style="width: 100%; min-height: 150px; border: 0;"></iframe>
+        </div>
+        <div class="fut_freesounds">
+            <h1>Free Underground Tekno</h1>
+            <h2>Radio</h2>
+            <ul>
+                <li><a class="" href="https://sound.freeundergroundtekno.org" target="_blank">Free Sounds: 10GB free space for any free tekno lover</a></li>
+                <li><a class="" href="https://play.google.com/store/apps/details?id=org.freeundergroundtekno.sound" target="_blank">Get Free Sounds for Android!</a></li>
+                <li><a class="" href="https://www.youtube.com/channel/UC4Qa1dYujyjeilj1YCIGJtw" target="_blank">Free Underground Tekno - YouTube</a></li>
+                <li><a class="" href="https://t.me/freeundergroundtekno" target="_blank">Free Underground Tekno - Telegram</a></li>
+                <li>Free Underground Tekno - Facebook <a class="" href="https://www.facebook.com/Free.Underground.Tekno.Radio/" target="_blank">page</a> | <a class="" href="https://www.facebook.com/groups/free.underground.tekno/" target="_blank">group</a></li>
+            </ul>
+        </div>
+    </div>
+</body>
+
 </html>
