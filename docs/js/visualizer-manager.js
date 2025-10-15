@@ -28,11 +28,11 @@ const Visualizer = (function() {
         
         // AUTO-DETECT e carica tutti i visualizer disponibili
         const availableVisualizers = [
+            typeof LiquidPlasma !== 'undefined' ? LiquidPlasma : null,
             typeof PsychSpiral !== 'undefined' ? PsychSpiral : null,
             typeof UFOSwarm !== 'undefined' ? UFOSwarm : null,
             typeof RTypeTekno !== 'undefined' ? RTypeTekno : null,
             typeof QuantumMorphing !== 'undefined' ? QuantumMorphing : null,
-            typeof LiquidPlasma !== 'undefined' ? LiquidPlasma : null,
             typeof MatrixRain !== 'undefined' ? MatrixRain : null,
             typeof WarpTunnel !== 'undefined' ? WarpTunnel : null,
             typeof Fireworks !== 'undefined' ? Fireworks : null,
@@ -54,7 +54,6 @@ const Visualizer = (function() {
             typeof GlitchCity !== 'undefined' ? GlitchCity : null,
             typeof RaveCrowd !== 'undefined' ? RaveCrowd : null,
             typeof SubStackTower !== 'undefined' ? SubStackTower : null,
-            typeof TazSymbols !== 'undefined' ? TazSymbols : null,
             typeof FrequencyBars3D !== 'undefined' ? FrequencyBars3D : null,
             typeof HologramCube !== 'undefined' ? HologramCube : null,
             typeof EnergyField !== 'undefined' ? EnergyField : null,
