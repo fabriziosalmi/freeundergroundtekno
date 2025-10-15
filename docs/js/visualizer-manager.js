@@ -49,6 +49,19 @@ const Visualizer = (function() {
             typeof RadioLogoPulse !== 'undefined' ? RadioLogoPulse : null,
             typeof AcidSpiralLSD !== 'undefined' ? AcidSpiralLSD : null,
             typeof VinylTurntables !== 'undefined' ? VinylTurntables : null,
+            typeof ParticleStorm !== 'undefined' ? ParticleStorm : null,
+            typeof NeonTunnel !== 'undefined' ? NeonTunnel : null,
+            typeof GlitchCity !== 'undefined' ? GlitchCity : null,
+            typeof RaveCrowd !== 'undefined' ? RaveCrowd : null,
+            typeof SubStackTower !== 'undefined' ? SubStackTower : null,
+            typeof TazSymbols !== 'undefined' ? TazSymbols : null,
+            typeof FrequencyBars3D !== 'undefined' ? FrequencyBars3D : null,
+            typeof HologramCube !== 'undefined' ? HologramCube : null,
+            typeof EnergyField !== 'undefined' ? EnergyField : null,
+            typeof CosmicDust !== 'undefined' ? CosmicDust : null,
+            typeof VectorField !== 'undefined' ? VectorField : null,
+            typeof AudioTerrain !== 'undefined' ? AudioTerrain : null,
+            typeof Kaleidoscope !== 'undefined' ? Kaleidoscope : null,
         ].filter(v => v !== null);
         
         // Registra tutti i visualizer trovati
