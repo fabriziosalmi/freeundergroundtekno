@@ -1,0 +1,923 @@
+/**
+ * Free Underground Tekno - Audio Visualizer Module
+ * Motore grafico per rendering Canvas audio-reattivo
+ * Stili: Psych-Spiral, Glitch-Bars, Oscilloscope
+ */
+
+const Visualizer = (function() {
+    'use strict';
+
+    // === VARIABILI DI STATO ===
+    let canvas = null;
+    let ctx = null;
+    let currentStyleIndex = 0;
+    const styles = ['Psych-Spiral', 'UFO-Swarm', 'R-Type-Tekno', 'Glitch-Bars', 'Oscilloscope'];
+    
+    // Colori acidi per l'estetica underground
+    const acidColors = ['#00FF00', '#FF00FF', '#00FFFF', '#FFFF00'];
+    let currentColorIndex = 0;
+    
+    // UFO STATE per la modalità UFO-Swarm
+    let ufos = {
+        bass: [],
+        mid: [],
+        treble: []
+    };
+    
+    // R-TYPE STATE per la modalità R-Type-Tekno
+    let rtype = {
+        ship: { x: 100, y: 0, vy: 0 },
+        bullets: [],
+        enemies: [],
+        particles: [],
+        score: 0,
+        lastShot: 0,
+        lastEnemy: 0
+    };
+
+    /**
+     * Inizializza il visualizer
+     * @param {HTMLCanvasElement} canvasElement - L'elemento canvas
+     */
+    function init(canvasElement) {
+        canvas = canvasElement;
+        ctx = canvas.getContext('2d');
+        
+        // Imposta le dimensioni del canvas
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        console.log('🎨 Visualizer initialized');
+    }
+
+    /**
+     * Ridimensiona il canvas per coprire tutto il viewport
+     */
+    function resizeCanvas() {
+        if (!canvas) return;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        console.log(`📐 Canvas resized: ${canvas.width}x${canvas.height}`);
+    }
+
+    /**
+     * Funzione principale di disegno - chiamata ad ogni frame
+     * @param {AnalyserNode} analyser - Il nodo analizzatore Web Audio API
+     * @param {Uint8Array} dataArray - Array di dati di frequenza
+     */
+    function draw(analyser, dataArray) {
+        if (!ctx) {
+            console.error('❌ Canvas context not initialized');
+            return;
+        }
+        if (!analyser || !dataArray) {
+            console.warn('⚠️ Missing analyser or dataArray in draw()');
+            return;
+        }
+
+        // Pulisce il canvas con un rettangolo nero semitrasparente
+        // per creare un effetto "motion blur" psichedelico
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Ottiene i dati di frequenza dall'analizzatore
+        analyser.getByteFrequencyData(dataArray);
+
+        // Chiama lo stile di visualizzazione corrente
+        switch(currentStyleIndex) {
+            case 0:
+                drawPsychSpiral(dataArray, analyser);
+                break;
+            case 1:
+                drawUFOSwarm(dataArray, analyser);
+                break;
+            case 2:
+                drawRTypeTekno(dataArray, analyser);
+                break;
+            case 3:
+                drawGlitchBars(dataArray, analyser);
+                break;
+            case 4:
+                drawOscilloscope(analyser);
+                break;
+            default:
+                drawPsychSpiral(dataArray, analyser);
+        }
+    }
+
+    /**
+     * STILE 1: "Psych-Spiral" - VERSIONE POTENZIATA
+     * Spirale/cerchi concentrici che pulsano con bassi e hi-hats
+     * + Rotazione + Trail effect + Colori dinamici
+     */
+    function drawPsychSpiral(dataArray, analyser) {
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const bufferLength = analyser.frequencyBinCount;
+
+        // Estrae bassi (0-20%) e alti (80-100%) dalle frequenze
+        const bassRange = Math.floor(bufferLength * 0.2);
+        const trebleStart = Math.floor(bufferLength * 0.8);
+        const midStart = Math.floor(bufferLength * 0.4);
+        const midEnd = Math.floor(bufferLength * 0.6);
+        
+        let bassSum = 0;
+        let trebleSum = 0;
+        let midSum = 0;
+        
+        for (let i = 0; i < bassRange; i++) {
+            bassSum += dataArray[i];
+        }
+        for (let i = trebleStart; i < bufferLength; i++) {
+            trebleSum += dataArray[i];
+        }
+        for (let i = midStart; i < midEnd; i++) {
+            midSum += dataArray[i];
+        }
+        
+        const bassAvg = bassSum / bassRange;
+        const trebleAvg = trebleSum / (bufferLength - trebleStart);
+        const midAvg = midSum / (midEnd - midStart);
+        
+        // Normalizza i valori (0-255 -> 0-1)
+        const bassIntensity = bassAvg / 255;
+        const trebleIntensity = trebleAvg / 255;
+        const midIntensity = midAvg / 255;
+
+        // NUOVO: Rotazione basata sul tempo e sui medi
+        const rotation = (Date.now() * 0.0005) + (midIntensity * Math.PI);
+        
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(rotation);
+        ctx.translate(-centerX, -centerY);
+
+        // Disegna cerchi concentrici PIÙ DENSI
+        const numCircles = 25; // Aumentato da 15
+        const baseRadius = 20;
+        const radiusIncrement = 20;
+        
+        for (let i = 0; i < numCircles; i++) {
+            const radius = baseRadius + (i * radiusIncrement);
+            const pulseRadius = radius + (bassIntensity * 80); // Aumentato da 50
+            
+            // NUOVO: Colore dinamico basato sull'intensità
+            let color;
+            if (bassIntensity > 0.7) {
+                // Bassi forti = colore acido principale
+                color = acidColors[currentColorIndex];
+            } else if (i % 3 === 0) {
+                // Ogni 3 cerchi = colore acido secondario
+                color = acidColors[(currentColorIndex + 1) % acidColors.length];
+            } else if (i % 2 === 0) {
+                // Alternanza con bianco
+                color = '#FFFFFF';
+            } else {
+                // Trasparente per effetto "vuoto"
+                color = acidColors[currentColorIndex] + '40'; // 25% opacity
+            }
+            
+            // Spessore della linea influenzato dai treble E dai medi
+            const lineWidth = 1 + (trebleIntensity * 8) + (midIntensity * 4);
+            
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.stroke();
+            
+            // NUOVO: Effetto "sporco" POTENZIATO - linee interrotte + raggiere
+            if (Math.random() > 0.6) { // Più frequente
+                ctx.beginPath();
+                const startAngle = Math.random() * Math.PI * 2;
+                const endAngle = startAngle + (Math.random() * Math.PI / 3);
+                ctx.arc(centerX, centerY, pulseRadius, startAngle, endAngle);
+                ctx.strokeStyle = acidColors[(currentColorIndex + 2) % acidColors.length];
+                ctx.lineWidth = lineWidth * 2;
+                ctx.stroke();
+            }
+            
+            // NUOVO: Raggiere sui bassi forti
+            if (bassIntensity > 0.8 && i % 4 === 0) {
+                const numRays = 8;
+                for (let r = 0; r < numRays; r++) {
+                    const angle = (Math.PI * 2 / numRays) * r;
+                    const rayLength = bassIntensity * 100;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        centerX + Math.cos(angle) * pulseRadius,
+                        centerY + Math.sin(angle) * pulseRadius
+                    );
+                    ctx.lineTo(
+                        centerX + Math.cos(angle) * (pulseRadius + rayLength),
+                        centerY + Math.sin(angle) * (pulseRadius + rayLength)
+                    );
+                    ctx.strokeStyle = acidColors[currentColorIndex];
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                }
+            }
+        }
+
+        ctx.restore();
+
+        // NUOVO: Punto centrale PULSANTE ULTRA
+        const coreSize = 8 + (bassIntensity * 30) + (midIntensity * 20);
+        
+        // Alone esterno
+        const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreSize * 2);
+        gradient.addColorStop(0, acidColors[currentColorIndex]);
+        gradient.addColorStop(0.5, acidColors[currentColorIndex] + '80');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coreSize * 2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Nucleo centrale
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, coreSize, 0, Math.PI * 2);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fill();
+        
+        // NUOVO: Particelle esplose sui picchi
+        if (bassIntensity > 0.85) {
+            const numParticles = 20;
+            for (let p = 0; p < numParticles; p++) {
+                const angle = (Math.PI * 2 / numParticles) * p;
+                const distance = 200 + (Math.random() * 100);
+                const px = centerX + Math.cos(angle) * distance;
+                const py = centerY + Math.sin(angle) * distance;
+                const size = 5 + Math.random() * 10;
+                
+                ctx.fillStyle = Math.random() > 0.5 ? '#FFFFFF' : acidColors[currentColorIndex];
+                ctx.fillRect(px - size/2, py - size/2, size, size);
+            }
+        }
+    }
+
+    /**
+     * STILE 2: "UFO-Swarm" - MODALITÀ ALIENA 🛸
+     * Alti, medi e bassi sono UFO che volano in modo alieno
+     * - BASSI = UFO grandi e lenti (rosso/verde)
+     * - MEDI = UFO medi e oscillanti (magenta/cyan)
+     * - ALTI = UFO piccoli e veloci (giallo/bianco)
+     */
+    function drawUFOSwarm(dataArray, analyser) {
+        const bufferLength = analyser.frequencyBinCount;
+        
+        // Dividi le frequenze in 3 bande
+        const bassRange = Math.floor(bufferLength * 0.25);
+        const midStart = bassRange;
+        const midEnd = Math.floor(bufferLength * 0.65);
+        const trebleStart = midEnd;
+        
+        // Inizializza UFO arrays se vuoti
+        if (ufos.bass.length === 0) {
+            // BASSI: 8 UFO grandi
+            for (let i = 0; i < 8; i++) {
+                ufos.bass.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 2,
+                    vy: (Math.random() - 0.5) * 2,
+                    angle: Math.random() * Math.PI * 2
+                });
+            }
+            // MEDI: 15 UFO medi
+            for (let i = 0; i < 15; i++) {
+                ufos.mid.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4,
+                    angle: Math.random() * Math.PI * 2
+                });
+            }
+            // ALTI: 25 UFO piccoli
+            for (let i = 0; i < 25; i++) {
+                ufos.treble.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    angle: Math.random() * Math.PI * 2
+                });
+            }
+        }
+        
+        // Calcola intensità delle bande
+        let bassSum = 0, midSum = 0, trebleSum = 0;
+        
+        for (let i = 0; i < bassRange; i++) bassSum += dataArray[i];
+        for (let i = midStart; i < midEnd; i++) midSum += dataArray[i];
+        for (let i = trebleStart; i < bufferLength; i++) trebleSum += dataArray[i];
+        
+        const bassIntensity = (bassSum / bassRange) / 255;
+        const midIntensity = (midSum / (midEnd - midStart)) / 255;
+        const trebleIntensity = (trebleSum / (bufferLength - trebleStart)) / 255;
+        
+        // DISEGNA E MUOVI UFO BASSI (grandi, lenti)
+        ufos.bass.forEach((ufo, i) => {
+            // Movimento base + influenza dei bassi
+            ufo.x += ufo.vx * (1 + bassIntensity * 2);
+            ufo.y += ufo.vy * (1 + bassIntensity * 2);
+            ufo.angle += 0.02 + (bassIntensity * 0.1);
+            
+            // Movimento sinusoidale alieno
+            ufo.x += Math.sin(Date.now() * 0.001 + i) * 3;
+            ufo.y += Math.cos(Date.now() * 0.001 + i) * 3;
+            
+            // Wrap around screen
+            if (ufo.x < -50) ufo.x = canvas.width + 50;
+            if (ufo.x > canvas.width + 50) ufo.x = -50;
+            if (ufo.y < -50) ufo.y = canvas.height + 50;
+            if (ufo.y > canvas.height + 50) ufo.y = -50;
+            
+            // Disegna UFO BASSO
+            const size = 30 + (bassIntensity * 40);
+            drawUFO(ufo.x, ufo.y, size, ufo.angle, '#FF0000', '#00FF00', bassIntensity);
+            
+            // Trail sui bassi forti
+            if (bassIntensity > 0.6) {
+                ctx.strokeStyle = '#00FF00' + '40';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(ufo.x, ufo.y, size + 20, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        });
+        
+        // DISEGNA E MUOVI UFO MEDI (medi, oscillanti)
+        ufos.mid.forEach((ufo, i) => {
+            ufo.x += ufo.vx * (1 + midIntensity);
+            ufo.y += ufo.vy * (1 + midIntensity);
+            ufo.angle += 0.05 + (midIntensity * 0.15);
+            
+            // Oscillazione aliena più veloce
+            ufo.x += Math.sin(Date.now() * 0.002 + i) * 5;
+            ufo.y += Math.cos(Date.now() * 0.0015 + i) * 5;
+            
+            // Wrap
+            if (ufo.x < -30) ufo.x = canvas.width + 30;
+            if (ufo.x > canvas.width + 30) ufo.x = -30;
+            if (ufo.y < -30) ufo.y = canvas.height + 30;
+            if (ufo.y > canvas.height + 30) ufo.y = -30;
+            
+            const size = 20 + (midIntensity * 25);
+            drawUFO(ufo.x, ufo.y, size, ufo.angle, '#FF00FF', '#00FFFF', midIntensity);
+        });
+        
+        // DISEGNA E MUOVI UFO ALTI (piccoli, veloci)
+        ufos.treble.forEach((ufo, i) => {
+            ufo.x += ufo.vx * (1 + trebleIntensity * 3);
+            ufo.y += ufo.vy * (1 + trebleIntensity * 3);
+            ufo.angle += 0.1 + (trebleIntensity * 0.2);
+            
+            // Movimento erratico
+            ufo.x += Math.sin(Date.now() * 0.005 + i) * 8;
+            ufo.y += Math.cos(Date.now() * 0.004 + i) * 8;
+            
+            // Wrap
+            if (ufo.x < -20) ufo.x = canvas.width + 20;
+            if (ufo.x > canvas.width + 20) ufo.x = -20;
+            if (ufo.y < -20) ufo.y = canvas.height + 20;
+            if (ufo.y > canvas.height + 20) ufo.y = -20;
+            
+            const size = 10 + (trebleIntensity * 15);
+            drawUFO(ufo.x, ufo.y, size, ufo.angle, '#FFFF00', '#FFFFFF', trebleIntensity);
+            
+            // Scia veloce sui treble alti
+            if (trebleIntensity > 0.7) {
+                ctx.fillStyle = '#FFFFFF' + '80';
+                ctx.fillRect(ufo.x - 2, ufo.y - 2, 4, 4);
+            }
+        });
+        
+        // CONNESSIONI tra UFO vicini (effetto "comunicazione aliena")
+        if (bassIntensity > 0.5 || midIntensity > 0.5) {
+            connectNearbyUFOs(ufos.bass, 150, '#00FF00', bassIntensity);
+            connectNearbyUFOs(ufos.mid, 100, '#FF00FF', midIntensity);
+        }
+    }
+    
+    /**
+     * Disegna un singolo UFO
+     */
+    function drawUFO(x, y, size, angle, color1, color2, intensity) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(angle);
+        
+        // Corpo UFO (ellisse)
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size, size * 0.4, 0, 0, Math.PI * 2);
+        
+        // Gradiente
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+        gradient.addColorStop(0, color2);
+        gradient.addColorStop(0.7, color1);
+        gradient.addColorStop(1, color1 + '00');
+        
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        // Bordo
+        ctx.strokeStyle = intensity > 0.6 ? '#FFFFFF' : color2;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Cupola superiore
+        ctx.beginPath();
+        ctx.ellipse(0, -size * 0.2, size * 0.4, size * 0.3, 0, Math.PI, 0, true);
+        ctx.fillStyle = color2 + 'AA';
+        ctx.fill();
+        
+        // Luci lampeggianti
+        if (Math.random() > 0.7) {
+            const numLights = 5;
+            for (let i = 0; i < numLights; i++) {
+                const lx = (Math.cos((Math.PI * 2 / numLights) * i) * size * 0.7);
+                const ly = (Math.sin((Math.PI * 2 / numLights) * i) * size * 0.25);
+                
+                ctx.fillStyle = Math.random() > 0.5 ? '#FFFFFF' : color1;
+                ctx.beginPath();
+                ctx.arc(lx, ly, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        ctx.restore();
+    }
+    
+    /**
+     * Connette UFO vicini con linee (comunicazione aliena)
+     */
+    function connectNearbyUFOs(ufoArray, maxDistance, color, intensity) {
+        for (let i = 0; i < ufoArray.length; i++) {
+            for (let j = i + 1; j < ufoArray.length; j++) {
+                const dx = ufoArray[i].x - ufoArray[j].x;
+                const dy = ufoArray[i].y - ufoArray[j].y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < maxDistance) {
+                    const alpha = Math.floor((1 - distance / maxDistance) * intensity * 255).toString(16).padStart(2, '0');
+                    
+                    ctx.strokeStyle = color + alpha;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(ufoArray[i].x, ufoArray[i].y);
+                    ctx.lineTo(ufoArray[j].x, ufoArray[j].y);
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
+    /**
+     * STILE 3: "R-Type-Tekno" - RETRO SHOOTER 🚀
+     * Navicella che spara + nemici + oscilloscopio come sfondo
+     * Mini-gioco infinito integrato nel visualizer!
+     */
+    function drawRTypeTekno(dataArray, analyser) {
+        const bufferLength = analyser.fftSize;
+        const waveData = new Uint8Array(bufferLength);
+        analyser.getByteTimeDomainData(waveData);
+        
+        // Calcola intensità audio per gameplay
+        analyser.getByteFrequencyData(dataArray);
+        const bassSum = dataArray.slice(0, 50).reduce((a, b) => a + b, 0);
+        const bassIntensity = (bassSum / 50) / 255;
+        
+        // === SFONDO: OSCILLOSCOPIO STILE R-TYPE ===
+        ctx.strokeStyle = '#00FF00' + '40';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        const sliceWidth = canvas.width / bufferLength;
+        let x = 0;
+        
+        for (let i = 0; i < bufferLength; i++) {
+            const v = waveData[i] / 128.0;
+            const y = (v * canvas.height) / 2;
+            
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+            x += sliceWidth;
+        }
+        ctx.stroke();
+        
+        // Linea speculare
+        ctx.strokeStyle = '#00FFFF' + '30';
+        ctx.beginPath();
+        x = 0;
+        for (let i = 0; i < bufferLength; i++) {
+            const v = waveData[i] / 128.0;
+            const y = canvas.height - ((v * canvas.height) / 2);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+            x += sliceWidth;
+        }
+        ctx.stroke();
+        
+        // Griglia retro
+        ctx.strokeStyle = '#00FF00' + '10';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < canvas.height; i += 50) {
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(canvas.width, i);
+            ctx.stroke();
+        }
+        
+        // === INIZIALIZZA NAVICELLA ===
+        if (rtype.ship.y === 0) {
+            rtype.ship.y = canvas.height / 2;
+        }
+        
+        // === CONTROLLO NAVICELLA (movimenti con onde audio) ===
+        // Movimento verticale automatico sinusoidale + influenza audio
+        const autoMove = Math.sin(Date.now() * 0.001) * 2;
+        const audioMove = (bassIntensity - 0.5) * 5;
+        rtype.ship.vy = autoMove + audioMove;
+        rtype.ship.y += rtype.ship.vy;
+        
+        // Limiti schermo
+        if (rtype.ship.y < 20) rtype.ship.y = 20;
+        if (rtype.ship.y > canvas.height - 20) rtype.ship.y = canvas.height - 20;
+        
+        // === SPARO AUTOMATICO ===
+        const now = Date.now();
+        if (now - rtype.lastShot > 200) { // Spara ogni 200ms
+            rtype.bullets.push({
+                x: rtype.ship.x + 25,
+                y: rtype.ship.y,
+                vx: 12
+            });
+            rtype.lastShot = now;
+        }
+        
+        // === GENERA NEMICI ===
+        if (now - rtype.lastEnemy > 1500) { // Nuovo nemico ogni 1.5s
+            const enemyType = Math.floor(Math.random() * 3);
+            rtype.enemies.push({
+                x: canvas.width + 30,
+                y: Math.random() * (canvas.height - 100) + 50,
+                vx: -3 - Math.random() * 2,
+                vy: (Math.random() - 0.5) * 2,
+                size: 15 + Math.random() * 10,
+                type: enemyType,
+                hp: 1
+            });
+            rtype.lastEnemy = now;
+        }
+        
+        // === AGGIORNA E DISEGNA NAVICELLA ===
+        drawShip(rtype.ship.x, rtype.ship.y, bassIntensity);
+        
+        // === AGGIORNA E DISEGNA PROIETTILI ===
+        for (let i = rtype.bullets.length - 1; i >= 0; i--) {
+            const bullet = rtype.bullets[i];
+            bullet.x += bullet.vx;
+            
+            // Disegna proiettile
+            ctx.fillStyle = '#FFFF00';
+            ctx.fillRect(bullet.x - 4, bullet.y - 2, 8, 4);
+            
+            // Rimuovi se fuori schermo
+            if (bullet.x > canvas.width + 10) {
+                rtype.bullets.splice(i, 1);
+            }
+        }
+        
+        // === AGGIORNA E DISEGNA NEMICI ===
+        for (let i = rtype.enemies.length - 1; i >= 0; i--) {
+            const enemy = rtype.enemies[i];
+            enemy.x += enemy.vx;
+            enemy.y += enemy.vy;
+            
+            // Rimbalzo verticale
+            if (enemy.y < 30 || enemy.y > canvas.height - 30) {
+                enemy.vy *= -1;
+            }
+            
+            // Disegna nemico
+            drawEnemy(enemy.x, enemy.y, enemy.size, enemy.type);
+            
+            // Rimuovi se fuori schermo
+            if (enemy.x < -50) {
+                rtype.enemies.splice(i, 1);
+                continue;
+            }
+            
+            // === COLLISIONE CON PROIETTILI ===
+            for (let j = rtype.bullets.length - 1; j >= 0; j--) {
+                const bullet = rtype.bullets[j];
+                const dx = bullet.x - enemy.x;
+                const dy = bullet.y - enemy.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < enemy.size + 5) {
+                    // HIT!
+                    rtype.bullets.splice(j, 1);
+                    rtype.enemies.splice(i, 1);
+                    rtype.score++;
+                    
+                    // Particelle esplosione
+                    for (let p = 0; p < 10; p++) {
+                        rtype.particles.push({
+                            x: enemy.x,
+                            y: enemy.y,
+                            vx: (Math.random() - 0.5) * 6,
+                            vy: (Math.random() - 0.5) * 6,
+                            life: 30,
+                            color: ['#FF00FF', '#00FFFF', '#FFFF00'][Math.floor(Math.random() * 3)]
+                        });
+                    }
+                    break;
+                }
+            }
+        }
+        
+        // === AGGIORNA E DISEGNA PARTICELLE ===
+        for (let i = rtype.particles.length - 1; i >= 0; i--) {
+            const p = rtype.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life--;
+            
+            const alpha = (p.life / 30).toFixed(2);
+            ctx.fillStyle = p.color + Math.floor(alpha * 255).toString(16).padStart(2, '0');
+            ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+            
+            if (p.life <= 0) {
+                rtype.particles.splice(i, 1);
+            }
+        }
+        
+        // === SCORE DISPLAY ===
+        ctx.fillStyle = '#00FF00';
+        ctx.font = 'bold 20px monospace';
+        ctx.fillText(`KILLS: ${rtype.score}`, 20, 30);
+        
+        // FPS counter retro
+        ctx.fillStyle = '#00FFFF';
+        ctx.font = '12px monospace';
+        ctx.fillText(`ENEMIES: ${rtype.enemies.length}`, 20, 55);
+        ctx.fillText(`BULLETS: ${rtype.bullets.length}`, 20, 75);
+    }
+    
+    /**
+     * Disegna la navicella (stile R-Type retro)
+     */
+    function drawShip(x, y, intensity) {
+        ctx.save();
+        
+        // Corpo principale
+        ctx.fillStyle = '#00FF00';
+        ctx.beginPath();
+        ctx.moveTo(x + 20, y);
+        ctx.lineTo(x, y - 10);
+        ctx.lineTo(x - 15, y - 5);
+        ctx.lineTo(x - 15, y + 5);
+        ctx.lineTo(x, y + 10);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Bordo bianco
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Cockpit
+        ctx.fillStyle = '#00FFFF';
+        ctx.beginPath();
+        ctx.arc(x + 5, y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Thrust (motore) - pulsa con i bassi
+        const thrustLength = 10 + (intensity * 15);
+        ctx.strokeStyle = '#FFFF00';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x - 15, y);
+        ctx.lineTo(x - 15 - thrustLength, y);
+        ctx.stroke();
+        
+        // Scintille del motore
+        if (Math.random() > 0.5) {
+            ctx.fillStyle = '#FF00FF';
+            ctx.fillRect(x - 20 - Math.random() * 10, y - 2, 3, 4);
+        }
+        
+        ctx.restore();
+    }
+    
+    /**
+     * Disegna nemici (vari tipi)
+     */
+    function drawEnemy(x, y, size, type) {
+        ctx.save();
+        
+        switch(type) {
+            case 0: // Cubo alieno
+                ctx.fillStyle = '#FF00FF';
+                ctx.fillRect(x - size/2, y - size/2, size, size);
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x - size/2, y - size/2, size, size);
+                break;
+                
+            case 1: // Diamante
+                ctx.fillStyle = '#00FFFF';
+                ctx.beginPath();
+                ctx.moveTo(x, y - size);
+                ctx.lineTo(x + size/2, y);
+                ctx.lineTo(x, y + size);
+                ctx.lineTo(x - size/2, y);
+                ctx.closePath();
+                ctx.fill();
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                break;
+                
+            case 2: // Cerchio
+                ctx.fillStyle = '#FFFF00';
+                ctx.beginPath();
+                ctx.arc(x, y, size/2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#FFFFFF';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                break;
+        }
+        
+        // Occhio nemico
+        ctx.fillStyle = '#FF0000';
+        ctx.beginPath();
+        ctx.arc(x - 3, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        ctx.restore();
+    }
+
+    /**
+     * STILE 4: "Glitch-Bars"
+```
+     * Equalizzatore a barre con effetto glitch
+     */
+    function drawGlitchBars(dataArray, analyser) {
+        const bufferLength = analyser.frequencyBinCount;
+        const numBars = 64; // Numero di barre da visualizzare
+        const barWidth = canvas.width / numBars;
+        
+        // Campiona le frequenze
+        const step = Math.floor(bufferLength / numBars);
+        
+        for (let i = 0; i < numBars; i++) {
+            const dataIndex = i * step;
+            const value = dataArray[dataIndex];
+            const barHeight = (value / 255) * canvas.height * 0.8;
+            
+            // Posizione X con piccolo offset casuale per effetto "sporco"
+            const offsetX = (Math.random() > 0.9) ? (Math.random() - 0.5) * 5 : 0;
+            const x = (i * barWidth) + offsetX;
+            
+            // Colore intermittente basato sul valore
+            let color;
+            if (value > 200) {
+                // Picco alto -> colore acido
+                color = acidColors[Math.floor(Math.random() * acidColors.length)];
+            } else if (value > 100) {
+                // Medio -> bianco
+                color = '#FFFFFF';
+            } else {
+                // Basso -> colore acido dim
+                color = acidColors[currentColorIndex] + '80'; // 50% opacity
+            }
+            
+            // Disegna la barra dal basso
+            const y = canvas.height - barHeight;
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, barWidth - 2, barHeight);
+            
+            // Effetto glitch - linee orizzontali casuali
+            if (Math.random() > 0.95 && value > 150) {
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(x, y + (Math.random() * barHeight), barWidth - 2, 2);
+            }
+            
+            // Sfarfallio casuale per barre alte
+            if (value > 180 && Math.random() > 0.8) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.fillRect(x, y, barWidth - 2, barHeight);
+            }
+        }
+    }
+
+    /**
+     * STILE 3: "Oscilloscope"
+     * Forma d'onda audio in stile oscilloscopio "sporco"
+     */
+    function drawOscilloscope(analyser) {
+        const bufferLength = analyser.fftSize;
+        const dataArray = new Uint8Array(bufferLength);
+        
+        // Ottiene i dati del dominio del tempo (forma d'onda)
+        analyser.getByteTimeDomainData(dataArray);
+        
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = acidColors[currentColorIndex];
+        ctx.beginPath();
+        
+        const sliceWidth = canvas.width / bufferLength;
+        let x = 0;
+        
+        for (let i = 0; i < bufferLength; i++) {
+            const v = dataArray[i] / 128.0; // Normalizza a 0-2
+            const y = (v * canvas.height) / 2;
+            
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                // Aggiungi "sporcizia" alla linea
+                const offsetY = (Math.random() > 0.95) ? (Math.random() - 0.5) * 10 : 0;
+                ctx.lineTo(x, y + offsetY);
+            }
+            
+            x += sliceWidth;
+        }
+        
+        ctx.stroke();
+        
+        // Linea speculare per effetto psichedelico
+        ctx.strokeStyle = acidColors[(currentColorIndex + 2) % acidColors.length];
+        ctx.beginPath();
+        x = 0;
+        
+        for (let i = 0; i < bufferLength; i++) {
+            const v = dataArray[i] / 128.0;
+            const y = canvas.height - ((v * canvas.height) / 2);
+            
+            if (i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                const offsetY = (Math.random() > 0.95) ? (Math.random() - 0.5) * 10 : 0;
+                ctx.lineTo(x, y + offsetY);
+            }
+            
+            x += sliceWidth;
+        }
+        
+        ctx.stroke();
+        
+        // Aggiungi punti di "glitch" casuali
+        for (let i = 0; i < 10; i++) {
+            if (Math.random() > 0.7) {
+                const gx = Math.random() * canvas.width;
+                const gy = Math.random() * canvas.height;
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(gx, gy, 3, 3);
+            }
+        }
+    }
+
+    /**
+     * Passa allo stile successivo
+     * @returns {string} Nome dello stile corrente
+     */
+    function nextStyle() {
+        currentStyleIndex = (currentStyleIndex + 1) % styles.length;
+        currentColorIndex = (currentColorIndex + 1) % acidColors.length;
+        console.log(`🎨 Style switched to: ${styles[currentStyleIndex]}`);
+        return styles[currentStyleIndex];
+    }
+
+    /**
+     * Ottiene il nome dello stile corrente
+     * @returns {string} Nome dello stile
+     */
+    function getCurrentStyleName() {
+        return styles[currentStyleIndex];
+    }
+
+    // === ESPORTA L'OGGETTO PUBBLICO ===
+    return {
+        init: init,
+        draw: draw,
+        nextStyle: nextStyle,
+        getCurrentStyleName: getCurrentStyleName
+    };
+
+})();
+
+// Esporta per uso come modulo (se supportato)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = Visualizer;
+}
