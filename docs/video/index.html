@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Underground Tekno - Video</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #000;
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Cyberpunk spiralized background */
+        .spiral-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: 
+                radial-gradient(circle at 50% 50%, transparent 0%, #000 100%),
+                repeating-conic-gradient(from 0deg at 50% 50%, 
+                    #000 0deg, 
+                    #111 2deg, 
+                    #000 4deg, 
+                    #0a0a0a 6deg);
+            animation: spiral-rotate 30s linear infinite;
+        }
+
+        @keyframes spiral-rotate {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        /* Scanline overlay */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255, 255, 255, 0.03) 0px,
+                transparent 1px,
+                transparent 2px,
+                rgba(255, 255, 255, 0.03) 3px
+            );
+            pointer-events: none;
+            animation: scan 8s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(10px); }
+        }
+
+        /* Glitch effect overlay */
+        .glitch {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 3;
+            pointer-events: none;
+            mix-blend-mode: screen;
+            opacity: 0.1;
+            animation: glitch-anim 3s infinite;
+        }
+
+        @keyframes glitch-anim {
+            0%, 100% { 
+                transform: translate(0);
+                filter: hue-rotate(0deg);
+            }
+            25% { 
+                transform: translate(-2px, 2px);
+                filter: hue-rotate(90deg);
+            }
+            50% { 
+                transform: translate(2px, -2px);
+                filter: hue-rotate(180deg);
+            }
+            75% { 
+                transform: translate(-2px, -2px);
+                filter: hue-rotate(270deg);
+            }
+        }
+
+        /* Video container */
+        .video-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            width: 80vw;
+            max-width: 1200px;
+            aspect-ratio: 16/9;
+            border: 3px solid #00FF00;
+            box-shadow: 
+                0 0 20px rgba(0, 255, 0, 0.5),
+                0 0 40px rgba(0, 255, 0, 0.3),
+                inset 0 0 20px rgba(0, 255, 0, 0.1);
+            animation: border-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes border-pulse {
+            0%, 100% {
+                border-color: #00FF00;
+                box-shadow: 
+                    0 0 20px rgba(0, 255, 0, 0.5),
+                    0 0 40px rgba(0, 255, 0, 0.3),
+                    inset 0 0 20px rgba(0, 255, 0, 0.1);
+            }
+            50% {
+                border-color: #FF00FF;
+                box-shadow: 
+                    0 0 30px rgba(255, 0, 255, 0.5),
+                    0 0 60px rgba(255, 0, 255, 0.3),
+                    inset 0 0 30px rgba(255, 0, 255, 0.1);
+            }
+        }
+
+        #video-player {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Header */
+        .header {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: #00FF00;
+            text-shadow: 
+                0 0 10px #00FF00,
+                0 0 20px #00FF00,
+                0 0 30px #00FF00,
+                2px 2px 0 #FF00FF,
+                -2px -2px 0 #00FFFF;
+            animation: text-glitch 1s infinite;
+        }
+
+        @keyframes text-glitch {
+            0%, 100% {
+                text-shadow: 
+                    0 0 10px #00FF00,
+                    0 0 20px #00FF00,
+                    0 0 30px #00FF00,
+                    2px 2px 0 #FF00FF,
+                    -2px -2px 0 #00FFFF;
+            }
+            50% {
+                text-shadow: 
+                    0 0 20px #FF00FF,
+                    0 0 40px #FF00FF,
+                    0 0 60px #FF00FF,
+                    -2px 2px 0 #00FF00,
+                    2px -2px 0 #00FFFF;
+            }
+        }
+
+        /* Controls */
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .control-btn {
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00FF00;
+            color: #00FF00;
+            padding: 15px 30px;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+        }
+
+        .control-btn:hover {
+            border-color: #FF00FF;
+            color: #FF00FF;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+            transform: scale(1.05);
+        }
+
+        .video-info {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00FF00;
+            padding: 10px 20px;
+            font-size: 0.9rem;
+            color: #00FF00;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Back button */
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 20;
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00FF00;
+            color: #00FF00;
+            padding: 10px 20px;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Courier New', monospace;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .back-btn:hover {
+            border-color: #FF00FF;
+            color: #FF00FF;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .video-container {
+                width: 95vw;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .control-btn {
+                padding: 10px 20px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="spiral-bg"></div>
+    <div class="scanlines"></div>
+    <div class="glitch"></div>
+
+    <a href="../index.html" class="back-btn">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+
+    <div class="header">
+        <h1>⚡ Video Stream ⚡</h1>
+    </div>
+
+    <div class="video-container">
+        <iframe 
+            id="video-player"
+            src="https://www.youtube.com/embed?listType=playlist&list=PLkqqnvRQ4WdL27H7vDLKF5T77aztG3Zn2&autoplay=1&loop=1&rel=0&modestbranding=1"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen>
+        </iframe>
+    </div>
+
+    <div class="video-info" id="video-info">
+        Playing: Free Underground Tekno Playlist
+    </div>
+
+    <div class="controls">
+        <button class="control-btn" onclick="togglePlaylist()">
+            <i class="fas fa-random"></i> Shuffle
+        </button>
+        <button class="control-btn" onclick="reloadVideo()">
+            <i class="fas fa-redo"></i> Reload
+        </button>
+    </div>
+
+    <script>
+        // Video playlist from YouTube channel
+        const videos = [
+            'PLkqqnvRQ4WdL27H7vDLKF5T77aztG3Zn2'
+        ];
+
+        let currentVideoIndex = 0;
+        let isPlaylistMode = true;
+
+        function togglePlaylist() {
+            isPlaylistMode = !isPlaylistMode;
+            if (isPlaylistMode) {
+                loadPlaylist();
+            } else {
+                loadRandomVideo();
+            }
+        }
+
+        function loadPlaylist() {
+            const iframe = document.getElementById('video-player');
+            iframe.src = `https://www.youtube.com/embed?listType=playlist&list=${videos[0]}&autoplay=1&loop=1&rel=0&modestbranding=1`;
+            document.getElementById('video-info').textContent = 'Playing: Free Underground Tekno Playlist';
+        }
+
+        function loadRandomVideo() {
+            // Reload the playlist to get a fresh random order
+            reloadVideo();
+        }
+
+        function reloadVideo() {
+            const iframe = document.getElementById('video-player');
+            const currentSrc = iframe.src;
+            iframe.src = '';
+            setTimeout(() => {
+                iframe.src = currentSrc;
+            }, 100);
+        }
+
+        // Optional: Add keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'KeyR') {
+                reloadVideo();
+            } else if (e.code === 'KeyS') {
+                togglePlaylist();
+            }
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Free Underground Tekno Video Player initialized');
+        });
+    </script>
+</body>
+</html>
