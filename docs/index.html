@@ -3,118 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Free Underground Tekno - Digital Wall</title>
-    
-    <!-- Font Awesome per le icone -->
+    <title>Free Underground Tekno - Hub</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
-    
-    <!-- Foglio di stile principale -->
-    <link rel="stylesheet" href="css/style.css">
-    
-    <!-- Meta tags -->
-    <meta name="description" content="Free Underground Tekno Radio - Immersive Audio-Reactive Experience">
-    <meta name="keywords" content="tekno, underground, radio, free party, rave">
-    <meta name="author" content="Free Underground Tekno">
-    
-    <!-- Open Graph -->
-    <meta property="og:title" content="Free Underground Tekno Radio">
-    <meta property="og:description" content="Experience the Digital Wall - Audio-reactive underground tekno stream">
-    <meta property="og:type" content="website">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #000;
+            color: #00FF00;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(0, 255, 0, 0.03) 2px,
+                    rgba(0, 255, 0, 0.03) 4px
+                );
+            animation: scan 8s linear infinite;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(20px); }
+        }
+
+        .container {
+            text-align: center;
+            z-index: 10;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 10px #00FF00, 0 0 20px #00FF00, 0 0 30px #00FF00;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+                text-shadow: 0 0 10px #00FF00, 0 0 20px #00FF00, 0 0 30px #00FF00;
+            }
+            50% {
+                opacity: 0.8;
+                text-shadow: 0 0 20px #00FF00, 0 0 40px #00FF00, 0 0 60px #00FF00;
+            }
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 3rem;
+            color: #FF00FF;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .links {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .link-card {
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00FF00;
+            padding: 2rem 3rem;
+            text-decoration: none;
+            color: #00FF00;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .link-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .link-card:hover::before {
+            left: 100%;
+        }
+
+        .link-card:hover {
+            border-color: #FF00FF;
+            color: #FF00FF;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #00FF00, 0 0 40px #00FF00;
+        }
+
+        .link-card i {
+            display: block;
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .footer {
+            position: absolute;
+            bottom: 20px;
+            font-size: 0.8rem;
+            color: #00FF00;
+            opacity: 0.7;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .subtitle {
+                font-size: 1rem;
+            }
+
+            .link-card {
+                padding: 1.5rem 2rem;
+                font-size: 1.2rem;
+            }
+
+            .link-card i {
+                font-size: 2rem;
+            }
+
+            .links {
+                gap: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-
-    <!-- Canvas per il visualizer audio-reattivo (background) -->
-    <canvas id="audio-visualizer"></canvas>
-
-    <!-- Contenitore del player -->
-    <div id="player-container">
-        <div id="play-pause-btn">
-            <i class="fas fa-play" id="play-icon"></i>
-            <i class="fas fa-pause" id="pause-icon" style="display: none;"></i>
+    <div class="container">
+        <h1>⚡ Free Underground Tekno ⚡</h1>
+        <p class="subtitle">Choose Your Experience</p>
+        
+        <div class="links">
+            <a href="radio/index.html" class="link-card">
+                <i class="fas fa-broadcast-tower"></i>
+                <span>Radio</span>
+            </a>
+            <a href="video/index.html" class="link-card">
+                <i class="fas fa-video"></i>
+                <span>Video</span>
+            </a>
         </div>
     </div>
 
-    <!-- Elemento audio (nascosto) -->
-    <audio 
-        id="audio-player" 
-        src="https://radio.freeundergroundtekno.org/listen/free_underground_tekno/radio.mp3" 
-        crossorigin="anonymous"
-        preload="metadata">
-    </audio>
-
-    <!-- Info Overlay (nascosto inizialmente) -->
-    <div id="info-overlay">
-        <h3>Free Underground Tekno</h3>
-        <p>Broadcasting: 24/7 Underground Tekno</p>
-        <p>Status: <span id="stream-status">Connecting...</span></p>
+    <div class="footer">
+        Free Underground Tekno - Since 2008
     </div>
-
-    <!-- Indicatore stile visualizer -->
-    <div id="style-indicator">Psych-Spiral</div>
-
-    <!-- Indicatore volume -->
-    <div id="volume-indicator">VOL: 100%</div>
-
-    <!-- Istruzioni (visibili all'avvio) -->
-        <!-- Istruzioni (visibili all'avvio) -->
-    <div id="instructions">
-        <h2>⚡ Digital Wall ⚡</h2>
-        <ul>
-            <li><strong>CLICK / SPACE</strong> → Play/Pause</li>
-            <li><strong>MOVE UP/DOWN</strong> → Volume</li>
-            <li><strong>DOUBLE CLICK</strong> → Change Style</li>
-            <li><strong>ARROWS ←/→</strong> → Change Style</li>
-        </ul>
-    </div>
-
-    <!-- Loading Spinner -->
-    <div id="loading-spinner"></div>
-
-    <!-- Visualizer Modules (caricati prima del manager) -->
-    <script src="js/visualizers/psych-spiral.js"></script>
-    <script src="js/visualizers/ufo-swarm.js"></script>
-    <script src="js/visualizers/rtype-tekno.js"></script>
-    <script src="js/visualizers/quantum-morphing.js"></script>
-    <script src="js/visualizers/liquid-plasma.js"></script>
-    <script src="js/visualizers/matrix-rain.js"></script>
-    <script src="js/visualizers/warp-tunnel.js"></script>
-    <script src="js/visualizers/fireworks.js"></script>
-    <script src="js/visualizers/spider-web.js"></script>
-    <script src="js/visualizers/dna-helix.js"></script>
-    <script src="js/visualizers/fractal-mandala.js"></script>
-    <script src="js/visualizers/lightning-storm.js"></script>
-    <script src="js/visualizers/radar-sweep.js"></script>
-    <script src="js/visualizers/sound-waves.js"></script>
-    <script src="js/visualizers/sound-system-wall.js"></script>
-    <script src="js/visualizers/rave-slideshow.js"></script>
-    <script src="js/visualizers/strobo.js"></script>
-    <script src="js/visualizers/laser-grid.js"></script>
-    <script src="js/visualizers/radio-logo-pulse.js"></script>
-    <script src="js/visualizers/acid-spiral-lsd.js"></script>
-    <script src="js/visualizers/vinyl-turntables.js"></script>
-    <script src="js/visualizers/particle-storm.js"></script>
-    <script src="js/visualizers/neon-tunnel.js"></script>
-    <script src="js/visualizers/analog-oscilloscope.js"></script>
-    <script src="js/visualizers/rgb-strobe.js"></script>
-    <script src="js/visualizers/analog-synth.js"></script>
-    <script src="js/visualizers/color-burst.js"></script>
-    <script src="js/visualizers/retro-spectrum.js"></script>
-    <script src="js/visualizers/glitch-city.js"></script>
-    <script src="js/visualizers/rave-crowd.js"></script>
-    <script src="js/visualizers/sub-stack-tower.js"></script>
-    <script src="js/visualizers/frequency-bars-3d.js"></script>
-    <script src="js/visualizers/hologram-cube.js"></script>
-    <script src="js/visualizers/energy-field.js"></script>
-    <script src="js/visualizers/cosmic-dust.js"></script>
-    <script src="js/visualizers/vector-field.js"></script>
-    <script src="js/visualizers/audio-terrain.js"></script>
-    <script src="js/visualizers/kaleidoscope.js"></script>
-    
-    <!-- Visualizer Manager (modular version) -->
-    <script src="js/visualizer-manager.js"></script>
-    
-    <!-- Script principale (orchestrazione) -->
-    <script src="js/main.js"></script>
-
 </body>
 </html>
