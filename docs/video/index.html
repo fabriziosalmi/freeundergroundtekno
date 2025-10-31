@@ -341,9 +341,8 @@
         }
 
         function loadRandomVideo() {
-            // If we switch to individual video mode in the future
-            // For now, just reload the playlist
-            loadPlaylist();
+            // Reload the playlist to get a fresh random order
+            reloadVideo();
         }
 
         function reloadVideo() {
@@ -357,10 +356,7 @@
 
         // Optional: Add keyboard controls
         document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
-                e.preventDefault();
-                // Space key handling (YouTube iframe handles this internally)
-            } else if (e.code === 'KeyR') {
+            if (e.code === 'KeyR') {
                 reloadVideo();
             } else if (e.code === 'KeyS') {
                 togglePlaylist();
