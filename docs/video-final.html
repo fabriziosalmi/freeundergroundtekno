@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FREE UNDERGROUND TEKNO - Visual Experience</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* SOUND SYSTEM COMPONENTS */
+        #soundSystem {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: contrast(1.2) saturate(1.5);
+        }
+        
+        .sound-stack {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            position: relative;
+        }
+        
+        .sound-stack-left {
+            position: absolute;
+            left: 15%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .sound-stack-right {
+            position: absolute;
+            right: 15%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        /* SUB BASS WOOFERS - Bottom speakers */
+        .subwoofer {
+            width: 200px;
+            height: 200px;
+            background: 
+                linear-gradient(45deg, transparent 30%, rgba(255,0,0,0.1) 50%, transparent 70%),
+                repeating-linear-gradient(0deg, #000 0px, #1a1a1a 2px, #000 4px),
+                radial-gradient(circle at 30% 30%, #2a0000, #000);
+            border: 5px solid #ff0000;
+            border-radius: 12px;
+            box-shadow: 
+                inset 0 0 60px rgba(255,0,0,0.3),
+                inset 0 0 30px rgba(0,0,0,0.9),
+                0 0 40px rgba(255,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .subwoofer::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-conic-gradient(
+                from 0deg at 50% 50%,
+                transparent 0deg,
+                rgba(255,0,0,0.05) 10deg,
+                transparent 20deg
+            );
+            animation: rotateGrill 20s linear infinite;
+        }
+        
+        .subwoofer::after {
+            content: 'SUB';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff0000;
+            font-size: 11px;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ff0000;
+            letter-spacing: 2px;
+        }
+        
+        @keyframes rotateGrill {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .subwoofer-cone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140px;
+            height: 140px;
+            background: 
+                repeating-radial-gradient(circle at center, #000 0px, #300 10px, #000 20px),
+                radial-gradient(circle at 40% 40%, #500, #000);
+            border-radius: 50%;
+            border: 4px double #ff0000;
+            box-shadow: 
+                inset 0 0 40px rgba(255,0,0,0.5),
+                0 0 30px rgba(255,0,0,0.3);
+        }
+        
+        .subwoofer-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            background: 
+                radial-gradient(circle at center, #ff0000 0%, #000 50%),
+                conic-gradient(from 0deg, #ff0000, #ff6600, #ff0000);
+            border-radius: 50%;
+            border: 2px solid #ff0000;
+            box-shadow: 
+                0 0 20px rgba(255,0,0,0.8),
+                inset 0 0 15px rgba(255,0,0,0.5);
+            animation: rotatePulse 2s linear infinite;
+        }
+        
+        @keyframes rotatePulse {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        /* BASS SPEAKERS */
+        .bass-speaker {
+            width: 180px;
+            height: 180px;
+            background: 
+                repeating-linear-gradient(90deg, #000 0px, #2a1100 5px, #000 10px),
+                linear-gradient(145deg, #1a0800, #000);
+            border: 4px solid #ff6600;
+            border-radius: 10px;
+            box-shadow: 
+                inset 0 0 50px rgba(255,102,0,0.3),
+                0 0 40px rgba(255,102,0,0.3);
+            clip-path: polygon(8% 0%, 92% 0%, 100% 8%, 100% 92%, 92% 100%, 8% 100%, 0% 92%, 0% 8%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .bass-speaker::after {
+            content: 'BASS';
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ff6600;
+            font-size: 10px;
+            font-weight: bold;
+            text-shadow: 0 0 8px #ff6600;
+            letter-spacing: 1px;
+        }
+        
+        .bass-cone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            background: 
+                repeating-radial-gradient(circle at center, #ff6600 0px, #000 4px, #ff6600 8px, #000 12px),
+                radial-gradient(circle at 35% 35%, #ff6600, #000);
+            border-radius: 50%;
+            border: 3px groove #ff6600;
+            box-shadow: 
+                inset 0 0 40px rgba(255,102,0,0.6),
+                0 0 25px rgba(255,102,0,0.4);
+        }
+        
+        /* LOW MID SPEAKERS */
+        .lowmid-speaker {
+            width: 160px;
+            height: 160px;
+            background: 
+                repeating-linear-gradient(45deg, #000 0px, #2a2200 5px, #000 10px),
+                linear-gradient(135deg, #1a1800, #000);
+            border: 4px solid #ffaa00;
+            border-radius: 8px;
+            box-shadow: 
+                inset 0 0 45px rgba(255,170,0,0.3),
+                0 0 35px rgba(255,170,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .lowmid-speaker::after {
+            content: 'LOW';
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffaa00;
+            font-size: 9px;
+            font-weight: bold;
+            text-shadow: 0 0 8px #ffaa00;
+            letter-spacing: 1px;
+        }
+        
+        .lowmid-cone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            background: 
+                conic-gradient(from 0deg, #ffaa00, #ff8800, #ffaa00),
+                radial-gradient(circle at 35% 35%, #ffaa00, #000);
+            border-radius: 50%;
+            border: 3px ridge #ffaa00;
+            box-shadow: 
+                inset 0 0 35px rgba(255,170,0,0.6),
+                0 0 20px rgba(255,170,0,0.4);
+        }
+        
+        /* MID SPEAKERS - Middle */
+        .mid-speaker {
+            width: 140px;
+            height: 140px;
+            background: 
+                linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000),
+                linear-gradient(45deg, #000 25%, #2a2a00 25%, #2a2a00 75%, #000 75%, #000);
+            background-size: 15px 15px;
+            background-position: 0 0, 7.5px 7.5px;
+            border: 3px solid #ffff00;
+            border-radius: 8px;
+            box-shadow: 
+                inset 0 0 40px rgba(255,255,0,0.3),
+                0 0 30px rgba(255,255,0,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .mid-speaker::after {
+            content: 'MID';
+            position: absolute;
+            top: 4px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffff00;
+            font-size: 9px;
+            font-weight: bold;
+            text-shadow: 0 0 8px #ffff00;
+            letter-spacing: 1px;
+        }
+        
+        .mid-cone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 85px;
+            height: 85px;
+            background: 
+                conic-gradient(from 0deg, #ffff00, #ff0, #880, #ff0, #ffff00),
+                radial-gradient(circle at 30% 30%, #ffff00, #000);
+            border-radius: 50%;
+            border: 3px ridge #ffff00;
+            box-shadow: 
+                inset 0 0 30px rgba(255,255,0,0.6),
+                0 0 20px rgba(255,255,0,0.4);
+            animation: midSpin 5s linear infinite;
+        }
+        
+        @keyframes midSpin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        /* HIGH MID SPEAKERS */
+        .highmid-speaker {
+            width: 120px;
+            height: 120px;
+            background: 
+                repeating-linear-gradient(0deg, #000 0px, #002a2a 3px, #000 6px),
+                radial-gradient(circle at 50% 50%, #003333, #000);
+            border: 3px solid #00ffaa;
+            border-radius: 50%;
+            box-shadow: 
+                inset 0 0 35px rgba(0,255,170,0.3),
+                0 0 25px rgba(0,255,170,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .highmid-speaker::after {
+            content: 'HI';
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffaa;
+            font-size: 8px;
+            font-weight: bold;
+            text-shadow: 0 0 8px #00ffaa;
+            letter-spacing: 1px;
+        }
+        
+        .highmid-cone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70px;
+            height: 70px;
+            background: 
+                radial-gradient(circle at 40% 40%, #00ffaa, #006655, #000);
+            border-radius: 50%;
+            border: 2px solid #00ffaa;
+            box-shadow: 
+                inset 0 0 25px rgba(0,255,170,0.6),
+                0 0 15px rgba(0,255,170,0.4);
+        }
+        
+        /* TWEETER - Top high frequency */
+        .tweeter {
+            width: 100px;
+            height: 100px;
+            background: 
+                radial-gradient(circle at 50% 50%, #00ffff 0%, #000 70%),
+                repeating-radial-gradient(circle at 50% 50%, #000 0px, #003333 6px, #000 12px);
+            border: 3px double #00ffff;
+            border-radius: 50%;
+            box-shadow: 
+                inset 0 0 25px rgba(0,255,255,0.5),
+                0 0 30px rgba(0,255,255,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tweeter::after {
+            content: 'TW';
+            position: absolute;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffff;
+            font-size: 8px;
+            font-weight: bold;
+            text-shadow: 0 0 8px #00ffff;
+            letter-spacing: 1px;
+        }
+        
+        .tweeter-cone {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            background: 
+                radial-gradient(circle at 60% 40%, #00ffff, #006666, #000);
+            border-radius: 50%;
+            border: 2px solid #00ffff;
+            box-shadow: 
+                inset 0 0 20px rgba(0,255,255,0.7),
+                0 0 15px rgba(0,255,255,0.5);
+        }
+        
+        /* LASER EFFECTS */
+        .laser {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--laser-color), transparent);
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 0 10px var(--laser-color), 0 0 20px var(--laser-color);
+            animation: laserSweep 2s ease-in-out infinite;
+        }
+        
+        @keyframes laserSweep {
+            0%, 100% { opacity: 0; transform: translateY(0); }
+            50% { opacity: 0.8; transform: translateY(-100px); }
+        }
+        
+        .laser-left {
+            left: 15%;
+            top: 50%;
+            width: 30%;
+            --laser-color: #ff00ff;
+        }
+        
+        .laser-right {
+            right: 15%;
+            top: 50%;
+            width: 30%;
+            --laser-color: #00ff00;
+        }
+        
+        .laser-center {
+            left: 50%;
+            top: 20%;
+            width: 40%;
+            transform: translateX(-50%);
+            --laser-color: #00ffff;
+        }
+        
+        /* STROBE LIGHTS */
+        .strobe {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--strobe-color), transparent);
+            opacity: 0;
+            pointer-events: none;
+            box-shadow: 0 0 50px var(--strobe-color);
+        }
+        
+        .strobe-tl {
+            top: 5%;
+            left: 5%;
+            --strobe-color: #ff0000;
+        }
+        
+        .strobe-tr {
+            top: 5%;
+            right: 5%;
+            --strobe-color: #00ff00;
+        }
+        
+        .strobe-bl {
+            bottom: 5%;
+            left: 5%;
+            --strobe-color: #0000ff;
+        }
+        
+        .strobe-br {
+            bottom: 5%;
+            right: 5%;
+            --strobe-color: #ff00ff;
+        }
+        
+        /* CENTER LOGO */
+        .center-logo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 350px;
+            height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            border: 5px double #0f0;
+            border-radius: 30px;
+            background: 
+                repeating-linear-gradient(45deg, #000 0px, #001100 10px, #000 20px),
+                radial-gradient(circle at center, rgba(0,50,0,0.8), rgba(0,0,0,0.95));
+            box-shadow: 
+                inset 0 0 80px rgba(0,255,0,0.3),
+                0 0 60px rgba(0,255,0,0.4),
+                0 0 100px rgba(0,255,0,0.2);
+            position: relative;
+            overflow: hidden;
+            animation: logoBreath 3s ease-in-out infinite;
+        }
+        
+        @keyframes logoBreath {
+            0%, 100% { border-color: #0f0; }
+            50% { border-color: #0ff; }
+        }
+        
+        .center-logo::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                repeating-conic-gradient(
+                    from 0deg at 50% 50%,
+                    transparent 0deg,
+                    rgba(0,255,0,0.1) 30deg,
+                    transparent 60deg
+                );
+            animation: logoRotate 20s linear infinite;
+        }
+        
+        @keyframes logoRotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .center-logo::after {
+            content: '◢◣◤◥';
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #0f0;
+            font-size: 20px;
+            text-shadow: 0 0 20px #0f0;
+            animation: symbolPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes symbolPulse {
+            0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+            50% { opacity: 0.5; transform: translateX(-50%) scale(1.3); }
+        }
+        
+        .center-logo h1 {
+            color: #0f0;
+            font-size: 32px;
+            text-align: center;
+            text-shadow: 
+                0 0 30px #0f0,
+                0 0 60px #0f0,
+                0 0 90px rgba(0,255,0,0.5);
+            margin: 8px;
+            position: relative;
+            z-index: 2;
+            letter-spacing: 4px;
+            animation: textGlitch 5s ease-in-out infinite;
+        }
+        
+        @keyframes textGlitch {
+            0%, 90%, 100% { 
+                text-shadow: 0 0 30px #0f0, 0 0 60px #0f0; 
+                transform: translateX(0);
+            }
+            92% { 
+                text-shadow: -5px 0 30px #f00, 5px 0 60px #0ff; 
+                transform: translateX(-5px);
+            }
+            94% { 
+                text-shadow: 5px 0 30px #f00, -5px 0 60px #0ff; 
+                transform: translateX(5px);
+            }
+            96% { 
+                text-shadow: 0 0 30px #0f0, 0 0 60px #0f0; 
+                transform: translateX(0);
+            }
+        }
+        
+        /* WIRES/CONNECTIONS */
+        .wire {
+            position: absolute;
+            height: 3px;
+            background: linear-gradient(90deg, #333, #666, #333);
+            opacity: 0.5;
+        }
+        
+        /* EXTRA CYBERPUNK EFFECTS */
+        @keyframes glitchAnim {
+            0% { clip-path: inset(40% 0 61% 0); }
+            20% { clip-path: inset(92% 0 1% 0); }
+            40% { clip-path: inset(43% 0 1% 0); }
+            60% { clip-path: inset(25% 0 58% 0); }
+            80% { clip-path: inset(54% 0 7% 0); }
+            100% { clip-path: inset(58% 0 43% 0); }
+        }
+        
+        /* Particle effects container */
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #0f0;
+            border-radius: 50%;
+            pointer-events: none;
+            animation: particleFloat 3s ease-in-out infinite;
+        }
+        
+        @keyframes particleFloat {
+            0%, 100% { 
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            50% { 
+                transform: translateY(-100px) translateX(50px);
+            }
+        }
+        
+        /* Scan lines effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent 0px,
+                rgba(0,255,0,0.03) 1px,
+                transparent 2px
+            );
+            pointer-events: none;
+            z-index: 1000;
+            animation: scanlines 8s linear infinite;
+        }
+        
+        @keyframes scanlines {
+            from { transform: translateY(0); }
+            to { transform: translateY(10px); }
+        }
+        
+        /* VHS glitch effect */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                transparent 0%,
+                rgba(255,0,0,0.05) 50%,
+                transparent 100%
+            );
+            pointer-events: none;
+            z-index: 999;
+            animation: vhsGlitch 0.3s steps(2) infinite;
+        }
+        
+        @keyframes vhsGlitch {
+            0% { transform: translateX(0); opacity: 0; }
+            50% { transform: translateX(5px); opacity: 0.1; }
+            100% { transform: translateX(-5px); opacity: 0; }
+        }
+        
+        #info {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            color: #0F0;
+            font-size: 14px;
+            z-index: 10;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border: 2px solid #0F0;
+            text-shadow: 0 0 10px #0F0;
+        }
+        
+        #playButton {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 30px 60px;
+            font-size: 28px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            background: rgba(0, 255, 0, 0.2);
+            color: #0F0;
+            border: 3px solid #0F0;
+            cursor: pointer;
+            z-index: 100;
+            text-shadow: 0 0 20px #0F0;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.5);
+            transition: all 0.3s;
+        }
+        
+        #playButton:hover {
+            background: rgba(0, 255, 0, 0.4);
+            box-shadow: 0 0 50px rgba(0, 255, 0, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="soundSystem">
+            <!-- LEFT CHANNEL STACK -->
+            <div class="sound-stack sound-stack-left">
+                <!-- Tweeter Left -->
+                <div class="tweeter">
+                    <div class="tweeter-cone"></div>
+                </div>
+                
+                <!-- High Mid Left -->
+                <div class="highmid-speaker">
+                    <div class="highmid-cone"></div>
+                </div>
+                
+                <!-- Mid Left -->
+                <div class="mid-speaker">
+                    <div class="mid-cone"></div>
+                </div>
+                
+                <!-- Low Mid Left -->
+                <div class="lowmid-speaker">
+                    <div class="lowmid-cone"></div>
+                </div>
+                
+                <!-- Bass Left -->
+                <div class="bass-speaker">
+                    <div class="bass-cone"></div>
+                </div>
+                
+                <!-- Sub Bass Left -->
+                <div class="subwoofer">
+                    <div class="subwoofer-cone">
+                        <div class="subwoofer-center"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- RIGHT CHANNEL STACK -->
+            <div class="sound-stack sound-stack-right">
+                <!-- Tweeter Right -->
+                <div class="tweeter">
+                    <div class="tweeter-cone"></div>
+                </div>
+                
+                <!-- High Mid Right -->
+                <div class="highmid-speaker">
+                    <div class="highmid-cone"></div>
+                </div>
+                
+                <!-- Mid Right -->
+                <div class="mid-speaker">
+                    <div class="mid-cone"></div>
+                </div>
+                
+                <!-- Low Mid Right -->
+                <div class="lowmid-speaker">
+                    <div class="lowmid-cone"></div>
+                </div>
+                
+                <!-- Bass Right -->
+                <div class="bass-speaker">
+                    <div class="bass-cone"></div>
+                </div>
+                
+                <!-- Sub Bass Right -->
+                <div class="subwoofer">
+                    <div class="subwoofer-cone">
+                        <div class="subwoofer-center"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CENTER LOGO -->
+            <div class="center-logo">
+                <h1>FREE</h1>
+                <h1>UNDERGROUND</h1>
+                <h1>TEKNO</h1>
+            </div>
+            
+            <!-- LASER EFFECTS -->
+            <div class="laser laser-left"></div>
+            <div class="laser laser-right"></div>
+            <div class="laser laser-center"></div>
+            
+            <!-- STROBE LIGHTS -->
+            <div class="strobe strobe-tl"></div>
+            <div class="strobe strobe-tr"></div>
+            <div class="strobe strobe-bl"></div>
+            <div class="strobe strobe-br"></div>
+        </div>
+    </div>
+    
+    <button id="playButton">▶ START VISUAL EXPERIENCE</button>
+    
+    <div id="info">
+        <div>🎵 FREE UNDERGROUND TEKNO</div>
+        <div>FREQ: <span id="freq">0</span></div>
+        <div>BASS: <span id="bass">0</span>%</div>
+        <div>STATUS: <span id="status">READY</span></div>
+    </div>
+
+    <script>
+        const playButton = document.getElementById('playButton');
+        
+        let audioContext, analyser, dataArray;
+        let isPlaying = false;
+        
+        // Get all speaker elements for LEFT and RIGHT channels
+        const leftStack = document.querySelector('.sound-stack-left');
+        const rightStack = document.querySelector('.sound-stack-right');
+        
+        const speakers = {
+            left: {
+                tweeter: leftStack.querySelector('.tweeter'),
+                tweeterCone: leftStack.querySelector('.tweeter-cone'),
+                highMid: leftStack.querySelector('.highmid-speaker'),
+                highMidCone: leftStack.querySelector('.highmid-cone'),
+                mid: leftStack.querySelector('.mid-speaker'),
+                midCone: leftStack.querySelector('.mid-cone'),
+                lowMid: leftStack.querySelector('.lowmid-speaker'),
+                lowMidCone: leftStack.querySelector('.lowmid-cone'),
+                bass: leftStack.querySelector('.bass-speaker'),
+                bassCone: leftStack.querySelector('.bass-cone'),
+                sub: leftStack.querySelector('.subwoofer'),
+                subCone: leftStack.querySelector('.subwoofer-cone'),
+                subCenter: leftStack.querySelector('.subwoofer-center')
+            },
+            right: {
+                tweeter: rightStack.querySelector('.tweeter'),
+                tweeterCone: rightStack.querySelector('.tweeter-cone'),
+                highMid: rightStack.querySelector('.highmid-speaker'),
+                highMidCone: rightStack.querySelector('.highmid-cone'),
+                mid: rightStack.querySelector('.mid-speaker'),
+                midCone: rightStack.querySelector('.mid-cone'),
+                lowMid: rightStack.querySelector('.lowmid-speaker'),
+                lowMidCone: rightStack.querySelector('.lowmid-cone'),
+                bass: rightStack.querySelector('.bass-speaker'),
+                bassCone: rightStack.querySelector('.bass-cone'),
+                sub: rightStack.querySelector('.subwoofer'),
+                subCone: rightStack.querySelector('.subwoofer-cone'),
+                subCenter: rightStack.querySelector('.subwoofer-center')
+            }
+        };
+        
+        const centerLogo = document.querySelector('.center-logo');
+        const lasers = document.querySelectorAll('.laser');
+        const strobes = document.querySelectorAll('.strobe');
+        
+        // Audio setup
+        async function initAudio() {
+            if (audioContext) return;
+            
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 1024;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+            
+            const audio = new Audio('https://radio.freeundergroundtekno.org/listen/free_underground_tekno/radio.mp3');
+            audio.crossOrigin = "anonymous";
+            
+            const source = audioContext.createMediaElementSource(audio);
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+            
+            audio.play();
+            isPlaying = true;
+            
+            document.getElementById('status').textContent = 'RAVING';
+            playButton.style.display = 'none';
+            
+            animate();
+        }
+        
+        playButton.addEventListener('click', initAudio);
+        
+        // Get frequency bands
+        function getAudioMetrics() {
+            analyser.getByteFrequencyData(dataArray);
+            
+            const bands = {
+                subBass: { start: 0, end: 10, value: 0 },      // 20-60 Hz
+                bass: { start: 10, end: 40, value: 0 },        // 60-250 Hz
+                lowMid: { start: 40, end: 70, value: 0 },      // 250-500 Hz
+                mid: { start: 70, end: 150, value: 0 },        // 500-2K Hz
+                highMid: { start: 150, end: 250, value: 0 },   // 2K-4K Hz
+                treble: { start: 250, end: 512, value: 0 }     // 4K-20K Hz
+            };
+            
+            Object.values(bands).forEach(band => {
+                let sum = 0;
+                for (let i = band.start; i < band.end; i++) {
+                    sum += dataArray[i];
+                }
+                band.value = sum / (band.end - band.start) / 255;
+            });
+            
+            // Additional metrics
+            let peak = 0;
+            let rms = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                const val = dataArray[i] / 255;
+                if (dataArray[i] > peak) peak = dataArray[i];
+                rms += val * val;
+            }
+            peak = peak / 255;
+            rms = Math.sqrt(rms / dataArray.length);
+            
+            const punch = Math.max(0, bands.bass.value + bands.subBass.value - 0.5) * 2;
+            const brightness = (bands.highMid.value + bands.treble.value) / 2;
+            const warmth = (bands.lowMid.value + bands.mid.value) / 2;
+            
+            return { bands, peak, rms, punch, brightness, warmth };
+        }
+        
+        // Apply effects to speaker
+        function applyEffects(speaker, cone, center, value, color, channelOffset = 0) {
+            const glow = Math.floor(value * 100);
+            const scale = 1 + value * 0.5;
+            const rotation = value * 30 + channelOffset;
+            
+            if (cone) {
+                cone.style.transform = `translate(-50%, -50%) scale(${scale}) rotate(${rotation}deg)`;
+                cone.style.boxShadow = `
+                    inset 0 0 ${glow}px ${color},
+                    0 0 ${glow * 0.8}px ${color}
+                `;
+                cone.style.filter = `brightness(${1 + value}) saturate(${1 + value * 2})`;
+            }
+            
+            if (speaker) {
+                speaker.style.boxShadow = `
+                    0 0 ${glow}px ${color},
+                    inset 0 0 ${glow * 0.3}px ${color}
+                `;
+            }
+            
+            if (center) {
+                center.style.boxShadow = `
+                    0 0 ${glow * 1.5}px ${color},
+                    inset 0 0 ${glow}px ${color}
+                `;
+                center.style.transform = `translate(-50%, -50%) rotate(${-rotation * 2}deg) scale(${1 + value * 0.3})`;
+            }
+        }
+        
+        
+        // Animation loop
+        let glitchTimer = 0;
+        
+        function animate() {
+            if (!isPlaying) return;
+            
+            const metrics = getAudioMetrics();
+            const { bands, peak, rms, punch, brightness, warmth } = metrics;
+            
+            glitchTimer += 0.05;
+            
+            // === LEFT CHANNEL ===
+            applyEffects(speakers.left.sub, speakers.left.subCone, speakers.left.subCenter, 
+                        bands.subBass.value, 'rgba(255, 0, 0, 0.8)', 0);
+            
+            applyEffects(speakers.left.bass, speakers.left.bassCone, null, 
+                        bands.bass.value, 'rgba(255, 102, 0, 0.8)', 0);
+            
+            applyEffects(speakers.left.lowMid, speakers.left.lowMidCone, null, 
+                        bands.lowMid.value, 'rgba(255, 170, 0, 0.8)', 0);
+            
+            applyEffects(speakers.left.mid, speakers.left.midCone, null, 
+                        bands.mid.value, 'rgba(255, 255, 0, 0.8)', 0);
+            
+            applyEffects(speakers.left.highMid, speakers.left.highMidCone, null, 
+                        bands.highMid.value, 'rgba(0, 255, 170, 0.8)', 0);
+            
+            applyEffects(speakers.left.tweeter, speakers.left.tweeterCone, null, 
+                        bands.treble.value, 'rgba(0, 255, 255, 0.8)', 0);
+            
+            // === RIGHT CHANNEL ===
+            applyEffects(speakers.right.sub, speakers.right.subCone, speakers.right.subCenter, 
+                        bands.subBass.value, 'rgba(255, 0, 0, 0.8)', 180);
+            
+            applyEffects(speakers.right.bass, speakers.right.bassCone, null, 
+                        bands.bass.value, 'rgba(255, 102, 0, 0.8)', 180);
+            
+            applyEffects(speakers.right.lowMid, speakers.right.lowMidCone, null, 
+                        bands.lowMid.value, 'rgba(255, 170, 0, 0.8)', 180);
+            
+            applyEffects(speakers.right.mid, speakers.right.midCone, null, 
+                        bands.mid.value, 'rgba(255, 255, 0, 0.8)', 180);
+            
+            applyEffects(speakers.right.highMid, speakers.right.highMidCone, null, 
+                        bands.highMid.value, 'rgba(0, 255, 170, 0.8)', 180);
+            
+            applyEffects(speakers.right.tweeter, speakers.right.tweeterCone, null, 
+                        bands.treble.value, 'rgba(0, 255, 255, 0.8)', 180);
+            
+            // === CENTER LOGO ===
+            const logoGlow = Math.floor(rms * 150);
+            const logoScale = 1 + rms * 0.25;
+            centerLogo.style.transform = `translate(-50%, -50%) scale(${logoScale}) rotate(${Math.sin(glitchTimer) * rms * 5}deg)`;
+            centerLogo.style.boxShadow = `
+                0 0 ${logoGlow}px rgba(0, 255, 0, ${rms}),
+                0 0 ${logoGlow * 2}px rgba(0, 255, 0, ${rms * 0.5}),
+                inset 0 0 ${logoGlow}px rgba(0, 255, 0, ${rms * 0.3})
+            `;
+            centerLogo.style.filter = `hue-rotate(${rms * 60}deg) saturate(${1 + rms * 2})`;
+            
+            // === LASER EFFECTS (react to different frequencies) ===
+            lasers[0].style.opacity = bands.bass.value > 0.6 ? bands.bass.value : 0; // Left - bass
+            lasers[1].style.opacity = bands.mid.value > 0.6 ? bands.mid.value : 0;   // Right - mid
+            lasers[2].style.opacity = bands.treble.value > 0.6 ? bands.treble.value : 0; // Center - treble
+            
+            lasers[0].style.transform = `translateY(${Math.sin(glitchTimer * 3) * 50}px) rotate(${bands.bass.value * 45}deg)`;
+            lasers[1].style.transform = `translateY(${Math.cos(glitchTimer * 3) * 50}px) rotate(${-bands.mid.value * 45}deg)`;
+            lasers[2].style.transform = `translateX(-50%) translateY(${Math.sin(glitchTimer * 5) * 100}px) rotate(${90 + bands.treble.value * 30}deg)`;
+            
+            // === STROBE LIGHTS (react to peaks and punch) ===
+            if (peak > 0.9) {
+                strobes.forEach((strobe, i) => {
+                    strobe.style.opacity = (peak - 0.9) * 10;
+                    strobe.style.transform = `scale(${1 + (peak - 0.9) * 20})`;
+                });
+            } else {
+                strobes.forEach(strobe => {
+                    strobe.style.opacity = 0;
+                });
+            }
+            
+            // Punch strobes (corners flash on bass kick)
+            if (punch > 0.7) {
+                strobes[0].style.opacity = punch; // Top-left
+                strobes[3].style.opacity = punch; // Bottom-right
+            }
+            if (punch > 0.8) {
+                strobes[1].style.opacity = punch; // Top-right
+                strobes[2].style.opacity = punch; // Bottom-left
+            }
+            
+            // === BACKGROUND EFFECTS ===
+            if (punch > 0.7) {
+                document.body.style.background = `radial-gradient(circle at 50% 50%, 
+                    rgba(${Math.floor(punch * 255)}, 0, ${Math.floor(punch * 150)}, ${(punch - 0.7) * 0.4}),
+                    #000)`;
+            } else {
+                document.body.style.background = '#000';
+            }
+            
+            // === EXTREME EFFECTS ===
+            // Screen shake on heavy sub bass
+            if (bands.subBass.value > 0.85) {
+                document.getElementById('soundSystem').style.transform = `
+                    translate(${Math.sin(glitchTimer * 50) * bands.subBass.value * 5}px, 
+                             ${Math.cos(glitchTimer * 50) * bands.subBass.value * 5}px)
+                `;
+            } else {
+                document.getElementById('soundSystem').style.transform = 'translate(0, 0)';
+            }
+            
+            // Strobe flash on peak
+            if (peak > 0.95) {
+                document.body.style.background = `rgba(255, 255, 255, ${(peak - 0.95) * 5})`;
+                document.getElementById('container').style.filter = 'invert(1)';
+            } else {
+                document.getElementById('container').style.filter = 'none';
+            }
+            
+            // Chromatic aberration on bass+sub combo
+            if (bands.bass.value > 0.85 && bands.subBass.value > 0.85) {
+                document.getElementById('soundSystem').style.filter = `
+                    contrast(1.2) saturate(1.5)
+                    drop-shadow(-3px 0 0 red) 
+                    drop-shadow(3px 0 0 cyan)
+                `;
+            } else if (rms > 0.8 && Math.random() > 0.95) {
+                // Random glitch
+                document.getElementById('soundSystem').style.filter = `
+                    hue-rotate(${Math.random() * 360}deg) 
+                    saturate(${2 + Math.random() * 3})
+                `;
+            } else {
+                document.getElementById('soundSystem').style.filter = 'contrast(1.2) saturate(1.5)';
+            }
+            
+            // Update info
+            document.getElementById('freq').textContent = Math.floor(rms * 1000);
+            document.getElementById('bass').textContent = Math.floor(bands.bass.value * 100);
+            
+            requestAnimationFrame(animate);
+        }
+        
+        // Handle visibility
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && isPlaying) {
+                animate();
+            }
+        });
+    </script>
+            
+            glitchTimer += 0.05;
+            
+            // === LEFT CHANNEL ===

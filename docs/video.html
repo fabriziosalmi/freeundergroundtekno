@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Underground Tekno - Visual</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        body {
+            background: #000;
+            font-family: 'Courier New', monospace;
+        }
+        canvas {
+            display: block;
+        }
+        #info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #0F0;
+            font-size: 14px;
+            text-shadow: 0 0 10px #0F0;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="info">
+        [ FREE UNDERGROUND TEKNO ]<br>
+        STATUS: <span id="status">LOADING...</span><br>
+        FREQ: <span id="freq">0</span><br>
+        <br>
+        SPACE: play/pause
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Audio
+        const audio = new Audio('https://radio.freeundergroundtekno.org/listen/free_underground_tekno/radio.mp3');
+        audio.crossOrigin = 'anonymous';
+        audio.volume = 0.8;
+        
+        let audioContext, analyser, dataArray;
+        let isPlaying = false;
+        let animationId = null;
+
+        function initAudio() {
+            if (audioContext) return;
+            
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const source = audioContext.createMediaElementSource(audio);
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 1024;
+            
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
+            
+            source.connect(analyser);
+            analyser.connect(audioContext.destination);
+        }
+
+        function togglePlay() {
+            if (!audioContext) initAudio();
+            
+            if (isPlaying) {
+                audio.pause();
+                isPlaying = false;
+                if (animationId) cancelAnimationFrame(animationId);
+                document.getElementById('status').textContent = 'PAUSED';
+            } else {
+                audio.play().then(() => {
+                    isPlaying = true;
+                    document.getElementById('status').textContent = 'PLAYING';
+                    animate();
+                }).catch(err => {
+                    console.error('Play error:', err);
+                    document.getElementById('status').textContent = 'ERROR';
+                });
+            }
+        }
+
+        // Complete Audio Metrics Template
+        let time = 0;
+        
+        function animate() {
+            if (!isPlaying) return;
+            
+            analyser.getByteFrequencyData(dataArray);
+            
+            // Clear background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            time += 0.02;
+            
+            // === FREQUENCY BANDS ANALYSIS ===
+            const bands = [
+                { 
+                    name: 'SUB BASS', 
+                    range: '20-60 Hz', 
+                    start: 0, 
+                    end: 10, 
+                    color: '#FF0000',
+                    value: 0 
+                },
+                { 
+                    name: 'BASS', 
+                    range: '60-250 Hz', 
+                    start: 10, 
+                    end: 40, 
+                    color: '#FF6600',
+                    value: 0 
+                },
+                { 
+                    name: 'LOW MID', 
+                    range: '250-500 Hz', 
+                    start: 40, 
+                    end: 70, 
+                    color: '#FFFF00',
+                    value: 0 
+                },
+                { 
+                    name: 'MID', 
+                    range: '500-2K Hz', 
+                    start: 70, 
+                    end: 150, 
+                    color: '#00FF00',
+                    value: 0 
+                },
+                { 
+                    name: 'HIGH MID', 
+                    range: '2K-4K Hz', 
+                    start: 150, 
+                    end: 250, 
+                    color: '#00FFFF',
+                    value: 0 
+                },
+                { 
+                    name: 'TREBLE', 
+                    range: '4K-20K Hz', 
+                    start: 250, 
+                    end: 512, 
+                    color: '#FF00FF',
+                    value: 0 
+                }
+            ];
+            
+            // Calculate band values
+            bands.forEach(band => {
+                let sum = 0;
+                const count = band.end - band.start;
+                for (let i = band.start; i < band.end; i++) {
+                    sum += dataArray[i];
+                }
+                band.value = sum / count / 255;
+            });
+            
+            // === ADDITIONAL AUDIO METRICS ===
+            
+            // Overall average
+            let overallAvg = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                overallAvg += dataArray[i];
+            }
+            overallAvg = overallAvg / dataArray.length / 255;
+            
+            // Peak detection
+            let peak = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                if (dataArray[i] > peak) peak = dataArray[i];
+            }
+            peak = peak / 255;
+            
+            // Energy (RMS - Root Mean Square)
+            let rms = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                rms += (dataArray[i] / 255) * (dataArray[i] / 255);
+            }
+            rms = Math.sqrt(rms / dataArray.length);
+            
+            // Spectral centroid (brightness)
+            let weightedSum = 0;
+            let totalSum = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                weightedSum += i * dataArray[i];
+                totalSum += dataArray[i];
+            }
+            const spectralCentroid = totalSum > 0 ? (weightedSum / totalSum / dataArray.length) : 0;
+            
+            // Dynamic range
+            let minVal = 255;
+            for (let i = 0; i < dataArray.length; i++) {
+                if (dataArray[i] < minVal) minVal = dataArray[i];
+            }
+            const dynamicRange = (peak * 255 - minVal) / 255;
+            
+            // Stereo width (simulated)
+            const stereoWidth = Math.abs(bands[0].value - bands[5].value);
+            
+            // Punch (bass transient)
+            const punch = Math.max(0, bands[0].value + bands[1].value - 0.5) * 2;
+            
+            // Warmth (low-mid presence)
+            const warmth = (bands[2].value + bands[3].value) / 2;
+            
+            // Presence (high-mid clarity)
+            const presence = bands[4].value;
+            
+            // Air (high frequency content)
+            const air = bands[5].value;
+            
+            // Density (how full the spectrum is)
+            let filledBands = 0;
+            for (let i = 0; i < dataArray.length; i++) {
+                if (dataArray[i] > 30) filledBands++;
+            }
+            const density = filledBands / dataArray.length;
+            
+            // Update freq counter
+            document.getElementById('freq').textContent = Math.floor(overallAvg * 1000);
+            
+            // === LEFT COLUMN: FREQUENCY BANDS ===
+            const leftX = 20;
+            const leftY = 80;
+            const barHeight = 35;
+            const barSpacing = 10;
+            const barWidth = 500;
+            
+            ctx.font = 'bold 14px "Courier New"';
+            ctx.fillStyle = '#0FF';
+            ctx.textAlign = 'left';
+            ctx.fillText('FREQUENCY BANDS', leftX, leftY - 20);
+            
+            bands.forEach((band, index) => {
+                const y = leftY + index * (barHeight + barSpacing);
+                const activeWidth = band.value * barWidth;
+                
+                // Background
+                ctx.fillStyle = 'rgba(50, 50, 50, 0.5)';
+                ctx.fillRect(leftX, y, barWidth, barHeight);
+                
+                // Active bar
+                const gradient = ctx.createLinearGradient(leftX, y, leftX + activeWidth, y);
+                gradient.addColorStop(0, band.color + '88');
+                gradient.addColorStop(1, band.color);
+                ctx.fillStyle = gradient;
+                ctx.fillRect(leftX, y, activeWidth, barHeight);
+                
+                // Border
+                ctx.strokeStyle = band.color;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(leftX, y, barWidth, barHeight);
+                
+                // Mini spectrum
+                const numMini = 25;
+                const miniWidth = barWidth / numMini;
+                for (let i = 0; i < numMini; i++) {
+                    const idx = Math.floor(band.start + (i / numMini) * (band.end - band.start));
+                    const miniVal = dataArray[idx] / 255;
+                    const miniH = miniVal * (barHeight - 8);
+                    ctx.fillStyle = `${band.color}44`;
+                    ctx.fillRect(leftX + i * miniWidth + 2, y + barHeight - 4 - miniH, miniWidth - 4, miniH);
+                }
+                
+                // Labels
+                ctx.fillStyle = band.color;
+                ctx.font = 'bold 11px "Courier New"';
+                ctx.textAlign = 'left';
+                ctx.fillText(band.name, leftX + 5, y + 15);
+                ctx.font = '9px "Courier New"';
+                ctx.fillText(band.range, leftX + 5, y + 28);
+                
+                // Value
+                ctx.font = 'bold 14px "Courier New"';
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#FFF';
+                ctx.fillText(Math.floor(band.value * 100) + '%', leftX + barWidth - 5, y + 23);
+                
+                // Peak indicator
+                if (band.value > 0.8) {
+                    ctx.fillStyle = band.color;
+                    ctx.beginPath();
+                    ctx.moveTo(leftX + activeWidth - 8, y);
+                    ctx.lineTo(leftX + activeWidth, y + barHeight / 2);
+                    ctx.lineTo(leftX + activeWidth - 8, y + barHeight);
+                    ctx.fill();
+                }
+            });
+            
+            // === RIGHT COLUMN: AUDIO METRICS ===
+            const rightX = leftX + barWidth + 100;
+            const rightY = 80;
+            
+            ctx.font = 'bold 14px "Courier New"';
+            ctx.fillStyle = '#F0F';
+            ctx.textAlign = 'left';
+            ctx.fillText('AUDIO METRICS', rightX, rightY - 20);
+            
+            const metrics = [
+                { name: 'OVERALL LEVEL', value: overallAvg, color: '#FFFFFF' },
+                { name: 'PEAK LEVEL', value: peak, color: '#FF0000' },
+                { name: 'RMS ENERGY', value: rms, color: '#FF6600' },
+                { name: 'BRIGHTNESS', value: spectralCentroid, color: '#FFFF00' },
+                { name: 'DYNAMIC RANGE', value: dynamicRange, color: '#00FF00' },
+                { name: 'STEREO WIDTH', value: stereoWidth, color: '#00FFFF' },
+                { name: 'PUNCH', value: punch, color: '#FF0088' },
+                { name: 'WARMTH', value: warmth, color: '#FF8800' },
+                { name: 'PRESENCE', value: presence, color: '#00FF88' },
+                { name: 'AIR', value: air, color: '#8800FF' },
+                { name: 'DENSITY', value: density, color: '#FF00FF' }
+            ];
+            
+            metrics.forEach((metric, index) => {
+                const y = rightY + index * (barHeight + barSpacing);
+                const activeWidth = Math.min(metric.value, 1) * barWidth;
+                
+                // Background
+                ctx.fillStyle = 'rgba(50, 50, 50, 0.5)';
+                ctx.fillRect(rightX, y, barWidth, barHeight);
+                
+                // Active bar
+                ctx.fillStyle = metric.color;
+                ctx.fillRect(rightX, y, activeWidth, barHeight);
+                
+                // Border
+                ctx.strokeStyle = metric.color;
+                ctx.lineWidth = 2;
+                ctx.strokeRect(rightX, y, barWidth, barHeight);
+                
+                // Glow on high values
+                if (metric.value > 0.7) {
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = metric.color;
+                    ctx.strokeRect(rightX, y, barWidth, barHeight);
+                    ctx.shadowBlur = 0;
+                }
+                
+                // Label
+                ctx.fillStyle = metric.color;
+                ctx.font = 'bold 11px "Courier New"';
+                ctx.textAlign = 'left';
+                ctx.fillText(metric.name, rightX + 5, y + 23);
+                
+                // Value
+                ctx.font = 'bold 14px "Courier New"';
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#FFF';
+                ctx.fillText(Math.floor(metric.value * 100) + '%', rightX + barWidth - 5, y + 23);
+            });
+            
+            // === TITLE ===
+            ctx.fillStyle = '#0F0';
+            ctx.font = 'bold 28px "Courier New"';
+            ctx.textAlign = 'center';
+            ctx.fillText('[ COMPLETE AUDIO ANALYZER TEMPLATE ]', canvas.width / 2, 40);
+            
+            // === BOTTOM: FULL SPECTRUM VISUALIZER ===
+            const spectrumY = canvas.height - 180;
+            const spectrumHeight = 150;
+            const numBars = 128;
+            const specBarWidth = canvas.width / numBars;
+            
+            ctx.font = '12px "Courier New"';
+            ctx.fillStyle = '#0FF';
+            ctx.textAlign = 'left';
+            ctx.fillText('FULL FREQUENCY SPECTRUM (128 bands)', 20, spectrumY - 10);
+            
+            for (let i = 0; i < numBars; i++) {
+                const value = dataArray[i * 4] / 255;
+                const barH = value * spectrumHeight;
+                const x = i * specBarWidth;
+                const y = spectrumY + spectrumHeight - barH;
+                
+                const hue = (i / numBars) * 360;
+                ctx.fillStyle = `hsla(${hue}, 100%, 50%, ${0.7 + value * 0.3})`;
+                ctx.fillRect(x, y, specBarWidth - 1, barH);
+            }
+            
+            // Spectrum border
+            ctx.strokeStyle = '#0FF';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(0, spectrumY, canvas.width, spectrumHeight);
+            
+            // === BASS KICK FLASH ===
+            if (bands[0].value > 0.85 || bands[1].value > 0.85) {
+                const flashAlpha = Math.floor((Math.max(bands[0].value, bands[1].value) - 0.85) * 100);
+                ctx.fillStyle = `rgba(255, 0, 0, 0.${flashAlpha})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                togglePlay();
+            }
+        });
+        
+        canvas.addEventListener('click', togglePlay);
+
+        // Auto-start
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                togglePlay();
+            }, 500);
+        });
+
+        console.log('🎧 Ready - Press SPACE or CLICK to start');
+    </script>
+</body>
+</html>

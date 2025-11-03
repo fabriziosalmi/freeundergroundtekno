@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAVE FRAMEWORK - Example Scene</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            color: #0f0;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        #controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border: 2px solid #0f0;
+            border-radius: 10px;
+            max-width: 300px;
+        }
+        
+        #controls h2 {
+            margin-bottom: 15px;
+            color: #0f0;
+            text-shadow: 0 0 10px #0f0;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .control-group button {
+            background: #000;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 8px 15px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+        
+        .control-group button:hover {
+            background: #0f0;
+            color: #000;
+            box-shadow: 0 0 15px #0f0;
+        }
+        
+        .control-group button.active {
+            background: #0f0;
+            color: #000;
+        }
+        
+        #stats {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border: 2px solid #0f0;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+        
+        #stats .stat-line {
+            margin-bottom: 5px;
+        }
+        
+        #stats .stat-value {
+            color: #0ff;
+            float: right;
+            margin-left: 20px;
+        }
+        
+        .toggle-ui {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #000;
+            color: #0f0;
+            border: 2px solid #0f0;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .toggle-ui:hover {
+            background: #0f0;
+            color: #000;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    
+    <div id="controls">
+        <h2>🎛️ RAVE FRAMEWORK</h2>
+        
+        <div class="control-group">
+            <label>AUDIO</label>
+            <button id="startBtn">▶️ START</button>
+            <button id="stopBtn">⏹️ STOP</button>
+        </div>
+        
+        <div class="control-group">
+            <label>PRESETS</label>
+            <button class="preset-btn active" data-preset="sound-system">Sound System</button>
+            <button class="preset-btn" data-preset="minimal">Minimal</button>
+            <button class="preset-btn" data-preset="chaos">Chaos Mode</button>
+        </div>
+        
+        <div class="control-group">
+            <label>COMPONENTS</label>
+            <button id="addSpeaker">➕ Add Speaker</button>
+            <button id="clearComponents">🗑️ Clear All</button>
+        </div>
+        
+        <div class="control-group">
+            <label>EXPORT/IMPORT</label>
+            <button id="exportBtn">💾 Export JSON</button>
+            <button id="importBtn">📂 Import JSON</button>
+        </div>
+    </div>
+    
+    <div id="stats">
+        <div class="stat-line">
+            <span>FPS:</span>
+            <span class="stat-value" id="fps">60</span>
+        </div>
+        <div class="stat-line">
+            <span>Components:</span>
+            <span class="stat-value" id="componentCount">0</span>
+        </div>
+        <div class="stat-line">
+            <span>Update:</span>
+            <span class="stat-value" id="updateTime">0ms</span>
+        </div>
+        <div class="stat-line">
+            <span>Render:</span>
+            <span class="stat-value" id="renderTime">0ms</span>
+        </div>
+        <div class="stat-line">
+            <span>Beat:</span>
+            <span class="stat-value" id="beatStatus">❌</span>
+        </div>
+    </div>
+    
+    <button class="toggle-ui" onclick="toggleUI()">HIDE UI</button>
+    
+    <!-- Load Framework -->
+    <script src="engine/AudioAnalyzer.js"></script>
+    <script src="engine/ComponentManager.js"></script>
+    <script src="components/BaseComponent.js"></script>
+    <script src="components/SpeakerComponent.js"></script>
+    
+    <script>
+        // Framework instances
+        let audioAnalyzer = null;
+        let componentManager = null;
+        let isRunning = false;
+        let lastTime = 0;
+        let fps = 60;
+        let frameCount = 0;
+        let fpsTime = 0;
+        
+        // UI state
+        let uiVisible = true;
+        
+        // Audio stream URL
+        const AUDIO_URL = 'https://radio.freeundergroundtekno.org/listen/free_underground_tekno/radio.mp3';
+        
+        /**
+         * Initialize framework
+         */
+        async function init() {
+            console.log('🚀 Initializing RAVE FRAMEWORK...');
+            
+            // Create container
+            const container = document.getElementById('container');
+            
+            // Initialize Audio Analyzer
+            audioAnalyzer = new AudioAnalyzer({
+                fftSize: 2048,
+                smoothing: 0.8
+            });
+            
+            // Initialize Component Manager
+            componentManager = new ComponentManager(container);
+            
+            // Register component types
+            componentManager.registerType('SpeakerComponent', SpeakerComponent);
+            
+            // Load default preset
+            loadPreset('sound-system');
+            
+            // Setup event listeners
+            setupEventListeners();
+            
+            console.log('✅ Framework initialized');
+        }
+        
+        /**
+         * Start audio and animation
+         */
+        async function start() {
+            if (isRunning) return;
+            
+            console.log('▶️ Starting...');
+            
+            // Initialize audio
+            const success = await audioAnalyzer.init(AUDIO_URL);
+            
+            if (!success) {
+                alert('Failed to initialize audio. Check console for errors.');
+                return;
+            }
+            
+            isRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(animate);
+            
+            console.log('✅ Running');
+        }
+        
+        /**
+         * Stop animation
+         */
+        function stop() {
+            isRunning = false;
+            console.log('⏹️ Stopped');
+        }
+        
+        /**
+         * Main animation loop
+         */
+        function animate(currentTime) {
+            if (!isRunning) return;
+            
+            // Calculate delta time
+            const deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+            
+            // Calculate FPS
+            frameCount++;
+            fpsTime += deltaTime;
+            if (fpsTime >= 1.0) {
+                fps = Math.round(frameCount / fpsTime);
+                frameCount = 0;
+                fpsTime = 0;
+            }
+            
+            // Analyze audio
+            audioAnalyzer.analyze();
+            const audioData = audioAnalyzer.getData();
+            
+            // Update components
+            componentManager.update(audioData, deltaTime);
+            
+            // Render components
+            componentManager.render(audioData);
+            
+            // Update stats
+            updateStats(audioData);
+            
+            // Next frame
+            requestAnimationFrame(animate);
+        }
+        
+        /**
+         * Update stats display
+         */
+        function updateStats(audioData) {
+            document.getElementById('fps').textContent = fps;
+            document.getElementById('componentCount').textContent = componentManager.stats.componentCount;
+            document.getElementById('updateTime').textContent = 
+                componentManager.stats.updateTime.toFixed(2) + 'ms';
+            document.getElementById('renderTime').textContent = 
+                componentManager.stats.renderTime.toFixed(2) + 'ms';
+            document.getElementById('beatStatus').textContent = 
+                audioData.beat.detected ? '✅' : '❌';
+        }
+        
+        /**
+         * Load preset configuration
+         */
+        function loadPreset(presetName) {
+            console.log(`📥 Loading preset: ${presetName}`);
+            
+            componentManager.clear();
+            
+            const presets = {
+                'sound-system': createSoundSystemPreset(),
+                'minimal': createMinimalPreset(),
+                'chaos': createChaosPreset()
+            };
+            
+            const config = presets[presetName];
+            if (config) {
+                componentManager.importConfig(config);
+            }
+            
+            // Update active button
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.preset === presetName);
+            });
+        }
+        
+        /**
+         * Create sound system preset
+         */
+        function createSoundSystemPreset() {
+            const config = { components: [], updateOrder: [] };
+            
+            const speakerTypes = ['subwoofer', 'bass', 'lowmid', 'mid', 'highmid', 'tweeter'];
+            const leftX = window.innerWidth * 0.3;
+            const rightX = window.innerWidth * 0.7;
+            const startY = 150;
+            const spacing = 120;
+            
+            // Left channel
+            speakerTypes.forEach((type, i) => {
+                const id = `speaker_left_${type}`;
+                config.components.push({
+                    id: id,
+                    type: 'SpeakerComponent',
+                    config: {
+                        speakerType: type,
+                        channel: 'left',
+                        x: leftX,
+                        y: startY + (i * spacing)
+                    }
+                });
+                config.updateOrder.push(id);
+            });
+            
+            // Right channel
+            speakerTypes.forEach((type, i) => {
+                const id = `speaker_right_${type}`;
+                config.components.push({
+                    id: id,
+                    type: 'SpeakerComponent',
+                    config: {
+                        speakerType: type,
+                        channel: 'right',
+                        x: rightX,
+                        y: startY + (i * spacing)
+                    }
+                });
+                config.updateOrder.push(id);
+            });
+            
+            return config;
+        }
+        
+        /**
+         * Create minimal preset
+         */
+        function createMinimalPreset() {
+            return {
+                components: [
+                    {
+                        id: 'bass_center',
+                        type: 'SpeakerComponent',
+                        config: {
+                            speakerType: 'bass',
+                            channel: 'mono',
+                            x: window.innerWidth / 2,
+                            y: window.innerHeight / 2,
+                            size: 250
+                        }
+                    }
+                ],
+                updateOrder: ['bass_center']
+            };
+        }
+        
+        /**
+         * Create chaos preset
+         */
+        function createChaosPreset() {
+            const config = { components: [], updateOrder: [] };
+            const speakerTypes = ['subwoofer', 'bass', 'lowmid', 'mid', 'highmid', 'tweeter'];
+            
+            // Random positions
+            for (let i = 0; i < 20; i++) {
+                const type = speakerTypes[Math.floor(Math.random() * speakerTypes.length)];
+                const id = `chaos_speaker_${i}`;
+                
+                config.components.push({
+                    id: id,
+                    type: 'SpeakerComponent',
+                    config: {
+                        speakerType: type,
+                        channel: Math.random() > 0.5 ? 'left' : 'right',
+                        x: Math.random() * window.innerWidth,
+                        y: Math.random() * window.innerHeight,
+                        size: 80 + Math.random() * 120
+                    }
+                });
+                config.updateOrder.push(id);
+            }
+            
+            return config;
+        }
+        
+        /**
+         * Export configuration
+         */
+        function exportConfig() {
+            const config = componentManager.exportConfig();
+            const json = JSON.stringify(config, null, 2);
+            
+            // Download as file
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rave-config.json';
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            console.log('💾 Configuration exported');
+        }
+        
+        /**
+         * Import configuration
+         */
+        function importConfig() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    try {
+                        const config = JSON.parse(event.target.result);
+                        componentManager.importConfig(config);
+                        console.log('📂 Configuration imported');
+                    } catch (error) {
+                        alert('Invalid JSON file');
+                        console.error(error);
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+        
+        /**
+         * Add random speaker
+         */
+        function addRandomSpeaker() {
+            const types = ['subwoofer', 'bass', 'lowmid', 'mid', 'highmid', 'tweeter'];
+            const type = types[Math.floor(Math.random() * types.length)];
+            
+            componentManager.addComponent('SpeakerComponent', {
+                speakerType: type,
+                channel: Math.random() > 0.5 ? 'left' : 'right',
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                size: 100 + Math.random() * 100
+            });
+        }
+        
+        /**
+         * Toggle UI visibility
+         */
+        function toggleUI() {
+            uiVisible = !uiVisible;
+            document.getElementById('controls').style.display = uiVisible ? 'block' : 'none';
+            document.getElementById('stats').style.display = uiVisible ? 'block' : 'none';
+            document.querySelector('.toggle-ui').textContent = uiVisible ? 'HIDE UI' : 'SHOW UI';
+        }
+        
+        /**
+         * Setup event listeners
+         */
+        function setupEventListeners() {
+            document.getElementById('startBtn').onclick = start;
+            document.getElementById('stopBtn').onclick = stop;
+            document.getElementById('addSpeaker').onclick = addRandomSpeaker;
+            document.getElementById('clearComponents').onclick = () => componentManager.clear();
+            document.getElementById('exportBtn').onclick = exportConfig;
+            document.getElementById('importBtn').onclick = importConfig;
+            
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.onclick = () => loadPreset(btn.dataset.preset);
+            });
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

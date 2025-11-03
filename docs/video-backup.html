@@ -1,0 +1,1360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free Underground Tekno - Visual System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        body {
+            background: #000;
+            font-family: 'Courier New', monospace;
+            cursor: none;
+        }
+
+        /* Canvas full-screen */
+        #visualizer-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* Audio element hidden */
+        #audio {
+            display: none;
+        }
+
+        /* Overlay controls */
+        #controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            color: #0F0;
+            font-size: 14px;
+            text-shadow: 0 0 10px #0F0;
+            font-weight: bold;
+            pointer-events: none;
+        }
+
+        #controls .line {
+            margin: 5px 0;
+            letter-spacing: 2px;
+        }
+
+        /* Play button */
+        #play-button {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            border: 4px solid #0F0;
+            border-radius: 50%;
+            background: rgba(0, 255, 0, 0.1);
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+            color: #0F0;
+            text-shadow: 0 0 20px #0F0;
+            transition: all 0.3s;
+        }
+
+        #play-button:hover {
+            background: rgba(0, 255, 0, 0.3);
+            box-shadow: 0 0 30px #0F0;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+
+        #play-button.hidden {
+            display: none;
+        }
+
+        /* Status bar bottom */
+        #status-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(0, 20, 0, 0.8);
+            border-top: 2px solid #0F0;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            color: #0F0;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+
+        #visualizer-name {
+            flex: 1;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px #0F0;
+        }
+
+        /* VU Meter */
+        #vu-meter {
+            display: flex;
+            gap: 3px;
+            align-items: flex-end;
+            height: 25px;
+        }
+
+        .vu-bar {
+            width: 4px;
+            background: #0F0;
+            box-shadow: 0 0 5px #0F0;
+            transition: height 0.05s;
+        }
+
+        /* Custom cursor */
+        #custom-cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #0F0;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1000;
+            box-shadow: 0 0 10px #0F0;
+            transition: transform 0.1s;
+        }
+
+        /* Instructions overlay */
+        #instructions {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 20, 0, 0.95);
+            border: 3px solid #0F0;
+            padding: 30px;
+            z-index: 200;
+            color: #0F0;
+            text-align: center;
+            box-shadow: 0 0 40px #0F0;
+            max-width: 500px;
+        }
+
+        #instructions.hidden {
+            display: none;
+        }
+
+        #instructions h1 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 15px #0F0;
+            letter-spacing: 3px;
+        }
+
+        #instructions ul {
+            list-style: none;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        #instructions li {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        #instructions button {
+            margin-top: 20px;
+            padding: 15px 40px;
+            background: transparent;
+            border: 2px solid #0F0;
+            color: #0F0;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+        }
+
+        #instructions button:hover {
+            background: rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 20px #0F0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas visualizzatore -->
+    <canvas id="visualizer-canvas"></canvas>
+
+    <!-- Audio stream -->
+    <audio 
+        id="audio" 
+        src="https://radio.freeundergroundtekno.org/listen/free_underground_tekno/radio.mp3"
+        crossorigin="anonymous"
+        preload="auto">
+    </audio>
+
+    <!-- Instructions overlay -->
+    <div id="instructions">
+        <h1>⚡ FREE UNDERGROUND TEKNO ⚡</h1>
+        <ul>
+            <li><strong>SPACE / CLICK</strong> → PLAY/PAUSE</li>
+            <li><strong>ARROWS ←/→</strong> → CHANGE VISUAL</li>
+            <li><strong>ARROWS ↑/↓</strong> → VOLUME</li>
+            <li><strong>F</strong> → FULLSCREEN</li>
+            <li><strong>I</strong> → HIDE/SHOW INFO</li>
+        </ul>
+        <button onclick="startSystem()">ENTER THE SYSTEM</button>
+    </div>
+
+    <!-- Play button -->
+    <div id="play-button" class="hidden">▶</div>
+
+    <!-- Controls overlay -->
+    <div id="controls">
+        <div class="line">FREE_UNDERGROUND_TEKNO</div>
+        <div class="line">STATUS: <span id="status">OFFLINE</span></div>
+        <div class="line">VOL: <span id="volume">100</span>%</div>
+        <div class="line">FREQ: <span id="freq-count">0</span> Hz</div>
+    </div>
+
+    <!-- Status bar -->
+    <div id="status-bar">
+        <div id="vu-meter"></div>
+        <div id="visualizer-name">SYSTEM LOADING...</div>
+        <div style="opacity: 0.6;">FREE_UNDERGROUND_TEKNO</div>
+    </div>
+
+    <!-- Custom cursor -->
+    <div id="custom-cursor"></div>
+
+    <script>
+        // === GLOBAL VARIABLES ===
+        const canvas = document.getElementById('visualizer-canvas');
+        const ctx = canvas.getContext('2d');
+        const audio = document.getElementById('audio');
+        
+        let audioContext;
+        let analyser;
+        let dataArray;
+        let isPlaying = false;
+        let currentVisualizer = 0;
+        let controlsVisible = true;
+        
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // === START SYSTEM ===
+        function startSystem() {
+            document.getElementById('instructions').classList.add('hidden');
+            document.getElementById('play-button').classList.remove('hidden');
+            initAudio();
+        }
+
+        // === AUDIO SETUP ===
+        function initAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                
+                const source = audioContext.createMediaElementSource(audio);
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                console.log('✅ Audio system initialized');
+            }
+        }
+
+        // === PLAY/PAUSE ===
+        function togglePlay() {
+            if (!audioContext) initAudio();
+            
+            if (isPlaying) {
+                audio.pause();
+                isPlaying = false;
+                document.getElementById('status').textContent = 'PAUSED';
+                document.getElementById('play-button').innerHTML = '▶';
+            } else {
+                audio.play().then(() => {
+                    isPlaying = true;
+                    document.getElementById('status').textContent = 'STREAMING';
+                    document.getElementById('play-button').classList.add('hidden');
+                    animate();
+                }).catch(err => {
+                    console.error('Play error:', err);
+                    document.getElementById('status').textContent = 'ERROR';
+                });
+            }
+        }
+
+        // === SECRET CODE DETECTION ===
+        let keySequence = '';
+        let secretUnlocked = false;
+        const secretCode = 'freetekno';
+        
+        document.addEventListener('keypress', (e) => {
+            keySequence += e.key.toLowerCase();
+            if (keySequence.length > secretCode.length) {
+                keySequence = keySequence.slice(-secretCode.length);
+            }
+            
+            if (keySequence === secretCode && !secretUnlocked) {
+                secretUnlocked = true;
+                // Flash effect
+                canvas.style.border = '5px solid #0F0';
+                setTimeout(() => {
+                    canvas.style.border = '2px solid #0F0';
+                }, 200);
+                
+                // Add secret visualizer
+                visualizers.push({
+                    name: '??? COSMIC_JOURNEY ???',
+                    draw: drawCosmicJourney
+                });
+                
+                // Switch to secret visualizer
+                currentVisualizer = visualizers.length - 1;
+                updateVisualizerName();
+                
+                console.log('🌌 SECRET UNLOCKED: COSMIC JOURNEY 🪐');
+            }
+        });
+
+        // === VISUALIZERS ===
+        const visualizers = [
+            {
+                name: 'OSCILLOSCOPE_RAVE',
+                draw: drawOscilloscopeRave
+            },
+            {
+                name: 'BASS_PULSE',
+                draw: drawBassPulse
+            },
+            {
+                name: 'RAVE_LANDSCAPE',
+                draw: drawRaveLandscape
+            }
+        ];
+
+        // === VISUALIZER 2: BASS PULSE (MASTERPIECE) ===
+        let pulseTime = 0;
+        const particles = [];
+        const maxParticles = 200;
+        
+        function drawBassPulse() {
+            ctx.fillStyle = 'rgba(0, 0, 5, 0.08)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const bass = dataArray.slice(0, 50).reduce((a,b) => a+b, 0) / 50 / 255;
+            const mid = dataArray.slice(50, 150).reduce((a,b) => a+b, 0) / 100 / 255;
+            const treble = dataArray.slice(150, 250).reduce((a,b) => a+b, 0) / 100 / 255;
+            
+            pulseTime += 0.02 + bass * 0.05;
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // === MULTI-LAYER CONCENTRIC RINGS ===
+            const numRings = 15;
+            for (let i = 0; i < numRings; i++) {
+                const baseRadius = 60 + i * 50;
+                const pulseRadius = baseRadius + Math.sin(pulseTime - i * 0.3) * bass * 150;
+                const alpha = (1 - i / numRings) * (0.4 + bass * 0.6);
+                const hue = (i * 24 + pulseTime * 30 + bass * 180) % 360;
+                
+                // Outer glow ring
+                ctx.strokeStyle = `hsla(${hue}, 100%, 60%, ${alpha * 0.5})`;
+                ctx.lineWidth = 1 + bass * 3;
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner solid ring
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = `hsla(${hue}, 90%, 50%, ${alpha})`;
+                ctx.lineWidth = 3 + bass * 8;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, pulseRadius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+            
+            // === FREQUENCY SPIKES (Enhanced) ===
+            const numSpikes = 128;
+            for (let i = 0; i < numSpikes; i++) {
+                const angle = (i / numSpikes) * Math.PI * 2;
+                const level = dataArray[i * 2] / 255;
+                
+                if (level > 0.2) {
+                    const innerRadius = 120;
+                    const length = level * 300 * (1 + bass * 0.5);
+                    
+                    const x1 = centerX + Math.cos(angle) * innerRadius;
+                    const y1 = centerY + Math.sin(angle) * innerRadius;
+                    const x2 = centerX + Math.cos(angle) * (innerRadius + length);
+                    const y2 = centerY + Math.sin(angle) * (innerRadius + length);
+                    
+                    const hue = (i * 3 + pulseTime * 40 + level * 60) % 360;
+                    
+                    // Gradient spike
+                    const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+                    gradient.addColorStop(0, `hsla(${hue}, 100%, 60%, ${level * 0.9})`);
+                    gradient.addColorStop(0.7, `hsla(${hue}, 100%, 50%, ${level * 0.6})`);
+                    gradient.addColorStop(1, `hsla(${hue}, 100%, 40%, 0)`);
+                    
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = 2 + level * 4;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                    
+                    // Tip glow
+                    if (level > 0.6) {
+                        const glowGradient = ctx.createRadialGradient(x2, y2, 0, x2, y2, 15);
+                        glowGradient.addColorStop(0, `hsla(${hue}, 100%, 80%, ${level})`);
+                        glowGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                        ctx.fillStyle = glowGradient;
+                        ctx.fillRect(x2 - 15, y2 - 15, 30, 30);
+                    }
+                }
+            }
+            
+            // === ROTATING GEOMETRIC PATTERNS ===
+            const numShapes = 4;
+            for (let s = 0; s < numShapes; s++) {
+                const radius = 200 + s * 80;
+                const sides = 3 + s;
+                const rotation = pulseTime * (1 + s * 0.5) + s * Math.PI / 4;
+                const hue = (s * 90 + pulseTime * 25) % 360;
+                
+                ctx.strokeStyle = `hsla(${hue}, 80%, 50%, ${0.4 - s * 0.08})`;
+                ctx.lineWidth = 2 + mid * 4;
+                ctx.beginPath();
+                
+                for (let i = 0; i <= sides; i++) {
+                    const angle = (i / sides) * Math.PI * 2 + rotation;
+                    const x = centerX + Math.cos(angle) * (radius + Math.sin(pulseTime * 2 + s) * mid * 30);
+                    const y = centerY + Math.sin(angle) * (radius + Math.sin(pulseTime * 2 + s) * mid * 30);
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            
+            // === PARTICLE SYSTEM ===
+            // Spawn particles on bass kick
+            if (bass > 0.75 && particles.length < maxParticles && Math.random() > 0.7) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + bass * 8;
+                particles.push({
+                    x: centerX,
+                    y: centerY,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 1,
+                    size: 3 + Math.random() * 5,
+                    hue: (pulseTime * 50 + Math.random() * 60) % 360
+                });
+            }
+            
+            // Safety: limit particles array size
+            if (particles.length > maxParticles) {
+                particles.splice(0, particles.length - maxParticles);
+            }
+            
+            // Update and draw particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                
+                // Safety check
+                if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.015;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                
+                const gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size * 2);
+                gradient.addColorStop(0, `hsla(${p.hue}, 100%, 70%, ${p.life * 0.8})`);
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // === CENTRAL ENERGY CORE ===
+            const coreSize = 50 + bass * 120 + Math.sin(pulseTime * 3) * 30;
+            const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreSize);
+            coreGradient.addColorStop(0, `rgba(255, 255, 255, ${bass * 0.9})`);
+            coreGradient.addColorStop(0.2, `rgba(200, 100, 255, ${mid * 0.8})`);
+            coreGradient.addColorStop(0.5, `rgba(100, 200, 255, ${bass * 0.6})`);
+            coreGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = coreGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, coreSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Core ring
+            ctx.strokeStyle = `rgba(255, 255, 255, ${bass * 0.8})`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, coreSize * 0.6, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // === ORBITAL SATELLITES ===
+            const numSatellites = 8;
+            for (let i = 0; i < numSatellites; i++) {
+                const angle = (i / numSatellites) * Math.PI * 2 + pulseTime * 2;
+                const orbitRadius = 100 + Math.sin(pulseTime + i) * 30;
+                const x = centerX + Math.cos(angle) * orbitRadius;
+                const y = centerY + Math.sin(angle) * orbitRadius;
+                const size = 8 + treble * 12;
+                const hue = (i * 45 + pulseTime * 60) % 360;
+                
+                const satGradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+                satGradient.addColorStop(0, `hsla(${hue}, 100%, 70%, 0.9)`);
+                satGradient.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`);
+                
+                ctx.fillStyle = satGradient;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // === SCREEN FLASH ===
+            if (bass > 0.9) {
+                const flashHue = (pulseTime * 100) % 360;
+                ctx.fillStyle = `hsla(${flashHue}, 100%, 70%, ${(bass - 0.9) * 4})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // === VISUALIZER 1: OSCILLOSCOPE RAVE (MASTERPIECE) ===
+        let oscTime = 0;
+        function drawOscilloscopeRave() {
+            // Deep phosphor decay
+            ctx.fillStyle = 'rgba(0, 3, 0, 0.04)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const bass = dataArray.slice(0, 50).reduce((a,b) => a+b, 0) / 50 / 255;
+            const mid = dataArray.slice(50, 150).reduce((a,b) => a+b, 0) / 100 / 255;
+            const treble = dataArray.slice(150, 250).reduce((a,b) => a+b, 0) / 100 / 255;
+            
+            oscTime += 0.02;
+            
+            const centerY = canvas.height / 2;
+            const centerX = canvas.width / 2;
+            
+            // === MULTI-LAYER WAVEFORMS ===
+            const numLayers = 5;
+            for (let layer = 0; layer < numLayers; layer++) {
+                const layerOffset = (layer - 2) * 60;
+                const layerHue = (120 + layer * 30 + oscTime * 20) % 360;
+                const layerAlpha = 0.4 + (1 - layer / numLayers) * 0.6;
+                
+                ctx.strokeStyle = `hsla(${layerHue}, 90%, 60%, ${layerAlpha})`;
+                ctx.lineWidth = 2 + (numLayers - layer) * 1.5 + bass * 4;
+                ctx.shadowBlur = 15 + (numLayers - layer) * 8;
+                ctx.shadowColor = `hsl(${layerHue}, 100%, 60%)`;
+                ctx.beginPath();
+                
+                const step = canvas.width / 256;
+                for (let i = 0; i < 256; i++) {
+                    const x = i * step;
+                    const rawY = (dataArray[i] - 128);
+                    
+                    // Complex amplitude modulation
+                    const modulation = Math.sin(i * 0.05 + oscTime + layer) * mid * 50;
+                    const amplitude = (2 + bass * 4) * (1 + layer * 0.3);
+                    const y = centerY + layerOffset + rawY * amplitude + modulation;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+            
+            // === LISSAJOUS FIGURES (X-Y MODE) ===
+            const numLissajous = 3;
+            for (let l = 0; l < numLissajous; l++) {
+                const radius = 80 + l * 60 + treble * 100;
+                const hue = (180 + l * 60 + oscTime * 30) % 360;
+                
+                ctx.strokeStyle = `hsla(${hue}, 100%, 60%, ${0.6 - l * 0.15})`;
+                ctx.lineWidth = 2 + treble * 3;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+                ctx.beginPath();
+                
+                for (let i = 0; i < 128; i++) {
+                    const angle1 = (dataArray[i] / 255) * Math.PI * 2 + oscTime * (l + 1);
+                    const angle2 = (dataArray[i + 64] / 255) * Math.PI * 2 + oscTime * 0.7;
+                    const x = centerX + Math.sin(angle1) * radius;
+                    const y = centerY + Math.cos(angle2) * radius * 0.8;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.stroke();
+            }
+            ctx.shadowBlur = 0;
+            
+            // === FREQUENCY SPECTRUM RAYS ===
+            const numRays = 64;
+            for (let i = 0; i < numRays; i++) {
+                const angle = (i / numRays) * Math.PI * 2;
+                const level = dataArray[i * 4] / 255;
+                
+                if (level > 0.3) {
+                    const rayLength = 100 + level * 250;
+                    const x1 = centerX + Math.cos(angle) * 80;
+                    const y1 = centerY + Math.sin(angle) * 80;
+                    const x2 = centerX + Math.cos(angle) * rayLength;
+                    const y2 = centerY + Math.sin(angle) * rayLength;
+                    
+                    const hue = (i * 5 + oscTime * 50) % 360;
+                    const gradient = ctx.createLinearGradient(x1, y1, x2, y2);
+                    gradient.addColorStop(0, `hsla(${hue}, 100%, 60%, ${level * 0.8})`);
+                    gradient.addColorStop(1, `hsla(${hue}, 100%, 50%, 0)`);
+                    
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = 1 + level * 3;
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.stroke();
+                }
+            }
+            
+            // === OSCILLOSCOPE GRID (Enhanced) ===
+            ctx.strokeStyle = 'rgba(0, 255, 100, 0.08)';
+            ctx.lineWidth = 1;
+            
+            // Horizontal lines
+            for (let i = 0; i < 20; i++) {
+                const y = (canvas.height / 20) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Vertical lines
+            for (let i = 0; i < 20; i++) {
+                const x = (canvas.width / 20) * i;
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            
+            // Center cross (brighter)
+            ctx.strokeStyle = 'rgba(0, 255, 100, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(canvas.width, centerY);
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, canvas.height);
+            ctx.stroke();
+            
+            // === CENTRAL CORE PULSE ===
+            const coreSize = 30 + bass * 80;
+            const coreGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, coreSize);
+            coreGradient.addColorStop(0, `rgba(255, 255, 255, ${bass * 0.9})`);
+            coreGradient.addColorStop(0.3, `rgba(0, 255, 100, ${mid * 0.7})`);
+            coreGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = coreGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, coreSize, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // === TRIGGER LINE (Bass responsive) ===
+            if (bass > 0.7) {
+                ctx.strokeStyle = `rgba(255, 100, 0, ${bass})`;
+                ctx.lineWidth = 3;
+                ctx.setLineDash([20, 10]);
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#F60';
+                ctx.beginPath();
+                ctx.moveTo(0, centerY);
+                ctx.lineTo(canvas.width, centerY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.shadowBlur = 0;
+            }
+            
+            // === SCREEN FLASH ===
+            if (bass > 0.88) {
+                ctx.fillStyle = `rgba(0, 255, 100, ${(bass - 0.88) * 3})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // === SECRET VISUALIZER 4: COSMIC JOURNEY ===
+        let cosmicTime = 0;
+        const planets = [];
+        const stars = [];
+        const numStars = 300;
+        const numPlanets = 9;
+        
+        // Initialize stars
+        for (let i = 0; i < numStars; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                z: Math.random() * 2000,
+                size: Math.random() * 2 + 0.5
+            });
+        }
+        
+        // Initialize planets (sistema solare)
+        const planetData = [
+            { name: 'Sun', size: 50, color: [40, 100, 60], orbit: 0, speed: 0 },
+            { name: 'Mercury', size: 8, color: [30, 80, 50], orbit: 120, speed: 4.8 },
+            { name: 'Venus', size: 14, color: [40, 90, 55], orbit: 160, speed: 3.5 },
+            { name: 'Earth', size: 15, color: [210, 80, 50], orbit: 200, speed: 3.0 },
+            { name: 'Mars', size: 10, color: [10, 90, 50], orbit: 250, speed: 2.4 },
+            { name: 'Jupiter', size: 40, color: [30, 80, 55], orbit: 350, speed: 1.3 },
+            { name: 'Saturn', size: 35, color: [45, 85, 60], orbit: 450, speed: 1.0 },
+            { name: 'Uranus', size: 25, color: [180, 70, 60], orbit: 550, speed: 0.7 },
+            { name: 'Neptune', size: 24, color: [220, 80, 50], orbit: 650, speed: 0.5 }
+        ];
+        
+        for (let i = 0; i < planetData.length; i++) {
+            planets.push({
+                ...planetData[i],
+                angle: Math.random() * Math.PI * 2,
+                spiralOffset: 0
+            });
+        }
+        
+        function drawCosmicJourney() {
+            // Deep space background fade
+            ctx.fillStyle = 'rgba(0, 0, 5, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const bass = dataArray.slice(0, 50).reduce((a,b) => a+b, 0) / 50 / 255;
+            const mid = dataArray.slice(50, 150).reduce((a,b) => a+b, 0) / 100 / 255;
+            const treble = dataArray.slice(150, 250).reduce((a,b) => a+b, 0) / 100 / 255;
+            
+            cosmicTime += 0.008 + bass * 0.015;
+            
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            // === STARFIELD (parallax effect) ===
+            for (let i = 0; i < stars.length; i++) {
+                const star = stars[i];
+                
+                // Move stars toward viewer (warp effect)
+                star.z -= 5 + bass * 20 + mid * 10;
+                
+                if (star.z <= 0) {
+                    star.z = 2000;
+                    star.x = Math.random() * canvas.width;
+                    star.y = Math.random() * canvas.height;
+                }
+                
+                // Project 3D to 2D
+                const scale = 1000 / star.z;
+                const x = (star.x - centerX) * scale + centerX;
+                const y = (star.y - centerY) * scale + centerY;
+                const size = star.size * scale;
+                const alpha = Math.min(1, scale);
+                
+                if (x >= 0 && x <= canvas.width && y >= 0 && y <= canvas.height) {
+                    // Star streak effect (warp speed)
+                    const prevScale = 1000 / (star.z + 5 + bass * 20);
+                    const prevX = (star.x - centerX) * prevScale + centerX;
+                    const prevY = (star.y - centerY) * prevScale + centerY;
+                    
+                    const gradient = ctx.createLinearGradient(prevX, prevY, x, y);
+                    gradient.addColorStop(0, `rgba(150, 200, 255, 0)`);
+                    gradient.addColorStop(1, `rgba(200, 220, 255, ${alpha * 0.9})`);
+                    
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = size;
+                    ctx.beginPath();
+                    ctx.moveTo(prevX, prevY);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                    
+                    // Star glow
+                    if (alpha > 0.7) {
+                        const glowGradient = ctx.createRadialGradient(x, y, 0, x, y, size * 3);
+                        glowGradient.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.6})`);
+                        glowGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                        ctx.fillStyle = glowGradient;
+                        ctx.fillRect(x - size * 3, y - size * 3, size * 6, size * 6);
+                    }
+                }
+            }
+            
+            // === SPIRAL GALAXY PATH ===
+            const numSpiralPoints = 200;
+            for (let s = 0; s < 2; s++) { // 2 spiral arms
+                ctx.strokeStyle = `hsla(${(cosmicTime * 30 + s * 180) % 360}, 80%, 60%, 0.2)`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                for (let i = 0; i < numSpiralPoints; i++) {
+                    const t = i / numSpiralPoints;
+                    const angle = s * Math.PI + t * Math.PI * 8 + cosmicTime * 0.5;
+                    const radius = 100 + t * 800 + Math.sin(cosmicTime + i * 0.1) * 50 * bass;
+                    
+                    const x = centerX + Math.cos(angle) * radius;
+                    const y = centerY + Math.sin(angle) * radius;
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+            
+            // === SOLAR SYSTEM (traveling through galaxy) ===
+            // System center offset (spiraling motion)
+            const spiralRadius = 200 + Math.sin(cosmicTime * 0.3) * 100;
+            const spiralAngle = cosmicTime * 0.5;
+            const systemCenterX = centerX + Math.cos(spiralAngle) * spiralRadius * mid;
+            const systemCenterY = centerY + Math.sin(spiralAngle) * spiralRadius * mid;
+            
+            // Draw orbit paths
+            for (let i = 1; i < planets.length; i++) {
+                const planet = planets[i];
+                const orbitRadius = planet.orbit + Math.sin(cosmicTime + i) * 20 * bass;
+                
+                ctx.strokeStyle = `hsla(${planet.color[0]}, ${planet.color[1]}%, ${planet.color[2]}%, 0.15)`;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(systemCenterX, systemCenterY, orbitRadius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // Draw planets
+            for (let i = 0; i < planets.length; i++) {
+                const planet = planets[i];
+                
+                if (i === 0) {
+                    // SUN (center of system)
+                    const sunSize = planet.size + bass * 30 + Math.sin(cosmicTime * 2) * 10;
+                    
+                    // Sun core
+                    const sunGradient = ctx.createRadialGradient(
+                        systemCenterX, systemCenterY, 0,
+                        systemCenterX, systemCenterY, sunSize
+                    );
+                    sunGradient.addColorStop(0, `rgba(255, 255, 200, ${0.9 + bass * 0.1})`);
+                    sunGradient.addColorStop(0.5, `hsla(${planet.color[0]}, 100%, 60%, 0.8)`);
+                    sunGradient.addColorStop(1, `hsla(${planet.color[0]}, 100%, 40%, 0.3)`);
+                    
+                    ctx.fillStyle = sunGradient;
+                    ctx.beginPath();
+                    ctx.arc(systemCenterX, systemCenterY, sunSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Sun corona
+                    ctx.shadowBlur = 40 + bass * 40;
+                    ctx.shadowColor = `hsl(${planet.color[0]}, 100%, 60%)`;
+                    ctx.strokeStyle = `hsla(${planet.color[0]}, 100%, 70%, ${0.6 + bass * 0.4})`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(systemCenterX, systemCenterY, sunSize + 10, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    
+                    // Solar flares (on bass)
+                    if (bass > 0.6) {
+                        for (let f = 0; f < 8; f++) {
+                            const flareAngle = (f / 8) * Math.PI * 2 + cosmicTime * 2;
+                            const flareLength = bass * 60;
+                            const x1 = systemCenterX + Math.cos(flareAngle) * sunSize;
+                            const y1 = systemCenterY + Math.sin(flareAngle) * sunSize;
+                            const x2 = systemCenterX + Math.cos(flareAngle) * (sunSize + flareLength);
+                            const y2 = systemCenterY + Math.sin(flareAngle) * (sunSize + flareLength);
+                            
+                            const flareGradient = ctx.createLinearGradient(x1, y1, x2, y2);
+                            flareGradient.addColorStop(0, `hsla(${planet.color[0]}, 100%, 70%, ${bass})`);
+                            flareGradient.addColorStop(1, 'rgba(255, 200, 0, 0)');
+                            
+                            ctx.strokeStyle = flareGradient;
+                            ctx.lineWidth = 4;
+                            ctx.beginPath();
+                            ctx.moveTo(x1, y1);
+                            ctx.lineTo(x2, y2);
+                            ctx.stroke();
+                        }
+                    }
+                } else {
+                    // PLANETS (orbiting)
+                    planet.angle += planet.speed * 0.001 * (1 + mid * 0.5);
+                    planet.spiralOffset += 0.002; // Continuous spiral evolution
+                    
+                    const orbitRadius = planet.orbit + Math.sin(cosmicTime + i) * 20 * bass;
+                    
+                    // Spiral evolution (continuous expanding)
+                    const spiralX = Math.cos(planet.spiralOffset * 3) * planet.spiralOffset * 10;
+                    const spiralY = Math.sin(planet.spiralOffset * 3) * planet.spiralOffset * 10;
+                    
+                    const x = systemCenterX + Math.cos(planet.angle) * orbitRadius + spiralX;
+                    const y = systemCenterY + Math.sin(planet.angle) * orbitRadius + spiralY;
+                    
+                    const planetSize = planet.size * (1 + bass * 0.3);
+                    
+                    // Planet gradient
+                    const planetGradient = ctx.createRadialGradient(
+                        x - planetSize * 0.3, y - planetSize * 0.3, 0,
+                        x, y, planetSize
+                    );
+                    planetGradient.addColorStop(0, `hsla(${planet.color[0]}, ${planet.color[1]}%, ${planet.color[2] + 20}%, 0.9)`);
+                    planetGradient.addColorStop(0.7, `hsla(${planet.color[0]}, ${planet.color[1]}%, ${planet.color[2]}%, 0.8)`);
+                    planetGradient.addColorStop(1, `hsla(${planet.color[0]}, ${planet.color[1]}%, ${planet.color[2] - 20}%, 0.5)`);
+                    
+                    ctx.fillStyle = planetGradient;
+                    ctx.beginPath();
+                    ctx.arc(x, y, planetSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Planet atmosphere
+                    ctx.strokeStyle = `hsla(${planet.color[0]}, ${planet.color[1]}%, ${planet.color[2] + 10}%, 0.4)`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, planetSize + 3, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // Saturn rings (special case)
+                    if (planet.name === 'Saturn') {
+                        ctx.strokeStyle = `hsla(${planet.color[0]}, 70%, 60%, 0.5)`;
+                        ctx.lineWidth = 6;
+                        ctx.beginPath();
+                        ctx.ellipse(x, y, planetSize * 2, planetSize * 0.5, cosmicTime * 0.5, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                    
+                    // Frequency trails behind planets
+                    const dataIdx = (i * 28) % 256;
+                    const freqLevel = dataArray[dataIdx] / 255;
+                    if (freqLevel > 0.3) {
+                        const trailLength = freqLevel * 50;
+                        const trailAngle = planet.angle + Math.PI;
+                        const tx = x + Math.cos(trailAngle) * trailLength;
+                        const ty = y + Math.sin(trailAngle) * trailLength;
+                        
+                        const trailGradient = ctx.createLinearGradient(x, y, tx, ty);
+                        trailGradient.addColorStop(0, `hsla(${planet.color[0]}, 100%, 70%, ${freqLevel * 0.7})`);
+                        trailGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                        
+                        ctx.strokeStyle = trailGradient;
+                        ctx.lineWidth = planetSize * 0.5;
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(tx, ty);
+                        ctx.stroke();
+                    }
+                }
+            }
+            
+            // === NEBULA CLOUDS (psychedelic) ===
+            const numClouds = 5;
+            for (let c = 0; c < numClouds; c++) {
+                const cloudX = centerX + Math.cos(cosmicTime * 0.2 + c * 1.2) * 400;
+                const cloudY = centerY + Math.sin(cosmicTime * 0.15 + c * 1.5) * 300;
+                const cloudSize = 150 + Math.sin(cosmicTime + c) * 50 + bass * 80;
+                const hue = (c * 72 + cosmicTime * 20) % 360;
+                
+                const cloudGradient = ctx.createRadialGradient(cloudX, cloudY, 0, cloudX, cloudY, cloudSize);
+                cloudGradient.addColorStop(0, `hsla(${hue}, 80%, 60%, ${0.15 * mid})`);
+                cloudGradient.addColorStop(0.5, `hsla(${hue}, 70%, 50%, ${0.08 * mid})`);
+                cloudGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                
+                ctx.fillStyle = cloudGradient;
+                ctx.beginPath();
+                ctx.arc(cloudX, cloudY, cloudSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // === WORMHOLE EFFECT (on heavy bass) ===
+            if (bass > 0.75) {
+                const numRings = 15;
+                for (let r = 0; r < numRings; r++) {
+                    const ringRadius = (r / numRings) * 300 + bass * 200;
+                    const ringHue = (r * 24 + cosmicTime * 100) % 360;
+                    const ringAlpha = (1 - r / numRings) * bass;
+                    
+                    ctx.strokeStyle = `hsla(${ringHue}, 100%, 60%, ${ringAlpha})`;
+                    ctx.lineWidth = 2 + bass * 5;
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = `hsl(${ringHue}, 100%, 60%)`;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.shadowBlur = 0;
+            }
+            
+            // === HYPERDRIVE FLASH ===
+            if (bass > 0.9) {
+                const flashHue = (cosmicTime * 150) % 360;
+                ctx.fillStyle = `hsla(${flashHue}, 100%, 80%, ${(bass - 0.9) * 4})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        // === ANIMATION LOOP ===
+        function animate() {
+            if (!isPlaying) return;
+            
+            analyser.getByteFrequencyData(dataArray);
+            
+            // Draw current visualizer
+            visualizers[currentVisualizer].draw();
+            
+            // Update VU meter
+            updateVUMeter();
+            
+            // Update freq counter
+            const avgFreq = dataArray.reduce((a,b) => a+b, 0) / dataArray.length;
+            document.getElementById('freq-count').textContent = Math.floor(avgFreq * 100);
+            
+            // Update visualizer name
+            document.getElementById('visualizer-name').textContent = visualizers[currentVisualizer].name;
+            
+            requestAnimationFrame(animate);
+        }
+
+        // === VU METER ===
+        function updateVUMeter() {
+            const vuMeter = document.getElementById('vu-meter');
+            if (vuMeter.children.length === 0) {
+                for (let i = 0; i < 20; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'vu-bar';
+                    vuMeter.appendChild(bar);
+                }
+            }
+            
+            for (let i = 0; i < 20; i++) {
+                const level = dataArray[i * 12] / 255;
+                vuMeter.children[i].style.height = `${level * 25}px`;
+                
+                if (level > 0.8) {
+                    vuMeter.children[i].style.background = '#F00';
+                } else if (level > 0.6) {
+                    vuMeter.children[i].style.background = '#FF0';
+                } else {
+                    vuMeter.children[i].style.background = '#0F0';
+                }
+            }
+        }
+
+        // === RESET VISUALIZERS (prevent memory leaks and freezes) ===
+        function resetVisualizers() {
+            // Clear Bass Pulse particles
+            particles.length = 0;
+            
+            // Reset time counters
+            pulseTime = 0;
+            cosmicTime = 0;
+            
+            // Clear canvas completely
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // === CONTROLS ===
+        document.addEventListener('keydown', (e) => {
+            switch(e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    togglePlay();
+                    break;
+                case 'ArrowLeft':
+                    currentVisualizer = (currentVisualizer - 1 + visualizers.length) % visualizers.length;
+                    resetVisualizers();
+                    updateVisualizerName();
+                    break;
+                case 'ArrowRight':
+                    currentVisualizer = (currentVisualizer + 1) % visualizers.length;
+                    resetVisualizers();
+                    updateVisualizerName();
+                    break;
+                case 'ArrowUp':
+                    audio.volume = Math.min(1, audio.volume + 0.1);
+                    document.getElementById('volume').textContent = Math.floor(audio.volume * 100);
+                    break;
+                case 'ArrowDown':
+                    audio.volume = Math.max(0, audio.volume - 0.1);
+                    document.getElementById('volume').textContent = Math.floor(audio.volume * 100);
+                    break;
+                case 'KeyF':
+                    if (!document.fullscreenElement) {
+                        document.documentElement.requestFullscreen();
+                    } else {
+                        document.exitFullscreen();
+                    }
+                    break;
+                case 'KeyI':
+                    controlsVisible = !controlsVisible;
+                    document.getElementById('controls').style.display = controlsVisible ? 'block' : 'none';
+                    document.getElementById('status-bar').style.display = controlsVisible ? 'flex' : 'none';
+                    break;
+            }
+        });
+
+        document.getElementById('play-button').addEventListener('click', togglePlay);
+        canvas.addEventListener('click', togglePlay);
+
+        // Custom cursor
+        const cursor = document.getElementById('custom-cursor');
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        // === VISUALIZER 7: RAVE LANDSCAPE ===
+        let landscapeTime = 0;
+        const landscapeStructures = [];
+        
+        // Initialize landscape structures
+        function initLandscape() {
+            landscapeStructures.length = 0;
+            const numStructures = 15;
+            for (let i = 0; i < numStructures; i++) {
+                landscapeStructures.push({
+                    x: (i / numStructures) * canvas.width,
+                    type: Math.floor(Math.random() * 4),
+                    height: 0.4 + Math.random() * 0.5,
+                    width: 0.05 + Math.random() * 0.08,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+        }
+        initLandscape();
+        
+        function drawRaveLandscape() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            const bass = dataArray.slice(0, 50).reduce((a,b) => a+b, 0) / 50 / 255;
+            const mid = dataArray.slice(50, 150).reduce((a,b) => a+b, 0) / 100 / 255;
+            const treble = dataArray.slice(150, 250).reduce((a,b) => a+b, 0) / 100 / 255;
+            
+            landscapeTime += 0.03 + bass * 0.05;
+            const groundY = canvas.height * 0.85;
+            
+            // Ground wave
+            ctx.strokeStyle = `hsl(${landscapeTime * 30 % 360}, 60%, 35%)`;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for (let x = 0; x < canvas.width; x += 5) {
+                const waveOffset = Math.sin(x * 0.02 + landscapeTime) * bass * 20;
+                const y = groundY + waveOffset;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+            
+            // Draw structures
+            landscapeStructures.forEach((struct, idx) => {
+                const dataIdx = Math.floor((idx / landscapeStructures.length) * 256);
+                const intensity = dataArray[dataIdx] / 255;
+                
+                const x = struct.x + Math.sin(landscapeTime + struct.phase) * bass * 20;
+                const y = groundY;
+                const height = canvas.height * struct.height * (1 + intensity * 0.4 + bass * 0.2);
+                const width = canvas.width * struct.width * (1 + intensity * 0.2);
+                const hue = (idx * 25 + landscapeTime * 40 + intensity * 120) % 360;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                
+                // Warp effect
+                if (bass > 0.7) {
+                    const skew = Math.sin(landscapeTime + idx) * bass * 0.1;
+                    ctx.transform(1, skew, 0, 1, 0, 0);
+                }
+                
+                ctx.strokeStyle = `hsl(${hue}, 80%, ${40 + intensity * 40}%)`;
+                ctx.lineWidth = 2 + intensity * 3;
+                
+                // Draw structure based on type
+                if (struct.type === 0) {
+                    // Speaker
+                    ctx.strokeRect(-width/2, -height, width, height);
+                    for (let i = 0; i < 3; i++) {
+                        const coneY = -height * (0.2 + i * 0.3);
+                        const coneSize = width * (0.3 - i * 0.05) * (1 + intensity * 0.3);
+                        ctx.beginPath();
+                        ctx.arc(0, coneY, coneSize, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.arc(0, coneY, coneSize * 0.6, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                } else if (struct.type === 1) {
+                    // Tower
+                    ctx.beginPath();
+                    ctx.moveTo(-width/2, 0);
+                    ctx.lineTo(-width/2, -height);
+                    ctx.moveTo(width/2, 0);
+                    ctx.lineTo(width/2, -height);
+                    ctx.stroke();
+                    
+                    for (let i = 0; i < 8; i++) {
+                        const beamY = -(i / 8) * height;
+                        ctx.beginPath();
+                        ctx.moveTo(-width/2, beamY);
+                        ctx.lineTo(width/2, beamY);
+                        ctx.stroke();
+                    }
+                    
+                    // Lights
+                    for (let i = 0; i < 3; i++) {
+                        const lightX = -width/2 + (i / 2) * width;
+                        ctx.fillStyle = `hsl(${(hue + i * 40) % 360}, 100%, ${intensity * 80}%)`;
+                        ctx.beginPath();
+                        ctx.arc(lightX, -height - 10, 3 + intensity * 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                } else if (struct.type === 2) {
+                    // Truss
+                    ctx.beginPath();
+                    ctx.moveTo(-width/2, -height);
+                    ctx.lineTo(width/2, -height);
+                    ctx.moveTo(-width/2, -height * 0.7);
+                    ctx.lineTo(width/2, -height * 0.7);
+                    ctx.stroke();
+                    
+                    for (let i = 0; i < 6; i++) {
+                        const sectionX = -width/2 + (i / 6) * width;
+                        ctx.beginPath();
+                        ctx.moveTo(sectionX, -height);
+                        ctx.lineTo(sectionX + width/6, -height * 0.7);
+                        ctx.moveTo(sectionX + width/6, -height);
+                        ctx.lineTo(sectionX, -height * 0.7);
+                        ctx.stroke();
+                    }
+                } else {
+                    // Stack
+                    for (let i = 0; i < 6; i++) {
+                        const boxY = -(i + 1) * height / 6;
+                        const boxHue = (hue + i * 15) % 360;
+                        ctx.strokeStyle = `hsl(${boxHue}, 80%, ${40 + intensity * 40}%)`;
+                        ctx.strokeRect(-width/2, boxY, width, height / 6);
+                        
+                        const coneSize = width * 0.35 * (1 + intensity * 0.4);
+                        ctx.beginPath();
+                        ctx.arc(0, boxY + height / 12, coneSize, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.arc(0, boxY + height / 12, coneSize * 0.6, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+                
+                ctx.restore();
+                
+                // Pressure wave
+                if (intensity > 0.7) {
+                    const waveRadius = 30 + intensity * 50;
+                    ctx.strokeStyle = `hsla(${hue}, 80%, 60%, ${intensity * 0.5})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y - height/2, waveRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            });
+            
+            // Crowd
+            const numPeople = 40;
+            for (let i = 0; i < numPeople; i++) {
+                const personX = (i / numPeople) * canvas.width;
+                const jump = dataArray[i * 6] / 255 * bass * 30;
+                const hue = (i * 10 + landscapeTime * 20) % 360;
+                
+                ctx.fillStyle = `hsla(${hue}, 70%, 40%, 0.6)`;
+                ctx.fillRect(personX, groundY - 30 - jump, 8, 30);
+                ctx.beginPath();
+                ctx.arc(personX + 4, groundY - 35 - jump, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Lasers
+            if (treble > 0.6) {
+                for (let i = 0; i < 8; i++) {
+                    const laserX = (i / 8) * canvas.width;
+                    const angle = Math.sin(landscapeTime + i) * treble;
+                    
+                    ctx.strokeStyle = `hsla(${(i * 45 + landscapeTime * 50) % 360}, 100%, 60%, ${treble * 0.6})`;
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = `hsl(${(i * 45 + landscapeTime * 50) % 360}, 100%, 60%)`;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(laserX, 0);
+                    ctx.lineTo(laserX + angle * 200, canvas.height);
+                    ctx.stroke();
+                }
+                ctx.shadowBlur = 0;
+            }
+            
+            // Fog
+            const fogGradient = ctx.createLinearGradient(0, groundY - 100, 0, groundY + 50);
+            fogGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            fogGradient.addColorStop(1, `hsla(${landscapeTime * 20 % 360}, 40%, 20%, 0.6)`);
+            ctx.fillStyle = fogGradient;
+            ctx.fillRect(0, groundY - 100, canvas.width, 150);
+            
+            // Bass flash
+            if (bass > 0.85) {
+                const flashHue = (landscapeTime * 100) % 360;
+                ctx.fillStyle = `hsla(${flashHue}, 100%, 60%, ${(bass - 0.85) * 2})`;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        console.log('🔊 FREE UNDERGROUND TEKNO - VISUAL SYSTEM LOADED');
+    </script>
+</body>
+</html>

@@ -1,16 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<<<<<<< HEAD
     <title>Free Underground Tekno - Hub</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+=======
+    <title>FREE UNDERGROUND TEKNO - Live Radio VJ</title>
+>>>>>>> f4dc21a (Add complete audio analyzer template with visualizer and controls)
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+<<<<<<< HEAD
 
         body {
             font-family: 'Courier New', monospace;
@@ -29,10 +34,92 @@
         body::before {
             content: '';
             position: absolute;
+=======
+        
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* BACKGROUND IMAGE - con effetti 3D e motion blur */
+        #background {
+            position: fixed;
+            width: 100vw;
+            height: 100vh;
+            background-image: url('./freetekno.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            z-index: 0;
+            transition: transform 0.05s ease-out, filter 0.1s ease-out;
+            transform-origin: center center;
+            will-change: transform, filter;
+        }
+        
+        /* Zoom burst effect */
+        body.zoom-burst #background {
+            animation: zoom-burst 0.3s ease-out;
+        }
+        
+        @keyframes zoom-burst {
+            0% { 
+                transform: scale(1);
+                filter: blur(0);
+            }
+            50% { 
+                transform: scale(1.15);
+                filter: blur(8px);
+            }
+            100% { 
+                transform: scale(1);
+                filter: blur(0);
+            }
+        }
+        
+        /* Rapid shake */
+        body.shake-burst #background {
+            animation: shake-burst 0.2s ease-out;
+        }
+        
+        @keyframes shake-burst {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            20% { transform: translate(-10px, 5px) scale(1.05) rotate(2deg); }
+            40% { transform: translate(10px, -5px) scale(0.98) rotate(-2deg); }
+            60% { transform: translate(-8px, -5px) scale(1.03) rotate(1deg); }
+            80% { transform: translate(8px, 5px) scale(0.99) rotate(-1deg); }
+        }
+        
+        /* Psychedelic states */
+        body.trip-mode #background {
+            animation: breathe 4s ease-in-out infinite;
+        }
+        
+        @keyframes breathe {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(2deg); }
+        }
+        
+        body.khole-mode #background {
+            filter: blur(3px) contrast(1.5) saturate(0);
+            animation: khole-drift 8s ease-in-out infinite;
+        }
+        
+        @keyframes khole-drift {
+            0%, 100% { transform: scale(1) translateY(0); }
+            25% { transform: scale(1.05) translateY(-20px) rotate(1deg); }
+            75% { transform: scale(0.95) translateY(20px) rotate(-1deg); }
+        }
+        
+        /* STROBE OVERLAY - flash bianco */
+        #strobeFlash {
+            position: fixed;
+>>>>>>> f4dc21a (Add complete audio analyzer template with visualizer and controls)
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
+<<<<<<< HEAD
             background: 
                 repeating-linear-gradient(
                     0deg,
@@ -164,10 +251,610 @@
             .links {
                 gap: 1rem;
             }
+=======
+            background: #fff;
+            opacity: 0;
+            z-index: 999;
+            pointer-events: none;
+        }
+        
+        /* GEOMETRIC STROBES - flash geometrici che seguono il disegno */
+        .geo-strobe {
+            position: fixed;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 50;
+            transition: opacity 0.05s;
+        }
+        
+        /* Strobes laterali (sound system walls) */
+        .geo-strobe.left-wall {
+            left: 0;
+            top: 0;
+            width: 25%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0.9), transparent);
+        }
+        
+        .geo-strobe.right-wall {
+            right: 0;
+            top: 0;
+            width: 25%;
+            height: 100%;
+            background: linear-gradient(to left, rgba(255,255,255,0.9), transparent);
+        }
+        
+        /* Strobes cerchi (seguono i cerchi concentrici) */
+        .geo-strobe.circle-ring {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            background: transparent;
+        }
+        
+        /* Strobes orizzontali (crowd/stage) */
+        .geo-strobe.horizontal-bottom {
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 30%;
+            background: linear-gradient(to top, rgba(255,255,255,0.9), transparent);
+        }
+        
+        .geo-strobe.horizontal-top {
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 20%;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
+        }
+        
+        /* Strobes radiali dal centro */
+        .geo-strobe.radial-burst {
+            top: 50%;
+            left: 50%;
+            width: 200%;
+            height: 200%;
+            transform: translate(-50%, -50%);
+            background: radial-gradient(
+                circle at center,
+                transparent 20%,
+                rgba(255,255,255,0.8) 40%,
+                transparent 60%
+            );
+        }
+        
+        /* PULSE EFFECT - cerchi molto più visibili */
+        #circlePulse {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 5px solid rgba(255, 255, 255, 0.9);
+            z-index: 1;
+            pointer-events: none;
+            box-shadow: 
+                0 0 30px rgba(255, 255, 255, 0.8),
+                0 0 60px rgba(255, 255, 255, 0.6),
+                inset 0 0 30px rgba(255, 255, 255, 0.4);
+        }
+        
+        /* SPEAKER FLASHES - flash sulle casse laterali */
+        .speaker-flash {
+            position: fixed;
+            width: 150px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(255,255,255,0.9) 0%, transparent 70%);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 2;
+            filter: blur(30px);
+        }
+        
+        .speaker-flash.left {
+            left: 15%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .speaker-flash.right {
+            right: 15%;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        /* CROWD STROBES - luci che illuminano la folla */
+        #crowdStrobe {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 30%;
+            background: linear-gradient(to top, rgba(255,255,255,0.8), transparent);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 3;
+            mix-blend-mode: overlay;
+        }
+        
+        /* ANTENNA BEAMS - raggi dalle antenne centrali */
+        .antenna-beam {
+            position: fixed;
+            top: 30%;
+            left: 50%;
+            width: 2px;
+            height: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,1), transparent);
+            transform-origin: top center;
+            pointer-events: none;
+            z-index: 2;
+            opacity: 0;
+        }
+        
+        .antenna-beam.left {
+            margin-left: -100px;
+        }
+        
+        .antenna-beam.center {
+            margin-left: 0;
+        }
+        
+        .antenna-beam.right {
+            margin-left: 100px;
+        }
+        
+        /* VORTEX ROTATION - rotazione cerchi più visibile */
+        #vortexRotation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 4;
+            mix-blend-mode: screen;
+            opacity: 0.6;
+        }
+        
+        /* TUNNEL EFFECT - zoom 3D verso centro */
+        #tunnelEffect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            perspective: 1000px;
+        }
+        
+        .tunnel-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            animation: tunnel-zoom 3s linear infinite;
+        }
+        
+        @keyframes tunnel-zoom {
+            0% {
+                width: 50px;
+                height: 50px;
+                opacity: 0;
+            }
+            50% {
+                opacity: 0.8;
+            }
+            100% {
+                width: 2000px;
+                height: 2000px;
+                opacity: 0;
+            }
+        }
+        
+        /* GRAIN OVERLAY - rumore analogico */
+        #grainOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.4"/></svg>');
+            opacity: 0.15;
+            z-index: 100;
+            pointer-events: none;
+            animation: grain-move 0.5s steps(4) infinite;
+        }
+        
+        @keyframes grain-move {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(-2px, 2px); }
+            50% { transform: translate(2px, -2px); }
+            75% { transform: translate(-2px, -2px); }
+        }
+        
+        /* VHS GLITCH LINES */
+        #vhsLines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 101;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+        
+        .vhs-line {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.1);
+            animation: vhs-scan 8s linear infinite;
+        }
+        
+        @keyframes vhs-scan {
+            0% { top: -2px; }
+            100% { top: 100%; }
+        }
+        
+        /* CHROMATIC ABERRATION */
+        body.aberration-mode #background {
+            animation: chromatic-shift 0.3s ease-in-out infinite;
+        }
+        
+        @keyframes chromatic-shift {
+            0%, 100% { 
+                filter: none;
+            }
+            50% { 
+                filter: 
+                    drop-shadow(2px 0 0 rgba(255,0,0,0.5))
+                    drop-shadow(-2px 0 0 rgba(0,255,255,0.5));
+            }
+        }
+        
+        /* SCANLINES - effetto CRT */
+        #scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 102;
+            pointer-events: none;
+            background: linear-gradient(
+                to bottom,
+                rgba(0, 0, 0, 0) 50%,
+                rgba(0, 0, 0, 0.25) 50%
+            );
+            background-size: 100% 4px;
+            opacity: 0.3;
+        }
+        
+        /* VIGNETTE - bordi scuri */
+        #vignette {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 103;
+            pointer-events: none;
+            background: radial-gradient(
+                ellipse at center,
+                transparent 30%,
+                rgba(0, 0, 0, 0.4) 80%,
+                rgba(0, 0, 0, 0.8) 100%
+            );
+        }
+        
+        /* DUST PARTICLES - polvere sullo schermo */
+        .dust-particle {
+            position: fixed;
+            width: 2px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            z-index: 104;
+            pointer-events: none;
+            animation: dust-float 20s linear infinite;
+        }
+        
+        @keyframes dust-float {
+            0% {
+                transform: translate(0, 0) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.5;
+            }
+            90% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translate(var(--dust-x), var(--dust-y)) rotate(360deg);
+                opacity: 0;
+            }
+        }
+        
+        /* FREQUENCY VISUALIZER - barre frequenze in basso */
+        #frequencyViz {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 100px;
+            z-index: 5;
+            pointer-events: none;
+        }
+        
+        .freq-bar {
+            width: 8px;
+            background: linear-gradient(to top, #fff, #888);
+            opacity: 0.8;
+            transition: height 0.05s;
+        }
+        
+        /* 🌀 DISTORTION ZONES - distorsioni parziali graduali */
+        .distortion-zone {
+            position: fixed;
+            pointer-events: none;
+            z-index: 50;
+            mix-blend-mode: screen;
+            opacity: 0;
+            transition: opacity 0.1s ease-out, transform 0.2s ease-out;
+        }
+        
+        .distortion-zone.active {
+            animation: distort-pulse 0.4s ease-out;
+        }
+        
+        @keyframes distort-pulse {
+            0% { 
+                opacity: 0;
+                transform: scale(0.8);
+                filter: blur(10px) hue-rotate(0deg);
+            }
+            50% { 
+                opacity: 0.8;
+                transform: scale(1.2);
+                filter: blur(5px) hue-rotate(180deg);
+            }
+            100% { 
+                opacity: 0;
+                transform: scale(1);
+                filter: blur(15px) hue-rotate(360deg);
+            }
+        }
+        
+        /* Effetto glitch warp su zone specifiche */
+        .warp-zone {
+            position: fixed;
+            pointer-events: none;
+            z-index: 51;
+            background: linear-gradient(45deg, 
+                transparent 0%, 
+                rgba(255,0,0,0.3) 25%,
+                rgba(0,255,255,0.3) 50%,
+                rgba(255,0,255,0.3) 75%,
+                transparent 100%
+            );
+            opacity: 0;
+            clip-path: polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%);
+        }
+        
+        .warp-zone.active {
+            animation: warp-glitch 0.3s steps(3) infinite;
+        }
+        
+        @keyframes warp-glitch {
+            0% { 
+                opacity: 0.6;
+                transform: translateX(0) skewX(0deg);
+                filter: hue-rotate(0deg);
+            }
+            33% { 
+                opacity: 0.8;
+                transform: translateX(-5px) skewX(5deg);
+                filter: hue-rotate(120deg);
+            }
+            66% { 
+                opacity: 0.7;
+                transform: translateX(5px) skewX(-5deg);
+                filter: hue-rotate(240deg);
+            }
+            100% { 
+                opacity: 0.6;
+                transform: translateX(0) skewX(0deg);
+                filter: hue-rotate(360deg);
+            }
+        }
+        
+        /* Chromatic split su zone specifiche */
+        .chroma-zone {
+            position: fixed;
+            pointer-events: none;
+            z-index: 52;
+            background: radial-gradient(
+                circle at center,
+                rgba(255,0,0,0.4) 0%,
+                transparent 50%
+            );
+            opacity: 0;
+            mix-blend-mode: screen;
+        }
+        
+        .chroma-zone.active {
+            animation: chroma-split 0.2s ease-out;
+        }
+        
+        @keyframes chroma-split {
+            0% { 
+                opacity: 0;
+                transform: translate(0, 0);
+            }
+            25% { 
+                opacity: 0.9;
+                transform: translate(-3px, 0);
+                filter: drop-shadow(6px 0 0 cyan) drop-shadow(-6px 0 0 red);
+            }
+            75% { 
+                opacity: 0.7;
+                transform: translate(3px, 0);
+                filter: drop-shadow(-4px 0 0 cyan) drop-shadow(4px 0 0 red);
+            }
+            100% { 
+                opacity: 0;
+                transform: translate(0, 0);
+            }
+        }
+
+        
+        /* 💫 SUPER SPATIAL GLOW STROBO - effetto strobo spaziale con glow */
+        #spatialStrobo {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 500;
+            opacity: 0;
+            mix-blend-mode: screen;
+            transition: opacity 0.05s linear;
+        }
+        
+        /* Pattern 1: Radial explosion */
+        #spatialStrobo.radial-explosion {
+            background: radial-gradient(
+                circle at center,
+                rgba(255, 255, 255, 1) 0%,
+                var(--glow-color, rgba(255, 0, 255, 0.8)) 30%,
+                transparent 60%
+            );
+            filter: blur(20px);
+        }
+        
+        /* Pattern 2: Cross beam */
+        #spatialStrobo.cross-beam {
+            background: 
+                linear-gradient(to bottom, transparent 48%, var(--glow-color, rgba(0, 255, 255, 0.9)) 50%, transparent 52%),
+                linear-gradient(to right, transparent 48%, var(--glow-color, rgba(0, 255, 255, 0.9)) 50%, transparent 52%);
+            filter: blur(15px);
+        }
+        
+        /* Pattern 3: Diamond burst */
+        #spatialStrobo.diamond-burst {
+            background: conic-gradient(
+                from 45deg at center,
+                transparent 0deg,
+                var(--glow-color, rgba(255, 255, 0, 0.9)) 90deg,
+                transparent 180deg,
+                var(--glow-color, rgba(255, 255, 0, 0.9)) 270deg,
+                transparent 360deg
+            );
+            filter: blur(25px);
+        }
+        
+        /* Pattern 4: Spiral glow */
+        #spatialStrobo.spiral-glow {
+            background: conic-gradient(
+                from 0deg at center,
+                var(--glow-color, rgba(0, 255, 0, 0.0)) 0deg,
+                var(--glow-color, rgba(0, 255, 0, 0.9)) 60deg,
+                var(--glow-color, rgba(0, 255, 0, 0.0)) 120deg,
+                var(--glow-color, rgba(0, 255, 0, 0.9)) 180deg,
+                var(--glow-color, rgba(0, 255, 0, 0.0)) 240deg,
+                var(--glow-color, rgba(0, 255, 0, 0.9)) 300deg,
+                var(--glow-color, rgba(0, 255, 0, 0.0)) 360deg
+            );
+            filter: blur(30px);
+            animation: rotate-strobo 0.3s linear infinite;
+        }
+        
+        /* Pattern 5: Ring pulse */
+        #spatialStrobo.ring-pulse {
+            background: radial-gradient(
+                circle at center,
+                transparent 30%,
+                var(--glow-color, rgba(255, 0, 0, 0.9)) 40%,
+                transparent 50%,
+                var(--glow-color, rgba(255, 0, 0, 0.7)) 60%,
+                transparent 70%
+            );
+            filter: blur(10px);
+            animation: pulse-scale 0.2s ease-out infinite;
+        }
+        
+        @keyframes rotate-strobo {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        @keyframes pulse-scale {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+        }
+        
+        /* CONTROLS */
+        #controls {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0,0,0,0.9);
+            padding: 15px;
+            border: 2px solid #fff;
+            color: #fff;
+            font-size: 12px;
+            transition: opacity 0.3s;
+        }
+        
+        #controls.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        button {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 8px 15px;
+            margin: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        
+        button:hover {
+            background: #ccc;
+        }
+        
+        #stats {
+            margin-top: 10px;
+            font-size: 10px;
+            line-height: 1.4;
+>>>>>>> f4dc21a (Add complete audio analyzer template with visualizer and controls)
         }
     </style>
 </head>
 <body>
+<<<<<<< HEAD
     <div class="container">
         <h1>⚡ Free Underground Tekno ⚡</h1>
         <p class="subtitle">Choose Your Experience</p>
@@ -187,5 +874,744 @@
     <div class="footer">
         Free Underground Tekno - Since 2008
     </div>
+=======
+    <!-- BACKGROUND -->
+    <div id="background"></div>
+    
+    <!-- ANALOG EFFECTS LAYERS -->
+    <div id="grainOverlay"></div>
+    <div id="vhsLines"></div>
+    <div id="scanlines"></div>
+    <div id="vignette"></div>
+    
+    <!-- STROBE FLASH -->
+    <div id="strobeFlash"></div>
+    
+    <!-- GEOMETRIC STROBES (ottimizzati, pochi elementi) -->
+    <div class="geo-strobe left-wall" id="strobeLeftWall"></div>
+    <div class="geo-strobe right-wall" id="strobeRightWall"></div>
+    <div class="geo-strobe circle-ring" id="strobeCircle1" style="width: 300px; height: 300px;"></div>
+    <div class="geo-strobe circle-ring" id="strobeCircle2" style="width: 600px; height: 600px;"></div>
+    <div class="geo-strobe horizontal-bottom" id="strobeBottom"></div>
+    <div class="geo-strobe horizontal-top" id="strobeTop"></div>
+    <div class="geo-strobe radial-burst" id="strobeRadial"></div>
+    
+    <!-- VORTEX ROTATION -->
+    <canvas id="vortexRotation"></canvas>
+    
+    <!-- TUNNEL EFFECT 3D -->
+    <div id="tunnelEffect"></div>
+    
+    <!-- CIRCLE PULSE (centro) -->
+    <div id="circlePulse"></div>
+    
+    <!-- SPEAKER FLASHES (laterali) -->
+    <div class="speaker-flash left"></div>
+    <div class="speaker-flash right"></div>
+    
+    <!-- CROWD STROBE (folla) -->
+    <div id="crowdStrobe"></div>
+    
+    <!-- ANTENNA BEAMS (centro alto) -->
+    <div class="antenna-beam left"></div>
+    <div class="antenna-beam center"></div>
+    <div class="antenna-beam right"></div>
+    
+    <!-- 🌀 DISTORTION ZONES - zone di distorsione parziale -->
+    <div class="distortion-zone" id="distort1"></div>
+    <div class="distortion-zone" id="distort2"></div>
+    <div class="distortion-zone" id="distort3"></div>
+    <div class="warp-zone" id="warp1"></div>
+    <div class="warp-zone" id="warp2"></div>
+    <div class="chroma-zone" id="chroma1"></div>
+    <div class="chroma-zone" id="chroma2"></div>
+    <div class="chroma-zone" id="chroma3"></div>
+    
+    <!-- 💫 SUPER SPATIAL GLOW STROBO -->
+    <div id="spatialStrobo"></div>
+    
+    <!-- FREQUENCY VISUALIZER -->
+    <div id="frequencyViz"></div>
+    
+    <!-- CONTROLS -->
+    <div id="controls">
+        <div style="font-weight: bold; margin-bottom: 10px;">FREE UNDERGROUND TEKNO</div>
+        <button id="startBtn">▶️ START</button>
+        <button id="stopBtn">⏹️ STOP</button>
+        <button id="hideBtn">👁️ HIDE</button>
+        <div id="stats">
+            <div>Bass: <span id="bassVal">0</span>%</div>
+            <div>Mid: <span id="midVal">0</span>%</div>
+            <div>Treble: <span id="trebleVal">0</span>%</div>
+        </div>
+    </div>
+
+    <script>
+        const AUDIO_URL = 'https://radio.freeundergroundtekno.org/listen/free_underground_tekno/radio.mp3';
+        
+        let audioContext = null;
+        let audioElement = null;
+        let analyser = null;
+        let isPlaying = false;
+        let animationId = null;
+        
+        // DOM elements
+        const controls = document.getElementById('controls');
+        const background = document.getElementById('background');
+        const strobeFlash = document.getElementById('strobeFlash');
+        const circlePulse = document.getElementById('circlePulse');
+        const speakerFlashes = document.querySelectorAll('.speaker-flash');
+        const crowdStrobe = document.getElementById('crowdStrobe');
+        const antennaBeams = document.querySelectorAll('.antenna-beam');
+        const vortexCanvas = document.getElementById('vortexRotation');
+        const vortexCtx = vortexCanvas.getContext('2d');
+        const tunnelEffect = document.getElementById('tunnelEffect');
+        const frequencyViz = document.getElementById('frequencyViz');
+        const vhsLines = document.getElementById('vhsLines');
+        const grainOverlay = document.getElementById('grainOverlay');
+        
+        // Geometric strobes
+        const strobeLeftWall = document.getElementById('strobeLeftWall');
+        const strobeRightWall = document.getElementById('strobeRightWall');
+        const strobeCircle1 = document.getElementById('strobeCircle1');
+        const strobeCircle2 = document.getElementById('strobeCircle2');
+        const strobeBottom = document.getElementById('strobeBottom');
+        const strobeTop = document.getElementById('strobeTop');
+        const strobeRadial = document.getElementById('strobeRadial');
+        const geoStrobes = [strobeLeftWall, strobeRightWall, strobeCircle1, strobeCircle2, strobeBottom, strobeTop, strobeRadial];
+        
+        // 💫 Spatial strobo
+        const spatialStrobo = document.getElementById('spatialStrobo');
+        const stroboPatterns = ['radial-explosion', 'cross-beam', 'diamond-burst', 'spiral-glow', 'ring-pulse'];
+        const stroboColors = [
+            'rgba(255, 0, 255, 0.9)',   // magenta
+            'rgba(0, 255, 255, 0.9)',   // cyan
+            'rgba(255, 255, 0, 0.9)',   // yellow
+            'rgba(0, 255, 0, 0.9)',     // green
+            'rgba(255, 0, 0, 0.9)',     // red
+            'rgba(0, 100, 255, 0.9)',   // blue
+            'rgba(255, 255, 255, 0.9)'  // white
+        ];
+        let currentStroboPattern = stroboPatterns[0];
+        let currentStroboColor = stroboColors[0];
+        
+        // Stats displays
+        const bassVal = document.getElementById('bassVal');
+        const midVal = document.getElementById('midVal');
+        const trebleVal = document.getElementById('trebleVal');
+        
+        // 🌀 Distortion zones
+        const distortZones = [
+            document.getElementById('distort1'),
+            document.getElementById('distort2'),
+            document.getElementById('distort3')
+        ];
+        const warpZones = [
+            document.getElementById('warp1'),
+            document.getElementById('warp2')
+        ];
+        const chromaZones = [
+            document.getElementById('chroma1'),
+            document.getElementById('chroma2'),
+            document.getElementById('chroma3')
+        ];
+        
+        // Posiziona zone di distorsione in punti strategici (speaker stacks, centro, crowd)
+        const distortPositions = [
+            { top: '20%', left: '15%', width: '200px', height: '300px' },  // stack sinistro
+            { top: '20%', right: '15%', width: '200px', height: '300px' }, // stack destro
+            { top: '35%', left: '50%', width: '250px', height: '250px', transform: 'translateX(-50%)' }, // centro spirale
+        ];
+        
+        const warpPositions = [
+            { top: '10%', left: '30%', width: '300px', height: '150px' }, // antenna zone
+            { bottom: '15%', left: '50%', width: '400px', height: '200px', transform: 'translateX(-50%)' }, // crowd zone
+        ];
+        
+        const chromaPositions = [
+            { top: '40%', left: '10%', width: '150px', height: '150px' },  // lato sinistro
+            { top: '40%', right: '10%', width: '150px', height: '150px' }, // lato destro
+            { top: '60%', left: '50%', width: '180px', height: '180px', transform: 'translateX(-50%)' }, // basso centro
+        ];
+        
+        distortZones.forEach((zone, i) => {
+            Object.assign(zone.style, distortPositions[i]);
+        });
+        
+        warpZones.forEach((zone, i) => {
+            Object.assign(zone.style, warpPositions[i]);
+        });
+        
+        chromaZones.forEach((zone, i) => {
+            Object.assign(zone.style, chromaPositions[i]);
+        });
+
+        
+        // Setup canvas
+        vortexCanvas.width = window.innerWidth;
+        vortexCanvas.height = window.innerHeight;
+        
+        // Create tunnel rings (OTTIMIZZATO: meno anelli)
+        for (let i = 0; i < 6; i++) { // ridotto da 10 a 6
+            const ring = document.createElement('div');
+            ring.className = 'tunnel-ring';
+            ring.style.animationDelay = `${i * 0.5}s`;
+            tunnelEffect.appendChild(ring);
+        }
+        
+        // Create VHS scan lines
+        for (let i = 0; i < 5; i++) {
+            const line = document.createElement('div');
+            line.className = 'vhs-line';
+            line.style.animationDelay = `${i * 1.6}s`;
+            vhsLines.appendChild(line);
+        }
+        
+        // Create dust particles (OTTIMIZZATO: meno particelle)
+        for (let i = 0; i < 15; i++) { // ridotto da 30 a 15
+            const dust = document.createElement('div');
+            dust.className = 'dust-particle';
+            dust.style.left = Math.random() * 100 + '%';
+            dust.style.top = Math.random() * 100 + '%';
+            dust.style.setProperty('--dust-x', (Math.random() - 0.5) * 200 + 'px');
+            dust.style.setProperty('--dust-y', (Math.random() - 0.5) * 200 + 'px');
+            dust.style.animationDelay = Math.random() * 20 + 's';
+            dust.style.animationDuration = (15 + Math.random() * 10) + 's';
+            document.body.appendChild(dust);
+        }
+        
+        // Create frequency bars (OTTIMIZZATO: meno barre)
+        const barCount = 32; // ridotto da 40 per performance
+        for (let i = 0; i < barCount; i++) {
+            const bar = document.createElement('div');
+            bar.className = 'freq-bar';
+            bar.style.height = '10px';
+            frequencyViz.appendChild(bar);
+        }
+        const freqBars = document.querySelectorAll('.freq-bar');
+        
+        // Button listeners
+        document.getElementById('startBtn').addEventListener('click', startAudio);
+        document.getElementById('stopBtn').addEventListener('click', stopAudio);
+        document.getElementById('hideBtn').addEventListener('click', () => {
+            controls.classList.toggle('hidden');
+        });
+        
+        // Click/key to show controls
+        document.addEventListener('click', (e) => {
+            if (!controls.contains(e.target) && controls.classList.contains('hidden')) {
+                controls.classList.remove('hidden');
+            }
+        });
+        
+        document.addEventListener('keydown', () => {
+            controls.classList.toggle('hidden');
+        });
+        
+        // Beat detection
+        let beatHistory = [];
+        let lastBeatTime = 0;
+        let bpm = 0;
+        
+        // Motion effects
+        let lastZoomBurst = 0;
+        let lastShakeBurst = 0;
+        let motionBlurActive = false;
+        
+        // Psychedelic state machine
+        let psychState = 'normal'; // normal, trip, khole, strobe, aberration, vhs
+        let stateTimer = 0;
+        let nextStateChange = Math.random() * 20000 + 30000; // 30-50s
+        
+        function changeState() {
+            const states = ['normal', 'trip', 'khole', 'strobe', 'aberration', 'vhs'];
+            const weights = [30, 20, 15, 10, 15, 10]; // probability weights
+            
+            // Remove current state classes
+            document.body.classList.remove('trip-mode', 'khole-mode', 'aberration-mode');
+            vhsLines.style.opacity = '0';
+            grainOverlay.style.opacity = '0.15';
+            
+            // Weighted random selection
+            const total = weights.reduce((a, b) => a + b);
+            let rand = Math.random() * total;
+            let newState = 'normal';
+            
+            for (let i = 0; i < states.length; i++) {
+                rand -= weights[i];
+                if (rand <= 0) {
+                    newState = states[i];
+                    break;
+                }
+            }
+            
+            psychState = newState;
+            console.log(`🎨 State change: ${newState}`);
+            
+            // Apply state
+            if (newState === 'trip') {
+                document.body.classList.add('trip-mode');
+                nextStateChange = 15000 + Math.random() * 15000; // 15-30s
+            } else if (newState === 'khole') {
+                document.body.classList.add('khole-mode');
+                nextStateChange = 10000 + Math.random() * 10000; // 10-20s
+            } else if (newState === 'strobe') {
+                startStrobeSequence();
+                nextStateChange = 5000; // 5s
+            } else if (newState === 'aberration') {
+                document.body.classList.add('aberration-mode');
+                nextStateChange = 8000 + Math.random() * 7000; // 8-15s
+            } else if (newState === 'vhs') {
+                vhsLines.style.opacity = '0.6';
+                grainOverlay.style.opacity = '0.4';
+                nextStateChange = 10000 + Math.random() * 10000; // 10-20s
+            } else {
+                nextStateChange = 30000 + Math.random() * 30000; // 30-60s
+            }
+            
+            stateTimer = 0;
+        }
+        
+        // Strobe sequence
+        function startStrobeSequence() {
+            let count = 0;
+            const maxFlashes = 10 + Math.floor(Math.random() * 20);
+            const strobeInterval = setInterval(() => {
+                strobeFlash.style.opacity = '1';
+                setTimeout(() => {
+                    strobeFlash.style.opacity = '0';
+                }, 50 + Math.random() * 50);
+                
+                count++;
+                if (count >= maxFlashes) {
+                    clearInterval(strobeInterval);
+                    psychState = 'normal';
+                }
+            }, 100 + Math.random() * 100);
+        }
+        
+        async function startAudio() {
+            if (isPlaying) return;
+            
+            try {
+                console.log('🚀 Starting audio...');
+                
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioElement = new Audio(AUDIO_URL);
+                audioElement.crossOrigin = 'anonymous';
+                
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 2048;
+                analyser.smoothingTimeConstant = 0.8;
+                
+                const source = audioContext.createMediaElementSource(audioElement);
+                source.connect(analyser);
+                analyser.connect(audioContext.destination);
+                
+                await audioElement.play();
+                isPlaying = true;
+                
+                console.log('✅ Audio playing!');
+                animate();
+                
+            } catch (err) {
+                console.error('❌ Audio error:', err);
+                alert('Audio error: ' + err.message);
+            }
+        }
+        
+        function stopAudio() {
+            if (!isPlaying) return;
+            
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.currentTime = 0;
+            }
+            
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+            }
+            
+            isPlaying = false;
+            console.log('⏹️ Audio stopped');
+        }
+        
+        let vortexRotation = 0;
+        let zoomIntensity = 1;
+        
+        function animate() {
+            if (!isPlaying) return;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyser.getByteFrequencyData(dataArray);
+            
+            // Frequency bands
+            const bassData = dataArray.slice(0, 15);      // 0-250Hz
+            const midData = dataArray.slice(40, 120);     // 500-2kHz
+            const trebleData = dataArray.slice(150, 300); // 4-8kHz
+            
+            const bassLevel = bassData.reduce((a, b) => a + b) / (bassData.length * 255);
+            const midLevel = midData.reduce((a, b) => a + b) / (midData.length * 255);
+            const trebleLevel = trebleData.reduce((a, b) => a + b) / (trebleData.length * 255);
+            
+            // Overall energy
+            const energy = (bassLevel + midLevel + trebleLevel) / 3;
+            
+            // State machine timer
+            stateTimer += 16; // ~60fps
+            if (stateTimer > nextStateChange) {
+                changeState();
+            }
+            
+            // 🎯 CALCOLO ZOOM E ROTAZIONE (prima di usarli!)
+            zoomIntensity = 1 + bassLevel * 0.3;
+            const rotateAmount = energy * 5;
+            
+            // 🎭 TARGET POINT - punto casuale verso cui "guardare" (cambia ogni 3-8 secondi)
+            if (!window.targetPoint || Date.now() - window.lastTargetChange > (3000 + Math.random() * 5000)) {
+                window.targetPoint = {
+                    x: (Math.random() - 0.5) * 100, // -50 a +50px
+                    y: (Math.random() - 0.5) * 80   // -40 a +40px
+                };
+                window.lastTargetChange = Date.now();
+                
+                // Scegli easing casuale per il prossimo ciclo
+                const easingTypes = ['easeInOut', 'easeOut', 'easeIn', 'bounce'];
+                window.currentEasing = easingTypes[Math.floor(Math.random() * easingTypes.length)];
+            }
+            
+            // 🎨 FUNZIONI DI EASING per movimento fluido e ritmato
+            const easing = {
+                easeInOut: (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+                easeOut: (t) => t * (2 - t), // decelerazione
+                easeIn: (t) => t * t, // accelerazione
+                bounce: (t) => {
+                    if (t < 0.5) return 8 * t * t * t * t;
+                    return 1 - 8 * (--t) * t * t * t;
+                }
+            };
+            
+            // Applica easing corrente
+            const currentEasingFunc = easing[window.currentEasing || 'easeInOut'];
+            
+            // Beat detection
+            if (bassLevel > 0.7 && Date.now() - lastBeatTime > 200) {
+                beatHistory.push(Date.now());
+                if (beatHistory.length > 10) beatHistory.shift();
+                
+                if (beatHistory.length >= 2) {
+                    const intervals = [];
+                    for (let i = 1; i < beatHistory.length; i++) {
+                        intervals.push(beatHistory[i] - beatHistory[i-1]);
+                    }
+                    const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
+                    bpm = Math.round(60000 / avgInterval);
+                }
+                
+                lastBeatTime = Date.now();
+                
+                // Crowd strobe on beat
+                crowdStrobe.style.opacity = '1';
+                setTimeout(() => {
+                    crowdStrobe.style.opacity = '0';
+                }, 100);
+                
+                // 💫 SUPER SPATIAL GLOW STROBO - attiva su cassa dritta (4/4 beat)
+                // Cambia pattern e colore randomicamente quando c'è cassa dritta
+                if (bassLevel > 0.8 && Math.random() > 0.5) {
+                    // Cambia pattern e colore casualmente
+                    if (Math.random() > 0.7) {
+                        currentStroboPattern = stroboPatterns[Math.floor(Math.random() * stroboPatterns.length)];
+                        currentStroboColor = stroboColors[Math.floor(Math.random() * stroboColors.length)];
+                        spatialStrobo.className = currentStroboPattern;
+                        spatialStrobo.style.setProperty('--glow-color', currentStroboColor);
+                    }
+                    
+                    // Flash strobo spaziale
+                    spatialStrobo.style.opacity = '0.9';
+                    setTimeout(() => {
+                        spatialStrobo.style.opacity = '0';
+                    }, 50 + Math.random() * 50); // durata randomica 50-100ms
+                }
+                
+                // 🎯 ZOOM BURST - esplosione zoom su beat forte
+                if (bassLevel > 0.85 && Date.now() - lastZoomBurst > 1000 && Math.random() > 0.6) {
+                    document.body.classList.add('zoom-burst');
+                    lastZoomBurst = Date.now();
+                    setTimeout(() => {
+                        document.body.classList.remove('zoom-burst');
+                    }, 300);
+                }
+                
+                // 💥 SHAKE BURST - scossa rapida su peak
+                if (bassLevel > 0.9 && Date.now() - lastShakeBurst > 1500 && Math.random() > 0.7) {
+                    document.body.classList.add('shake-burst');
+                    lastShakeBurst = Date.now();
+                    setTimeout(() => {
+                        document.body.classList.remove('shake-burst');
+                    }, 200);
+                }
+                
+                // Random strobe on peak beats
+                if (bassLevel > 0.85 && Math.random() > 0.7) {
+                    strobeFlash.style.opacity = '0.8';
+                    setTimeout(() => {
+                        strobeFlash.style.opacity = '0';
+                    }, 30);
+                }
+                
+                // Random VHS glitch on strong beats
+                if (bassLevel > 0.8 && Math.random() > 0.85) {
+                    vhsLines.style.opacity = '0.8';
+                    background.style.transform = `scale(${zoomIntensity}) rotate(${rotateAmount}deg) translateX(${Math.random() * 10 - 5}px)`;
+                    setTimeout(() => {
+                        vhsLines.style.opacity = (psychState === 'vhs' ? '0.6' : '0');
+                    }, 80);
+                }
+                
+                // Random grain spike
+                if (energy > 0.7 && Math.random() > 0.9) {
+                    grainOverlay.style.opacity = '0.5';
+                    setTimeout(() => {
+                        grainOverlay.style.opacity = (psychState === 'vhs' ? '0.4' : '0.15');
+                    }, 100);
+                }
+                
+                // � DISTORTION ZONES - distorsioni parziali graduali a tempo
+                // Distorsioni su bassi (stack speaker)
+                if (bassLevel > 0.75 && Math.random() > 0.7) {
+                    const zone = distortZones[Math.floor(Math.random() * distortZones.length)];
+                    zone.classList.add('active');
+                    setTimeout(() => zone.classList.remove('active'), 400);
+                }
+                
+                // Warp glitch su medi (crowd e antenna zone)
+                if (midLevel > 0.7 && Math.random() > 0.75) {
+                    const zone = warpZones[Math.floor(Math.random() * warpZones.length)];
+                    zone.classList.add('active');
+                    setTimeout(() => zone.classList.remove('active'), 300);
+                }
+                
+                // Chromatic split su alti (zone laterali)
+                if (trebleLevel > 0.7 && Math.random() > 0.8) {
+                    const zone = chromaZones[Math.floor(Math.random() * chromaZones.length)];
+                    zone.classList.add('active');
+                    setTimeout(() => zone.classList.remove('active'), 200);
+                }
+                
+                // �🎆 GEOMETRIC STROBES - brillamenti geometrici sui beat
+                // Bass -> cerchi + radial burst
+                if (bassLevel > 0.75 && Math.random() > 0.6) {
+                    const choice = Math.random();
+                    if (choice < 0.4) {
+                        // Cerchi concentrici
+                        strobeCircle1.style.opacity = '0.9';
+                        strobeCircle2.style.opacity = '0.7';
+                        setTimeout(() => {
+                            strobeCircle1.style.opacity = '0';
+                            strobeCircle2.style.opacity = '0';
+                        }, 60);
+                    } else if (choice < 0.7) {
+                        // Radial burst dal centro
+                        strobeRadial.style.opacity = '0.8';
+                        setTimeout(() => {
+                            strobeRadial.style.opacity = '0';
+                        }, 80);
+                    } else {
+                        // Bottom crowd flash
+                        strobeBottom.style.opacity = '0.9';
+                        setTimeout(() => {
+                            strobeBottom.style.opacity = '0';
+                        }, 70);
+                    }
+                }
+            }
+            
+            // Mid -> speaker walls laterali
+            if (midLevel > 0.7 && Math.random() > 0.8) {
+                if (Math.random() < 0.5) {
+                    strobeLeftWall.style.opacity = '0.8';
+                    setTimeout(() => {
+                        strobeLeftWall.style.opacity = '0';
+                    }, 50);
+                } else {
+                    strobeRightWall.style.opacity = '0.8';
+                    setTimeout(() => {
+                        strobeRightWall.style.opacity = '0';
+                    }, 50);
+                }
+            }
+            
+            // Treble -> top flash (antenna beams)
+            if (trebleLevel > 0.75 && Math.random() > 0.85) {
+                strobeTop.style.opacity = '0.9';
+                setTimeout(() => {
+                    strobeTop.style.opacity = '0';
+                }, 40);
+            }
+            
+            // Peak energy -> random geometric strobe
+            if (energy > 0.8 && Math.random() > 0.92) {
+                const randomStrobe = geoStrobes[Math.floor(Math.random() * geoStrobes.length)];
+                randomStrobe.style.opacity = '0.95';
+                setTimeout(() => {
+                    randomStrobe.style.opacity = '0';
+                }, 30 + Math.random() * 40);
+            }
+            
+            // 🌊 CONTINUOUS MOTION BLUR - blur motion sui medi
+            if (midLevel > 0.75) {
+                const blurAmount = midLevel * 3;
+                background.style.filter = `blur(${blurAmount}px)`;
+                motionBlurActive = true;
+            } else if (motionBlurActive) {
+                background.style.filter = 'blur(0)';
+                motionBlurActive = false;
+            }
+            
+            // 🎲 RANDOM MICRO MOVEMENTS - movimenti sottili costanti
+            if (Math.random() > 0.95) {
+                const microX = (Math.random() - 0.5) * 3;
+                const microY = (Math.random() - 0.5) * 3;
+                const microRotate = (Math.random() - 0.5) * 1;
+                background.style.transform = `scale(${zoomIntensity}) rotate(${rotateAmount + microRotate}deg) translate(${microX}px, ${microY}px)`;
+            }
+            
+            // 🎯 EFFETTO 3D POV COMPLETO - dondolio su tutti gli assi CON EASING
+            // Calcola progress con easing (0-1 ciclico ogni 2 secondi)
+            const cycleTime = 2000; // 2 secondi per ciclo
+            const rawProgress = (Date.now() % cycleTime) / cycleTime;
+            const easedProgress = currentEasingFunc(rawProgress);
+            
+            // Sinistra/Destra (bassi): movimento orizzontale con easing
+            const swayX = (Math.sin(easedProgress * Math.PI * 2) * bassLevel * 40) + (window.targetPoint.x * bassLevel * 0.5);
+            
+            // Avanti/Indietro (medi): movimento verticale + zoom con easing alternato
+            const depthCycle = (Date.now() % 3000) / 3000; // ciclo 3 secondi
+            const depthEased = easing.easeInOut(depthCycle); // sempre smooth per profondità
+            const swayY = (Math.sin(depthEased * Math.PI * 2) * midLevel * 35) + (window.targetPoint.y * midLevel * 0.5);
+            const depthZoom = Math.sin(depthEased * Math.PI * 2) * midLevel * 0.15; // oscillazione zoom per "avanti/indietro"
+            
+            // Rotazione testa (alti): piccole rotazioni su tutti gli assi con bounce
+            const rotateCycle = (Date.now() % 2500) / 2500;
+            const rotateEased = easing.bounce(rotateCycle);
+            const swayRotateZ = Math.sin(rotateEased * Math.PI * 2) * trebleLevel * 4; // rotazione Z (principale)
+            const swayRotateX = Math.sin(rotateEased * Math.PI * 2) * trebleLevel * 2; // tilt testa su/giù
+            
+            // Zoom burst verso target point CON EASING
+            let burstOffsetX = 0, burstOffsetY = 0, burstBlur = 0;
+            if (Date.now() - lastZoomBurst < 300) {
+                const burstProgress = (Date.now() - lastZoomBurst) / 300; // 0 a 1
+                const burstEased = easing.easeOut(burstProgress); // decelerazione rapida
+                burstOffsetX = window.targetPoint.x * (1 - burstEased) * 0.5;
+                burstOffsetY = window.targetPoint.y * (1 - burstEased) * 0.5;
+                // Blur con easing sinusoidale per effetto più organico
+                burstBlur = Math.sin(burstEased * Math.PI) * 8; // blur 0→8→0
+            }
+            
+            // Applica TUTTI i movimenti combinati
+            background.style.transform = `
+                scale(${zoomIntensity + depthZoom}) 
+                rotate(${rotateAmount + swayRotateZ}deg)
+                rotateX(${swayRotateX}deg)
+                translate(${swayX + burstOffsetX}px, ${swayY + burstOffsetY}px)
+            `;
+            
+            // Blur durante zoom burst verso target
+            if (burstBlur > 0) {
+                background.style.filter = `blur(${burstBlur}px)`;
+            }
+            
+            // 🌀 CIRCLE PULSE (centro) - MOLTO più visibile con zoom burst
+            const pulseSize = 150 + bassLevel * 600;
+            const pulseBurst = (Date.now() - lastZoomBurst < 300) ? 1.5 : 1; // amplifica durante zoom burst
+            circlePulse.style.width = (pulseSize * pulseBurst) + 'px';
+            circlePulse.style.height = (pulseSize * pulseBurst) + 'px';
+            circlePulse.style.opacity = 0.5 + bassLevel * 0.5;
+            circlePulse.style.borderWidth = (3 + bassLevel * 10) + 'px';
+            
+            // Glow extra su burst
+            if (pulseBurst > 1) {
+                circlePulse.style.boxShadow = `
+                    0 0 60px rgba(255, 255, 255, 1),
+                    0 0 120px rgba(255, 255, 255, 0.8),
+                    inset 0 0 60px rgba(255, 255, 255, 0.6)
+                `;
+            } else {
+                circlePulse.style.boxShadow = `
+                    0 0 30px rgba(255, 255, 255, 0.8),
+                    0 0 60px rgba(255, 255, 255, 0.6),
+                    inset 0 0 30px rgba(255, 255, 255, 0.4)
+                `;
+            }
+            
+            // 🔊 SPEAKER FLASHES (laterali) - più intensi
+            speakerFlashes.forEach(flash => {
+                flash.style.opacity = midLevel * 1.2;
+                flash.style.filter = `blur(${30 + midLevel * 50}px)`;
+            });
+            
+            // ⚡ ANTENNA BEAMS (centro alto) - più lunghi
+            antennaBeams.forEach((beam, i) => {
+                const height = trebleLevel * 500;
+                beam.style.height = height + 'px';
+                beam.style.opacity = trebleLevel * 1.2;
+                beam.style.transform = `rotate(${(i - 1) * 20 + trebleLevel * 60}deg)`;
+                beam.style.width = (2 + trebleLevel * 4) + 'px';
+            });
+            
+            // 🎨 VORTEX ROTATION - ruota e pulsa (OTTIMIZZATO: meno cerchi)
+            vortexRotation += energy * 3;
+            
+            // Render solo ogni 2 frame per alleggerire
+            if (Math.floor(vortexRotation) % 2 === 0) {
+                vortexCtx.clearRect(0, 0, vortexCanvas.width, vortexCanvas.height);
+                vortexCtx.save();
+                vortexCtx.translate(vortexCanvas.width / 2, vortexCanvas.height / 2);
+                vortexCtx.rotate(vortexRotation * Math.PI / 180);
+                
+                // OTTIMIZZATO: meno cerchi (solo 8 invece di 15+)
+                for (let r = 100; r < 1000; r += 120) {
+                    vortexCtx.strokeStyle = `rgba(255, 255, 255, ${(bassLevel * 0.6) * (1 - r / 1000)})`;
+                    vortexCtx.lineWidth = 2 + bassLevel * 4;
+                    vortexCtx.shadowBlur = 15;
+                    vortexCtx.shadowColor = 'rgba(255, 255, 255, 0.6)';
+                    vortexCtx.beginPath();
+                    vortexCtx.arc(0, 0, r, 0, Math.PI * 2);
+                    vortexCtx.stroke();
+                }
+                vortexCtx.restore();
+            }
+            
+            // 📊 FREQUENCY BARS
+            const samplesPerBar = Math.floor(bufferLength / barCount);
+            freqBars.forEach((bar, i) => {
+                const start = i * samplesPerBar;
+                const barData = dataArray.slice(start, start + samplesPerBar);
+                const barLevel = barData.reduce((a, b) => a + b) / (barData.length * 255);
+                bar.style.height = (10 + barLevel * 90) + 'px';
+                bar.style.opacity = 0.6 + barLevel * 0.4;
+            });
+            
+            // Update stats
+            bassVal.textContent = Math.round(bassLevel * 100);
+            midVal.textContent = Math.round(midLevel * 100);
+            trebleVal.textContent = Math.round(trebleLevel * 100);
+            
+            animationId = requestAnimationFrame(animate);
+        }
+        
+        // AUTOPLAY removed - browser blocks it
+        window.addEventListener('load', () => {
+            console.log('🎵 FREE UNDERGROUND TEKNO - Radio VJ System Ready');
+            console.log('👆 Click START to begin');
+            // Show controls on load
+            controls.classList.remove('hidden');
+        });
+        
+        console.log('🎵 FREE UNDERGROUND TEKNO - Radio VJ System Ready');
+    </script>
+>>>>>>> f4dc21a (Add complete audio analyzer template with visualizer and controls)
 </body>
 </html>
