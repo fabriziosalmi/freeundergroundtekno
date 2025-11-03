@@ -11,4 +11,4 @@ Web radio stack: [Azuracast](https://github.com/AzuraCast/AzuraCast), [GitHub Pa
 
 
 > [!TIP]
-> You can also enjoy the radio with [ravers mode on](https://listen.free-tekno.com) :)
+> You can also enjoy the radio on desktop devices with the [ravers mode on](https://listen.free-tekno.com) :)
