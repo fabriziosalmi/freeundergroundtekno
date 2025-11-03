@@ -3,38 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<<<<<<< HEAD
-    <title>Free Underground Tekno - Hub</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
-=======
     <title>FREE UNDERGROUND TEKNO - Live Radio VJ</title>
->>>>>>> f4dc21a (Add complete audio analyzer template with visualizer and controls)
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-<<<<<<< HEAD
-
-        body {
-            font-family: 'Courier New', monospace;
-            background-color: #000;
-            color: #00FF00;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            position: relative;
-        }
-
-        /* Animated background */
-        body::before {
-            content: '';
-            position: absolute;
-=======
         
         body {
             background: #000;
@@ -57,7 +32,7 @@
             will-change: transform, filter;
         }
         
-        /* Zoom burst effect */
+        /* Zoom burst effect SOTTOCASSA - PIÙ POTENTE! */
         body.zoom-burst #background {
             animation: zoom-burst 0.3s ease-out;
         }
@@ -68,8 +43,8 @@
                 filter: blur(0);
             }
             50% { 
-                transform: scale(1.15);
-                filter: blur(8px);
+                transform: scale(1.35); /* da 1.15 a 1.35! */
+                filter: blur(12px); /* da 8px a 12px! */
             }
             100% { 
                 transform: scale(1);
@@ -114,144 +89,10 @@
         /* STROBE OVERLAY - flash bianco */
         #strobeFlash {
             position: fixed;
->>>>>>> f4dc21a (Add complete audio analyzer template with visualizer and controls)
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-<<<<<<< HEAD
-            background: 
-                repeating-linear-gradient(
-                    0deg,
-                    transparent,
-                    transparent 2px,
-                    rgba(0, 255, 0, 0.03) 2px,
-                    rgba(0, 255, 0, 0.03) 4px
-                );
-            animation: scan 8s linear infinite;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        @keyframes scan {
-            0% { transform: translateY(0); }
-            100% { transform: translateY(20px); }
-        }
-
-        .container {
-            text-align: center;
-            z-index: 10;
-            position: relative;
-        }
-
-        h1 {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            text-shadow: 0 0 10px #00FF00, 0 0 20px #00FF00, 0 0 30px #00FF00;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                opacity: 1;
-                text-shadow: 0 0 10px #00FF00, 0 0 20px #00FF00, 0 0 30px #00FF00;
-            }
-            50% {
-                opacity: 0.8;
-                text-shadow: 0 0 20px #00FF00, 0 0 40px #00FF00, 0 0 60px #00FF00;
-            }
-        }
-
-        .subtitle {
-            font-size: 1.2rem;
-            margin-bottom: 3rem;
-            color: #FF00FF;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .links {
-            display: flex;
-            gap: 2rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .link-card {
-            background-color: rgba(0, 0, 0, 0.8);
-            border: 2px solid #00FF00;
-            padding: 2rem 3rem;
-            text-decoration: none;
-            color: #00FF00;
-            font-size: 1.5rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .link-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 255, 0, 0.2), transparent);
-            transition: left 0.5s ease;
-        }
-
-        .link-card:hover::before {
-            left: 100%;
-        }
-
-        .link-card:hover {
-            border-color: #FF00FF;
-            color: #FF00FF;
-            transform: scale(1.05);
-            box-shadow: 0 0 20px #00FF00, 0 0 40px #00FF00;
-        }
-
-        .link-card i {
-            display: block;
-            font-size: 3rem;
-            margin-bottom: 1rem;
-        }
-
-        .footer {
-            position: absolute;
-            bottom: 20px;
-            font-size: 0.8rem;
-            color: #00FF00;
-            opacity: 0.7;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2rem;
-            }
-
-            .subtitle {
-                font-size: 1rem;
-            }
-
-            .link-card {
-                padding: 1.5rem 2rem;
-                font-size: 1.2rem;
-            }
-
-            .link-card i {
-                font-size: 2rem;
-            }
-
-            .links {
-                gap: 1rem;
-            }
-=======
             background: #fff;
             opacity: 0;
             z-index: 999;
@@ -810,6 +651,262 @@
             50% { transform: translate(-50%, -50%) scale(1.2); }
         }
         
+        /* 🌀 LOCALIZED SPIRAL ZOOM - zoom spirale localizzati */
+        .spiral-vortex {
+            position: fixed;
+            pointer-events: none;
+            z-index: 60;
+            opacity: 0;
+            mix-blend-mode: screen;
+            border-radius: 50%;
+            transition: opacity 0.1s ease-out;
+        }
+        
+        .spiral-vortex.active {
+            animation: spiral-zoom-in 0.8s ease-out forwards;
+        }
+        
+        @keyframes spiral-zoom-in {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+                filter: blur(20px);
+            }
+            30% {
+                opacity: 0.9;
+                transform: translate(-50%, -50%) scale(1.5) rotate(180deg);
+                filter: blur(5px);
+            }
+            70% {
+                opacity: 0.7;
+                transform: translate(-50%, -50%) scale(2.2) rotate(360deg);
+                filter: blur(10px);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(3) rotate(540deg);
+                filter: blur(25px);
+            }
+        }
+        
+        /* Variante: spirale che si contrae (implode) */
+        .spiral-vortex.implode {
+            animation: spiral-implode 0.6s ease-in forwards;
+        }
+        
+        @keyframes spiral-implode {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(3) rotate(540deg);
+                filter: blur(25px);
+            }
+            40% {
+                opacity: 0.9;
+                transform: translate(-50%, -50%) scale(1.5) rotate(270deg);
+                filter: blur(5px);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.2) rotate(0deg);
+                filter: blur(15px);
+            }
+        }
+        
+        /* Variante: spirale pulsante */
+        .spiral-vortex.pulse {
+            animation: spiral-pulse 0.5s ease-in-out forwards;
+        }
+        
+        @keyframes spiral-pulse {
+            0% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8) rotate(0deg);
+            }
+            25% {
+                opacity: 0.9;
+                transform: translate(-50%, -50%) scale(1.8) rotate(90deg);
+                filter: blur(3px);
+            }
+            50% {
+                opacity: 0.8;
+                transform: translate(-50%, -50%) scale(1.2) rotate(180deg);
+                filter: blur(8px);
+            }
+            75% {
+                opacity: 0.6;
+                transform: translate(-50%, -50%) scale(1.6) rotate(270deg);
+                filter: blur(5px);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(2.5) rotate(360deg);
+                filter: blur(20px);
+            }
+        }
+        
+        /* ⚫⚪ NEGATIVE LAYER - effetto negativo con raggi rotativi */
+        #negativeLayer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 150;
+            opacity: 0;
+            mix-blend-mode: difference; /* effetto negativo/inverso */
+            transition: opacity 0.05s linear;
+        }
+        
+        /* Raggi rotativi dal centro */
+        .rotating-rays {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200vw;
+            height: 200vw;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.05s linear;
+        }
+        
+        .rotating-rays.active {
+            animation: rotate-rays-fast 0.3s linear infinite;
+        }
+        
+        @keyframes rotate-rays-fast {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        /* Pattern 1: Raggi singoli bianchi */
+        .rotating-rays.single-beam {
+            background: conic-gradient(
+                from 0deg at center,
+                transparent 0deg,
+                white 2deg,
+                transparent 4deg,
+                transparent 180deg,
+                white 182deg,
+                transparent 184deg,
+                transparent 360deg
+            );
+            filter: blur(2px) drop-shadow(0 0 20px white);
+        }
+        
+        /* Pattern 2: Raggi multipli (8 raggi) */
+        .rotating-rays.multi-beam {
+            background: conic-gradient(
+                from 0deg at center,
+                white 0deg, transparent 5deg,
+                white 45deg, transparent 50deg,
+                white 90deg, transparent 95deg,
+                white 135deg, transparent 140deg,
+                white 180deg, transparent 185deg,
+                white 225deg, transparent 230deg,
+                white 270deg, transparent 275deg,
+                white 315deg, transparent 320deg,
+                white 360deg
+            );
+            filter: blur(3px) drop-shadow(0 0 15px white);
+        }
+        
+        /* Pattern 3: Spirale continua */
+        .rotating-rays.spiral-beam {
+            background: conic-gradient(
+                from 0deg at center,
+                white 0deg,
+                transparent 30deg,
+                white 60deg,
+                transparent 90deg,
+                white 120deg,
+                transparent 150deg,
+                white 180deg,
+                transparent 210deg,
+                white 240deg,
+                transparent 270deg,
+                white 300deg,
+                transparent 330deg,
+                white 360deg
+            );
+            filter: blur(4px) drop-shadow(0 0 25px white);
+        }
+        
+        /* Pattern 4: Croce espandente RUOTATA 45° */
+        .rotating-rays.cross-beam {
+            background: 
+                linear-gradient(135deg, transparent 48%, white 50%, transparent 52%),
+                linear-gradient(45deg, transparent 48%, white 50%, transparent 52%);
+            filter: blur(5px) drop-shadow(0 0 30px white);
+        }
+        
+        /* Strobo circolari concentrici */
+        .circular-strobo {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border-radius: 50%;
+            border: 3px solid white;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 0 40px white, inset 0 0 40px white;
+        }
+        
+        .circular-strobo.active {
+            animation: circle-pulse-expand 0.4s ease-out forwards;
+        }
+        
+        @keyframes circle-pulse-expand {
+            0% {
+                width: 50px;
+                height: 50px;
+                opacity: 1;
+                border-width: 5px;
+            }
+            50% {
+                opacity: 0.8;
+                border-width: 3px;
+            }
+            100% {
+                width: 150vw;
+                height: 150vw;
+                opacity: 0;
+                border-width: 1px;
+            }
+        }
+        
+        /* 🌊 FRACTAL TEARS - distorsioni frattali organiche */
+        .fractal-tear {
+            position: fixed;
+            pointer-events: none;
+            z-index: 155;
+            opacity: 0;
+            mix-blend-mode: difference;
+            background: white;
+            filter: blur(3px);
+        }
+        
+        .fractal-tear.active {
+            animation: tear-distort 0.5s ease-out forwards;
+        }
+        
+        @keyframes tear-distort {
+            0% {
+                opacity: 0;
+                transform: scale(0.5) rotate(0deg);
+            }
+            40% {
+                opacity: 0.9;
+                transform: scale(1.2) rotate(180deg);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(2) rotate(360deg);
+            }
+        }
+        
         /* CONTROLS */
         #controls {
             position: fixed;
@@ -849,32 +946,10 @@
             margin-top: 10px;
             font-size: 10px;
             line-height: 1.4;
->>>>>>> f4dc21a (Add complete audio analyzer template with visualizer and controls)
         }
     </style>
 </head>
 <body>
-<<<<<<< HEAD
-    <div class="container">
-        <h1>⚡ Free Underground Tekno ⚡</h1>
-        <p class="subtitle">Choose Your Experience</p>
-        
-        <div class="links">
-            <a href="radio/index.html" class="link-card">
-                <i class="fas fa-broadcast-tower"></i>
-                <span>Radio</span>
-            </a>
-            <a href="video/index.html" class="link-card">
-                <i class="fas fa-video"></i>
-                <span>Video</span>
-            </a>
-        </div>
-    </div>
-
-    <div class="footer">
-        Free Underground Tekno - Since 2008
-    </div>
-=======
     <!-- BACKGROUND -->
     <div id="background"></div>
     
@@ -929,6 +1004,35 @@
     
     <!-- 💫 SUPER SPATIAL GLOW STROBO -->
     <div id="spatialStrobo"></div>
+    
+    <!-- 🌀 LOCALIZED SPIRAL ZOOM VORTEXES -->
+    <div class="spiral-vortex" id="spiral1"></div>
+    <div class="spiral-vortex" id="spiral2"></div>
+    <div class="spiral-vortex" id="spiral3"></div>
+    <div class="spiral-vortex" id="spiral4"></div>
+    <div class="spiral-vortex" id="spiral5"></div>
+    
+    <!-- ⚫⚪ NEGATIVE LAYER - effetto negativo con raggi rotativi -->
+    <div id="negativeLayer">
+        <div class="rotating-rays single-beam" id="rays1"></div>
+        <div class="rotating-rays multi-beam" id="rays2"></div>
+        <div class="rotating-rays spiral-beam" id="rays3"></div>
+        <div class="rotating-rays cross-beam" id="rays4"></div>
+    </div>
+    
+    <!-- ⭕ CIRCULAR STROBO - cerchi concentrici espandenti -->
+    <div class="circular-strobo" id="circle1"></div>
+    <div class="circular-strobo" id="circle2"></div>
+    <div class="circular-strobo" id="circle3"></div>
+    <div class="circular-strobo" id="circle4"></div>
+    
+    <!-- 🌊 FRACTAL TEARS - distorsioni frattali organiche -->
+    <div class="fractal-tear" id="tear1"></div>
+    <div class="fractal-tear" id="tear2"></div>
+    <div class="fractal-tear" id="tear3"></div>
+    <div class="fractal-tear" id="tear4"></div>
+    <div class="fractal-tear" id="tear5"></div>
+    <div class="fractal-tear" id="tear6"></div>
     
     <!-- FREQUENCY VISUALIZER -->
     <div id="frequencyViz"></div>
@@ -994,6 +1098,77 @@
         ];
         let currentStroboPattern = stroboPatterns[0];
         let currentStroboColor = stroboColors[0];
+        
+        // 🌀 Spiral vortexes
+        const spiralVortexes = [
+            document.getElementById('spiral1'),
+            document.getElementById('spiral2'),
+            document.getElementById('spiral3'),
+            document.getElementById('spiral4'),
+            document.getElementById('spiral5')
+        ];
+        
+        // Posizioni strategiche per le spirali (speaker stacks, centro, crowd, antenna)
+        const spiralPositions = [
+            { top: '25%', left: '15%' },   // stack speaker sinistro
+            { top: '25%', left: '85%' },   // stack speaker destro
+            { top: '50%', left: '50%' },   // centro spirale principale
+            { top: '15%', left: '50%' },   // zona antenna
+            { bottom: '25%', left: '50%' } // zona crowd
+        ];
+        
+        // Colori e dimensioni per le spirali
+        const spiralColors = [
+            'rgba(255, 0, 255, 0.7)',   // magenta
+            'rgba(0, 255, 255, 0.7)',   // cyan
+            'rgba(255, 255, 0, 0.7)',   // yellow
+            'rgba(0, 255, 0, 0.7)',     // green
+            'rgba(255, 100, 0, 0.7)'    // orange
+        ];
+        
+        const spiralAnimations = ['active', 'implode', 'pulse'];
+        
+        // Inizializza posizioni spirali
+        spiralVortexes.forEach((vortex, i) => {
+            Object.assign(vortex.style, spiralPositions[i]);
+        });
+        
+        // ⚫⚪ Negative layer con raggi rotativi
+        const negativeLayer = document.getElementById('negativeLayer');
+        const rotatingRays = [
+            document.getElementById('rays1'),
+            document.getElementById('rays2'),
+            document.getElementById('rays3'),
+            document.getElementById('rays4')
+        ];
+        
+        // ⭕ Circular strobo
+        const circularStrobos = [
+            document.getElementById('circle1'),
+            document.getElementById('circle2'),
+            document.getElementById('circle3'),
+            document.getElementById('circle4')
+        ];
+        
+        // 🌊 Fractal tears - distorsioni frattali
+        const fractalTears = [
+            document.getElementById('tear1'),
+            document.getElementById('tear2'),
+            document.getElementById('tear3'),
+            document.getElementById('tear4'),
+            document.getElementById('tear5'),
+            document.getElementById('tear6')
+        ];
+        
+        // Forme frattali organiche (SVG clip-path)
+        const fractalShapes = [
+            'polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)',
+            'ellipse(40% 35% at 50% 50%)',
+            'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
+            'polygon(20% 0%, 80% 0%, 100% 20%, 100% 80%, 80% 100%, 20% 100%, 0% 80%, 0% 20%)',
+            'circle(45% at 50% 50%)',
+            'polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%)'
+        ];
         
         // Stats displays
         const bassVal = document.getElementById('bassVal');
@@ -1264,8 +1439,8 @@
                 changeState();
             }
             
-            // 🎯 CALCOLO ZOOM E ROTAZIONE (prima di usarli!)
-            zoomIntensity = 1 + bassLevel * 0.3;
+            // 🎯 CALCOLO ZOOM E ROTAZIONE - AUMENTATO PER EFFETTO SOTTOCASSA!
+            zoomIntensity = 1 + bassLevel * 0.6; // da 0.3 a 0.6 = ZOOM DOPPIO!
             const rotateAmount = energy * 5;
             
             // 🎭 TARGET POINT - punto casuale verso cui "guardare" (cambia ogni 3-8 secondi)
@@ -1335,8 +1510,60 @@
                     }, 50 + Math.random() * 50); // durata randomica 50-100ms
                 }
                 
-                // 🎯 ZOOM BURST - esplosione zoom su beat forte
-                if (bassLevel > 0.85 && Date.now() - lastZoomBurst > 1000 && Math.random() > 0.6) {
+                // 🌀 SPIRAL ZOOM VORTEXES - attiva spirali localizzate randomicamente
+                // Su bassi forti: spirale explosion (zoom out)
+                if (bassLevel > 0.8 && Math.random() > 0.65) {
+                    const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
+                    const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
+                    const size = 100 + Math.random() * 150; // 100-250px
+                    
+                    vortex.style.width = size + 'px';
+                    vortex.style.height = size + 'px';
+                    vortex.style.background = `radial-gradient(circle, ${color} 0%, transparent 70%)`;
+                    vortex.classList.remove('implode', 'pulse');
+                    vortex.classList.add('active');
+                    
+                    setTimeout(() => {
+                        vortex.classList.remove('active');
+                    }, 800);
+                }
+                
+                // Su medi: spirale implode (zoom in)
+                if (midLevel > 0.75 && Math.random() > 0.7) {
+                    const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
+                    const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
+                    const size = 120 + Math.random() * 100; // 120-220px
+                    
+                    vortex.style.width = size + 'px';
+                    vortex.style.height = size + 'px';
+                    vortex.style.background = `conic-gradient(from 0deg, ${color} 0deg, transparent 120deg, ${color} 240deg, transparent 360deg)`;
+                    vortex.classList.remove('active', 'pulse');
+                    vortex.classList.add('implode');
+                    
+                    setTimeout(() => {
+                        vortex.classList.remove('implode');
+                    }, 600);
+                }
+                
+                // Su alti: spirale pulse (pulsante)
+                if (trebleLevel > 0.7 && Math.random() > 0.75) {
+                    const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
+                    const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
+                    const size = 80 + Math.random() * 80; // 80-160px
+                    
+                    vortex.style.width = size + 'px';
+                    vortex.style.height = size + 'px';
+                    vortex.style.background = `radial-gradient(circle, transparent 20%, ${color} 40%, transparent 60%)`;
+                    vortex.classList.remove('active', 'implode');
+                    vortex.classList.add('pulse');
+                    
+                    setTimeout(() => {
+                        vortex.classList.remove('pulse');
+                    }, 500);
+                }
+                
+                // 🎯 ZOOM BURST SOTTOCASSA - zoom PIÙ FREQUENTE e PIÙ POTENTE!
+                if (bassLevel > 0.8 && Date.now() - lastZoomBurst > 600 && Math.random() > 0.4) {
                     document.body.classList.add('zoom-burst');
                     lastZoomBurst = Date.now();
                     setTimeout(() => {
@@ -1376,6 +1603,77 @@
                     setTimeout(() => {
                         grainOverlay.style.opacity = (psychState === 'vhs' ? '0.4' : '0.15');
                     }, 100);
+                }
+                
+                // ⚫⚪ NEGATIVE LAYER - raggi rotativi POTENZIATI!
+                // Su bassi: attiva raggi singoli o multipli
+                if (bassLevel > 0.7 && Math.random() > 0.3) {
+                    const rayPattern = Math.random() < 0.5 ? rotatingRays[0] : rotatingRays[1];
+                    negativeLayer.style.opacity = '0.95'; // AUMENTATO da 0.8 a 0.95!
+                    rayPattern.style.opacity = '1';
+                    rayPattern.classList.add('active');
+                    
+                    setTimeout(() => {
+                        negativeLayer.style.opacity = '0';
+                        rayPattern.style.opacity = '0';
+                        rayPattern.classList.remove('active');
+                    }, 180 + Math.random() * 120); // 180-300ms
+                }
+                
+                // Su alti: attiva spirale o croce (45° anti-fascista!)
+                if (trebleLevel > 0.65 && Math.random() > 0.4) {
+                    const rayPattern = Math.random() < 0.5 ? rotatingRays[2] : rotatingRays[3];
+                    negativeLayer.style.opacity = '0.98'; // AUMENTATO da 0.9 a 0.98!
+                    rayPattern.style.opacity = '1';
+                    rayPattern.classList.add('active');
+                    
+                    setTimeout(() => {
+                        negativeLayer.style.opacity = '0';
+                        rayPattern.style.opacity = '0';
+                        rayPattern.classList.remove('active');
+                    }, 150 + Math.random() * 100); // 150-250ms
+                }
+                
+                // 🌊 FRACTAL TEARS - distorsioni frattali organiche
+                if (bassLevel > 0.78 && Math.random() > 0.5) {
+                    const tear = fractalTears[Math.floor(Math.random() * fractalTears.length)];
+                    const shape = fractalShapes[Math.floor(Math.random() * fractalShapes.length)];
+                    const size = 80 + Math.random() * 180; // 80-260px
+                    
+                    // Posizione random
+                    tear.style.top = (20 + Math.random() * 60) + '%';
+                    tear.style.left = (10 + Math.random() * 80) + '%';
+                    tear.style.width = size + 'px';
+                    tear.style.height = size + 'px';
+                    tear.style.clipPath = shape;
+                    tear.classList.add('active');
+                    
+                    setTimeout(() => tear.classList.remove('active'), 500);
+                }
+
+                
+                // ⭕ CIRCULAR STROBO - cerchi concentrici espandenti (AUMENTATA PROBABILITÀ)
+                // Su bassi: lancia cerchi concentrici
+                if (bassLevel > 0.8 && Math.random() > 0.5) {
+                    const circle = circularStrobos[Math.floor(Math.random() * circularStrobos.length)];
+                    circle.classList.add('active');
+                    
+                    setTimeout(() => {
+                        circle.classList.remove('active');
+                    }, 400);
+                }
+                
+                // Su alti: lancia multipli cerchi veloci
+                if (trebleLevel > 0.75 && Math.random() > 0.55) {
+                    // Lancia 2-3 cerchi in rapida successione
+                    const count = 2 + Math.floor(Math.random() * 2);
+                    for (let i = 0; i < count; i++) {
+                        setTimeout(() => {
+                            const circle = circularStrobos[Math.floor(Math.random() * circularStrobos.length)];
+                            circle.classList.add('active');
+                            setTimeout(() => circle.classList.remove('active'), 400);
+                        }, i * 100); // sfasati di 100ms
+                    }
                 }
                 
                 // � DISTORTION ZONES - distorsioni parziali graduali a tempo
@@ -1612,6 +1910,5 @@
         
         console.log('🎵 FREE UNDERGROUND TEKNO - Radio VJ System Ready');
     </script>
->>>>>>> f4dc21a (Add complete audio analyzer template with visualizer and controls)
 </body>
 </html>
