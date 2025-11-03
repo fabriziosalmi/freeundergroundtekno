@@ -17,7 +17,7 @@
             font-family: 'Courier New', monospace;
         }
         
-        /* BACKGROUND IMAGE - con effetti 3D e motion blur */
+        /* BACKGROUND IMAGE - con effetti 3D e motion blur + POV */
         #background {
             position: fixed;
             width: 100vw;
@@ -27,9 +27,10 @@
             background-position: center;
             background-repeat: no-repeat;
             z-index: 0;
-            transition: transform 0.05s ease-out, filter 0.1s ease-out;
-            transform-origin: center center;
+            transition: transform 0.08s ease-out, filter 0.1s ease-out;
+            transform-origin: center 80%; /* PERNO AL CENTRO-BASSO per effetto POV */
             will-change: transform, filter;
+            perspective: 1000px; /* Prospettiva 3D per depth */
         }
         
         /* Zoom burst effect SOTTOCASSA - PIÙ POTENTE! */
@@ -428,25 +429,38 @@
             }
         }
         
-        /* FREQUENCY VISUALIZER - barre frequenze in basso */
+        /* FREQUENCY VISUALIZER - barre circolari attorno al cerchio centrale */
         #frequencyViz {
             position: fixed;
-            bottom: 20px;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            align-items: flex-end;
-            gap: 3px;
-            height: 100px;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
             z-index: 5;
             pointer-events: none;
+            filter: drop-shadow(0 0 15px rgba(200, 200, 200, 0.8)) 
+                    drop-shadow(0 0 30px rgba(255, 255, 255, 0.5))
+                    blur(1px);
         }
         
         .freq-bar {
-            width: 8px;
-            background: linear-gradient(to top, #fff, #888);
-            opacity: 0.8;
-            transition: height 0.05s;
+            position: absolute;
+            width: 4px;
+            background: linear-gradient(to top, 
+                rgba(220, 220, 220, 0.9), 
+                rgba(255, 255, 255, 0.95)
+            );
+            opacity: 0.85;
+            transition: height 0.05s ease-out;
+            transform-origin: bottom center;
+            bottom: 50%;
+            left: 50%;
+            box-shadow: 
+                0 0 8px rgba(255, 255, 255, 0.6),
+                0 0 15px rgba(200, 200, 200, 0.4),
+                inset 0 0 5px rgba(255, 255, 255, 0.5);
+            border-radius: 2px;
         }
         
         /* 🌀 DISTORTION ZONES - distorsioni parziali graduali */
@@ -907,6 +921,30 @@
             }
         }
         
+        /* 🌀 GLOBAL SUBTLE DISTORTION - distorsione totale minima costante */
+        @keyframes global-warp-breath {
+            0%, 100% { 
+                filter: blur(0px) hue-rotate(0deg);
+                transform: scale(1) translateX(0);
+            }
+            25% { 
+                filter: blur(0.3px) hue-rotate(2deg);
+                transform: scale(1.002) translateX(0.5px);
+            }
+            50% { 
+                filter: blur(0.5px) hue-rotate(0deg);
+                transform: scale(1.004) translateX(0);
+            }
+            75% { 
+                filter: blur(0.3px) hue-rotate(-2deg);
+                transform: scale(1.002) translateX(-0.5px);
+            }
+        }
+        
+        body.global-warp #background {
+            animation: global-warp-breath 4s ease-in-out infinite;
+        }
+        
         /* CONTROLS */
         #controls {
             position: fixed;
@@ -1255,12 +1293,18 @@
             document.body.appendChild(dust);
         }
         
-        // Create frequency bars (OTTIMIZZATO: meno barre)
-        const barCount = 32; // ridotto da 40 per performance
+        // Create frequency bars - CIRCOLARI attorno al cerchio centrale
+        const barCount = 32; // barre circolari
         for (let i = 0; i < barCount; i++) {
             const bar = document.createElement('div');
             bar.className = 'freq-bar';
             bar.style.height = '10px';
+            
+            // Posiziona ogni barra in cerchio
+            const angle = (i / barCount) * Math.PI * 2;
+            bar.style.transform = `rotate(${angle}rad) translateY(-100px)`;
+            bar.dataset.angle = angle;
+            
             frequencyViz.appendChild(bar);
         }
         const freqBars = document.querySelectorAll('.freq-bar');
@@ -1293,10 +1337,63 @@
         let lastShakeBurst = 0;
         let motionBlurActive = false;
         
+        // 🎥 POV MOTION INTELLIGENCE - storia delle frequenze per movimento fluido
+        const freqHistory = {
+            bass: [],
+            mid: [],
+            treble: [],
+            maxHistory: 30 // 30 frame di storia (~0.5 secondi a 60fps)
+        };
+        
+        function updateFreqHistory(bass, mid, treble) {
+            freqHistory.bass.push(bass);
+            freqHistory.mid.push(mid);
+            freqHistory.treble.push(treble);
+            
+            // Mantieni solo ultimi N frame
+            if (freqHistory.bass.length > freqHistory.maxHistory) {
+                freqHistory.bass.shift();
+                freqHistory.mid.shift();
+                freqHistory.treble.shift();
+            }
+        }
+        
+        function getFreqTrend(history) {
+            if (history.length < 3) return 0;
+            
+            // Calcola trend (crescita o decrescita)
+            const recent = history.slice(-5);
+            const older = history.slice(-10, -5);
+            
+            const recentAvg = recent.reduce((a, b) => a + b) / recent.length;
+            const olderAvg = older.reduce((a, b) => a + b) / Math.max(1, older.length);
+            
+            return recentAvg - olderAvg; // positivo = crescita, negativo = decrescita
+        }
+        
+        function getFreqSmoothed(history) {
+            if (history.length === 0) return 0;
+            
+            // Media pesata (più peso ai valori recenti)
+            let sum = 0;
+            let weightSum = 0;
+            
+            history.forEach((val, i) => {
+                const weight = (i + 1) / history.length; // peso crescente
+                sum += val * weight;
+                weightSum += weight;
+            });
+            
+            return sum / weightSum;
+        }
+        
         // Psychedelic state machine
         let psychState = 'normal'; // normal, trip, khole, strobe, aberration, vhs
         let stateTimer = 0;
         let nextStateChange = Math.random() * 20000 + 30000; // 30-50s
+        
+        // 🌀 GLOBAL WARP sempre attivo (distorsione totale minima)
+        document.body.classList.add('global-warp');
         
         function changeState() {
             const states = ['normal', 'trip', 'khole', 'strobe', 'aberration', 'vhs'];
@@ -1433,6 +1530,18 @@
             // Overall energy
             const energy = (bassLevel + midLevel + trebleLevel) / 3;
             
+            // 🎥 UPDATE FREQUENCY HISTORY - costruisci memoria intelligente
+            updateFreqHistory(bassLevel, midLevel, trebleLevel);
+            
+            // 🧠 CALCOLA TREND E VALORI SMOOTHED per movimento fluido
+            const bassSmooth = getFreqSmoothed(freqHistory.bass);
+            const midSmooth = getFreqSmoothed(freqHistory.mid);
+            const trebleSmooth = getFreqSmoothed(freqHistory.treble);
+            
+            const bassTrend = getFreqTrend(freqHistory.bass);
+            const midTrend = getFreqTrend(freqHistory.mid);
+            const trebleTrend = getFreqTrend(freqHistory.treble);
+            
             // State machine timer
             stateTimer += 16; // ~60fps
             if (stateTimer > nextStateChange) {
@@ -1440,8 +1549,51 @@
             }
             
             // 🎯 CALCOLO ZOOM E ROTAZIONE - AUMENTATO PER EFFETTO SOTTOCASSA!
-            zoomIntensity = 1 + bassLevel * 0.6; // da 0.3 a 0.6 = ZOOM DOPPIO!
+            zoomIntensity = 1 + bassSmooth * 0.6; // usa bassSmooth invece di bassLevel diretto
             const rotateAmount = energy * 5;
+            
+            // 🎥 POV MOTION INTELLIGENCE - movimento avanti/indietro + sx/dx con perno centro-basso
+            
+            // 📍 DEPTH (Avanti/Indietro) - guidato da BASSI con trend
+            // bassTrend positivo = crescita bassi = vai AVANTI (scala più grande)
+            // bassTrend negativo = calo bassi = vai INDIETRO (scala più piccola)
+            const depthBase = bassSmooth * 0.25; // movimento base dai bassi (0 a 0.25)
+            const depthTrend = bassTrend * 0.4; // aggiungi trend (-0.4 a +0.4)
+            const depthMovement = depthBase + depthTrend; // combinato: da -0.15 a +0.65
+            
+            // Ciclo temporale lento per movimento organico
+            const depthCycle = Math.sin((Date.now() % 4000) / 4000 * Math.PI * 2) * 0.08; // ±0.08
+            const depthFinal = depthMovement + depthCycle; // movimento finale depth
+            
+            // 🔄 SWAY LEFT/RIGHT (Sinistra/Destra) - guidato da MEDI con trend
+            // midTrend positivo = crescita medi = vai DESTRA
+            // midTrend negativo = calo medi = vai SINISTRA
+            const swayBase = midSmooth * 30; // movimento base dai medi (0 a 30px)
+            const swayTrend = midTrend * 80; // trend amplificato (-80 a +80px)
+            
+            // Ciclo temporale alternato per sway naturale
+            const swayCycle = Math.sin((Date.now() % 3500) / 3500 * Math.PI * 2) * 15; // ±15px
+            const swayX = (swayBase * Math.sin(Date.now() / 1000)) + swayTrend + swayCycle;
+            
+            // ⬆️⬇️ VERTICAL SWAY (Su/Giù leggero) - guidato da ALTI
+            // trebleTrend positivo = alti crescenti = vai SU
+            // trebleTrend negativo = alti calanti = vai GIÙ
+            const verticalBase = trebleSmooth * 12; // movimento base (0 a 12px)
+            const verticalTrend = trebleTrend * 40; // trend amplificato (-40 a +40px)
+            const verticalCycle = Math.cos((Date.now() % 3000) / 3000 * Math.PI * 2) * 8; // ±8px
+            const swayY = (verticalBase * Math.cos(Date.now() / 1200)) + verticalTrend + verticalCycle;
+            
+            // 🔄 ROTAZIONE - combinazione alti + energia totale
+            const rotateBase = trebleSmooth * 3; // rotazione base da alti
+            const rotateCycle = Math.sin((Date.now() % 2500) / 2500 * Math.PI * 2) * 2; // oscillazione ±2°
+            const rotateFinal = rotateAmount + rotateBase + rotateCycle;
+            
+            // 🎭 TILT 3D (rotateX, rotateY) - LIEVISSIMO per effetto POV
+            // Tilt orizzontale (rotateY) segue sway laterale
+            const tiltY = (swayX / 100) * 2; // max ±1.6° quando swayX è max
+            
+            // Tilt verticale (rotateX) segue depth e sway verticale
+            const tiltX = (depthFinal * 5) + (swayY / 50); // effetto prospettiva POV
             
             // 🎭 TARGET POINT - punto casuale verso cui "guardare" (cambia ogni 3-8 secondi)
             if (!window.targetPoint || Date.now() - window.lastTargetChange > (3000 + Math.random() * 5000)) {
@@ -1768,36 +1920,26 @@
                 motionBlurActive = false;
             }
             
-            // 🎲 RANDOM MICRO MOVEMENTS - movimenti sottili costanti
-            if (Math.random() > 0.95) {
-                const microX = (Math.random() - 0.5) * 3;
-                const microY = (Math.random() - 0.5) * 3;
-                const microRotate = (Math.random() - 0.5) * 1;
-                background.style.transform = `scale(${zoomIntensity}) rotate(${rotateAmount + microRotate}deg) translate(${microX}px, ${microY}px)`;
+            // 🎲 RANDOM MICRO MOVEMENTS - movimenti sottili costanti (ridotti per POV)
+            let microX = 0, microY = 0, microRotate = 0;
+            if (Math.random() > 0.98) { // più raro per non interferire con POV
+                microX = (Math.random() - 0.5) * 2; // ridotto da 3 a 2
+                microY = (Math.random() - 0.5) * 2;
+                microRotate = (Math.random() - 0.5) * 0.5; // ridotto da 1 a 0.5
             }
             
-            // 🎯 EFFETTO 3D POV COMPLETO - dondolio su tutti gli assi CON EASING
-            // Calcola progress con easing (0-1 ciclico ogni 2 secondi)
-            const cycleTime = 2000; // 2 secondi per ciclo
-            const rawProgress = (Date.now() % cycleTime) / cycleTime;
-            const easedProgress = currentEasingFunc(rawProgress);
+            // � APPLICA MOVIMENTO POV INTELLIGENTE COMPLETO
+            // Scale combina zoom base + depth movement (avanti/indietro)
+            const finalScale = zoomIntensity + depthFinal;
             
-            // Sinistra/Destra (bassi): movimento orizzontale con easing
-            const swayX = (Math.sin(easedProgress * Math.PI * 2) * bassLevel * 40) + (window.targetPoint.x * bassLevel * 0.5);
+            // Posizione combina sway + micro movements
+            const finalX = swayX + microX;
+            const finalY = swayY + microY;
             
-            // Avanti/Indietro (medi): movimento verticale + zoom con easing alternato
-            const depthCycle = (Date.now() % 3000) / 3000; // ciclo 3 secondi
-            const depthEased = easing.easeInOut(depthCycle); // sempre smooth per profondità
-            const swayY = (Math.sin(depthEased * Math.PI * 2) * midLevel * 35) + (window.targetPoint.y * midLevel * 0.5);
-            const depthZoom = Math.sin(depthEased * Math.PI * 2) * midLevel * 0.15; // oscillazione zoom per "avanti/indietro"
+            // Rotazione combina tutti gli elementi
+            const finalRotateZ = rotateFinal + microRotate;
             
-            // Rotazione testa (alti): piccole rotazioni su tutti gli assi con bounce
-            const rotateCycle = (Date.now() % 2500) / 2500;
-            const rotateEased = easing.bounce(rotateCycle);
-            const swayRotateZ = Math.sin(rotateEased * Math.PI * 2) * trebleLevel * 4; // rotazione Z (principale)
-            const swayRotateX = Math.sin(rotateEased * Math.PI * 2) * trebleLevel * 2; // tilt testa su/giù
-            
-            // Zoom burst verso target point CON EASING
+            // Zoom burst verso target point CON EASING (override temporaneo)
             let burstOffsetX = 0, burstOffsetY = 0, burstBlur = 0;
             if (Date.now() - lastZoomBurst < 300) {
                 const burstProgress = (Date.now() - lastZoomBurst) / 300; // 0 a 1
@@ -1808,12 +1950,14 @@
                 burstBlur = Math.sin(burstEased * Math.PI) * 8; // blur 0→8→0
             }
             
-            // Applica TUTTI i movimenti combinati
+            // 🎬 APPLICA TRASFORMAZIONE FINALE CON TUTTI GLI EFFETTI POV + 3D
             background.style.transform = `
-                scale(${zoomIntensity + depthZoom}) 
-                rotate(${rotateAmount + swayRotateZ}deg)
-                rotateX(${swayRotateX}deg)
-                translate(${swayX + burstOffsetX}px, ${swayY + burstOffsetY}px)
+                perspective(1000px)
+                scale(${finalScale}) 
+                rotateZ(${finalRotateZ}deg)
+                rotateX(${tiltX}deg)
+                rotateY(${tiltY}deg)
+                translate3d(${finalX + burstOffsetX}px, ${finalY + burstOffsetY}px, 0px)
             `;
             
             // Blur durante zoom burst verso target
@@ -1882,14 +2026,39 @@
                 vortexCtx.restore();
             }
             
-            // 📊 FREQUENCY BARS
+            // 📊 FREQUENCY BARS CIRCOLARI - attorno al cerchio centrale
             const samplesPerBar = Math.floor(bufferLength / barCount);
             freqBars.forEach((bar, i) => {
                 const start = i * samplesPerBar;
                 const barData = dataArray.slice(start, start + samplesPerBar);
                 const barLevel = barData.reduce((a, b) => a + b) / (barData.length * 255);
-                bar.style.height = (10 + barLevel * 90) + 'px';
-                bar.style.opacity = 0.6 + barLevel * 0.4;
+                
+                // Altezza della barra (raggio dal centro)
+                const barHeight = 10 + barLevel * 90;
+                bar.style.height = barHeight + 'px';
+                
+                // Opacità e glow aumentano col volume
+                const barOpacity = 0.6 + barLevel * 0.4;
+                bar.style.opacity = barOpacity;
+                
+                // Intensifica glow su volumi alti
+                if (barLevel > 0.7) {
+                    bar.style.boxShadow = `
+                        0 0 12px rgba(255, 255, 255, 0.9),
+                        0 0 25px rgba(200, 200, 200, 0.7),
+                        inset 0 0 8px rgba(255, 255, 255, 0.8)
+                    `;
+                } else {
+                    bar.style.boxShadow = `
+                        0 0 8px rgba(255, 255, 255, 0.6),
+                        0 0 15px rgba(200, 200, 200, 0.4),
+                        inset 0 0 5px rgba(255, 255, 255, 0.5)
+                    `;
+                }
+                
+                // Mantieni rotazione circolare
+                const angle = parseFloat(bar.dataset.angle);
+                bar.style.transform = `rotate(${angle}rad) translateY(-${100 + barHeight/2}px)`;
             });
             
             // Update stats
