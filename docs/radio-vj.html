@@ -33,6 +33,38 @@
             perspective: 1000px; /* Prospettiva 3D per depth */
         }
         
+        /* MOBILE OPTIMIZATIONS */
+        @media (max-width: 768px) {
+            #background {
+                background-size: contain; /* mostra TUTTA l'immagine su mobile */
+                background-color: #000; /* sfondo nero per aree vuote */
+                transition: transform 0.1s ease-out; /* rallenta leggermente per performance */
+            }
+            
+            /* Disabilita effetti pesanti su mobile */
+            body.trip-mode #background,
+            body.khole-mode #background,
+            body.aberration-mode #background {
+                animation: none !important;
+                filter: none !important;
+            }
+            
+            /* Semplifica zoom burst su mobile */
+            body.zoom-burst #background {
+                animation: zoom-burst-mobile 0.2s ease-out;
+            }
+            
+            @keyframes zoom-burst-mobile {
+                0%, 100% { transform: scale(1); }
+                50% { transform: scale(1.1); }
+            }
+            
+            /* Disabilita shake su mobile */
+            body.shake-burst #background {
+                animation: none;
+            }
+        }
+        
         /* Zoom burst effect SOTTOCASSA - PIÙ POTENTE! */
         body.zoom-burst #background {
             animation: zoom-burst 0.3s ease-out;
@@ -1097,6 +1129,17 @@
         let isPlaying = false;
         let animationId = null;
         
+        // 📱 MOBILE DETECTION
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+        
+        // 📱 MOBILE OPTIMIZATION HELPERS
+        const mobileOpacity = (desktop) => isMobile ? Math.min(desktop * 1.5, 1) : desktop; // +50% opacità su mobile
+        const mobileThreshold = (desktop) => isMobile ? desktop * 0.7 : desktop; // soglie più basse su mobile (più frequenti)
+        const mobileRandom = (desktop) => isMobile ? desktop * 0.5 : desktop; // probabilità più alte su mobile
+        const mobileDuration = (desktop) => isMobile ? desktop * 1.5 : desktop; // effetti più lunghi su mobile
+        
+        console.log('📱 Mobile mode:', isMobile);
+        
         // DOM elements
         const controls = document.getElementById('controls');
         const background = document.getElementById('background');
@@ -1331,6 +1374,153 @@
         let beatHistory = [];
         let lastBeatTime = 0;
         let bpm = 0;
+        let beatCount = 0; // contatore beat per trigger ritmici
+        
+        // 🎬 RANDOM EFFECTS DIRECTOR - sceglie casualmente effetti A TEMPO
+        let lastRandomEffect = 0;
+        let randomEffectInterval = 2000; // cambia ogni 2-4 secondi
+        
+        const randomEffects = {
+            // Distorsioni blur
+            blurWave: () => {
+                const duration = 800;
+                background.style.filter = `blur(${8 + Math.random() * 12}px) contrast(${1.2 + Math.random() * 0.3})`;
+                setTimeout(() => {
+                    background.style.filter = '';
+                }, duration);
+            },
+            
+            // Glow pulsante
+            glowPulse: () => {
+                const color = stroboColors[Math.floor(Math.random() * stroboColors.length)];
+                document.body.style.boxShadow = `inset 0 0 200px ${color}`;
+                setTimeout(() => {
+                    document.body.style.boxShadow = '';
+                }, 400);
+            },
+            
+            // Rotazione improvvisa
+            spinBurst: () => {
+                const currentTransform = background.style.transform;
+                const spinAmount = (Math.random() < 0.5 ? -1 : 1) * (180 + Math.random() * 180);
+                background.style.transition = 'transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55)';
+                background.style.transform = currentTransform + ` rotate(${spinAmount}deg)`;
+                setTimeout(() => {
+                    background.style.transition = 'transform 0.08s ease-out';
+                }, 600);
+            },
+            
+            // Strobo casuale multiplo
+            multiStrobo: () => {
+                const count = 3 + Math.floor(Math.random() * 5); // 3-7 flash
+                let i = 0;
+                const stroboInterval = setInterval(() => {
+                    strobeFlash.style.opacity = Math.random() * 0.5 + 0.5; // 0.5-1.0
+                    const randomGeo = geoStrobes[Math.floor(Math.random() * geoStrobes.length)];
+                    randomGeo.style.opacity = mobileOpacity(0.9);
+                    
+                    setTimeout(() => {
+                        strobeFlash.style.opacity = '0';
+                        randomGeo.style.opacity = '0';
+                    }, 30 + Math.random() * 30);
+                    
+                    i++;
+                    if (i >= count) clearInterval(stroboInterval);
+                }, 80 + Math.random() * 40); // 80-120ms tra flash
+            },
+            
+            // Spirale multi-layer
+            spiralCascade: () => {
+                spiralVortexes.forEach((vortex, i) => {
+                    setTimeout(() => {
+                        const color = spiralColors[i];
+                        const size = 100 + Math.random() * 120;
+                        vortex.style.width = size + 'px';
+                        vortex.style.height = size + 'px';
+                        vortex.style.background = `radial-gradient(circle, ${color} 0%, transparent 70%)`;
+                        vortex.style.opacity = mobileOpacity(0.8);
+                        vortex.classList.add(spiralAnimations[Math.floor(Math.random() * spiralAnimations.length)]);
+                        
+                        setTimeout(() => {
+                            vortex.classList.remove('active', 'implode', 'pulse');
+                        }, 800);
+                    }, i * 100); // cascata 100ms tra spirali
+                });
+            },
+            
+            // 📺 Glitch analogico VHS
+            analogGlitch: () => {
+                vhsLines.style.opacity = '0.9';
+                grainOverlay.style.opacity = '0.6';
+                
+                // Offset orizzontale casuale (tracking VHS)
+                const offset = (Math.random() - 0.5) * 20;
+                background.style.transform += ` translateX(${offset}px)`;
+                
+                // Chromatic aberration
+                background.style.filter = `
+                    drop-shadow(3px 0 0 rgba(255,0,0,0.7))
+                    drop-shadow(-3px 0 0 rgba(0,255,255,0.7))
+                    contrast(${1.1 + Math.random() * 0.3})
+                `;
+                
+                setTimeout(() => {
+                    vhsLines.style.opacity = (psychState === 'vhs' ? '0.6' : '0');
+                    grainOverlay.style.opacity = (psychState === 'vhs' ? '0.4' : '0.15');
+                    background.style.filter = '';
+                }, 200 + Math.random() * 300);
+            },
+            
+            // 🌊 Color shift analogico
+            colorShift: () => {
+                const hue = Math.random() * 360;
+                const duration = 1000 + Math.random() * 1000;
+                background.style.filter = `hue-rotate(${hue}deg) saturate(${1.5 + Math.random() * 0.5})`;
+                
+                setTimeout(() => {
+                    background.style.filter = '';
+                }, duration);
+            },
+            
+            // ⚡ Negative flash con raggi
+            negativeBlast: () => {
+                // Attiva tutti i raggi contemporaneamente
+                rotatingRays.forEach((ray, i) => {
+                    ray.style.opacity = '1';
+                    ray.classList.add('active');
+                });
+                negativeLayer.style.opacity = mobileOpacity(1);
+                
+                setTimeout(() => {
+                    rotatingRays.forEach(ray => {
+                        ray.style.opacity = '0';
+                        ray.classList.remove('active');
+                    });
+                    negativeLayer.style.opacity = '0';
+                }, 150 + Math.random() * 100);
+            },
+            
+            // 🎆 Fractal explosion
+            fractalBlast: () => {
+                fractalTears.forEach((tear, i) => {
+                    setTimeout(() => {
+                        const shape = fractalShapes[Math.floor(Math.random() * fractalShapes.length)];
+                        const size = (isMobile ? 150 : 120) + Math.random() * 200;
+                        
+                        tear.style.top = (20 + Math.random() * 60) + '%';
+                        tear.style.left = (10 + Math.random() * 80) + '%';
+                        tear.style.width = size + 'px';
+                        tear.style.height = size + 'px';
+                        tear.style.clipPath = shape;
+                        tear.classList.add('active');
+                        
+                        setTimeout(() => tear.classList.remove('active'), 500);
+                    }, i * 80);
+                });
+            }
+        };
+        
+        const effectNames = Object.keys(randomEffects);
         
         // Motion effects
         let lastZoomBurst = 0;
@@ -1467,6 +1657,13 @@
             
             try {
                 console.log('🚀 Starting audio...');
+                console.log('📱 Mobile mode:', isMobile);
+                console.log('🎨 Mobile optimizations:', {
+                    opacityMultiplier: isMobile ? 1.5 : 1,
+                    thresholdMultiplier: isMobile ? 0.7 : 1,
+                    randomMultiplier: isMobile ? 0.5 : 1,
+                    durationMultiplier: isMobile ? 1.5 : 1
+                });
                 
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 audioElement = new Audio(AUDIO_URL);
@@ -1637,6 +1834,37 @@
                 }
                 
                 lastBeatTime = Date.now();
+                beatCount++; // incrementa contatore beat
+                
+                // 🎬 RANDOM EFFECTS DIRECTOR - trigger casuale A TEMPO ogni N beat
+                // Ogni 8-16 beat (circa ogni 2-4 secondi a 120 BPM), lancia un effetto random
+                const beatTrigger = isMobile ? 6 : 8; // più frequente su mobile
+                if (beatCount % beatTrigger === 0 && Math.random() > 0.3) {
+                    // Scelta casuale pesata degli effetti
+                    const weights = {
+                        blurWave: 10,
+                        glowPulse: 10,
+                        spinBurst: 5,  // meno frequente
+                        multiStrobo: 15,
+                        spiralCascade: 12,
+                        analogGlitch: 8, // tocco analogico
+                        colorShift: 7,   // tocco analogico
+                        negativeBlast: 15,
+                        fractalBlast: 10
+                    };
+                    
+                    const totalWeight = Object.values(weights).reduce((a, b) => a + b);
+                    let rand = Math.random() * totalWeight;
+                    
+                    for (const [effect, weight] of Object.entries(weights)) {
+                        rand -= weight;
+                        if (rand <= 0) {
+                            console.log('🎬 Random effect A TEMPO:', effect);
+                            randomEffects[effect]();
+                            break;
+                        }
+                    }
+                }
                 
                 // Crowd strobe on beat
                 crowdStrobe.style.opacity = '1';
@@ -1646,7 +1874,7 @@
                 
                 // 💫 SUPER SPATIAL GLOW STROBO - attiva su cassa dritta (4/4 beat)
                 // Cambia pattern e colore randomicamente quando c'è cassa dritta
-                if (bassLevel > 0.8 && Math.random() > 0.5) {
+                if (bassLevel > mobileThreshold(0.8) && Math.random() > mobileRandom(0.5)) {
                     // Cambia pattern e colore casualmente
                     if (Math.random() > 0.7) {
                         currentStroboPattern = stroboPatterns[Math.floor(Math.random() * stroboPatterns.length)];
@@ -1655,16 +1883,16 @@
                         spatialStrobo.style.setProperty('--glow-color', currentStroboColor);
                     }
                     
-                    // Flash strobo spaziale
-                    spatialStrobo.style.opacity = '0.9';
+                    // Flash strobo spaziale (PIÙ VISIBILE SU MOBILE)
+                    spatialStrobo.style.opacity = mobileOpacity(0.9);
                     setTimeout(() => {
                         spatialStrobo.style.opacity = '0';
-                    }, 50 + Math.random() * 50); // durata randomica 50-100ms
+                    }, mobileDuration(50 + Math.random() * 50)); // durata più lunga su mobile
                 }
                 
                 // 🌀 SPIRAL ZOOM VORTEXES - attiva spirali localizzate randomicamente
                 // Su bassi forti: spirale explosion (zoom out)
-                if (bassLevel > 0.8 && Math.random() > 0.65) {
+                if (bassLevel > mobileThreshold(0.8) && Math.random() > mobileRandom(0.65)) {
                     const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
                     const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
                     const size = 100 + Math.random() * 150; // 100-250px
@@ -1672,16 +1900,17 @@
                     vortex.style.width = size + 'px';
                     vortex.style.height = size + 'px';
                     vortex.style.background = `radial-gradient(circle, ${color} 0%, transparent 70%)`;
+                    vortex.style.opacity = mobileOpacity(0.7); // più visibile
                     vortex.classList.remove('implode', 'pulse');
                     vortex.classList.add('active');
                     
                     setTimeout(() => {
                         vortex.classList.remove('active');
-                    }, 800);
+                    }, mobileDuration(800));
                 }
                 
                 // Su medi: spirale implode (zoom in)
-                if (midLevel > 0.75 && Math.random() > 0.7) {
+                if (midLevel > mobileThreshold(0.75) && Math.random() > mobileRandom(0.7)) {
                     const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
                     const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
                     const size = 120 + Math.random() * 100; // 120-220px
@@ -1689,16 +1918,17 @@
                     vortex.style.width = size + 'px';
                     vortex.style.height = size + 'px';
                     vortex.style.background = `conic-gradient(from 0deg, ${color} 0deg, transparent 120deg, ${color} 240deg, transparent 360deg)`;
+                    vortex.style.opacity = mobileOpacity(0.7);
                     vortex.classList.remove('active', 'pulse');
                     vortex.classList.add('implode');
                     
                     setTimeout(() => {
                         vortex.classList.remove('implode');
-                    }, 600);
+                    }, mobileDuration(600));
                 }
                 
                 // Su alti: spirale pulse (pulsante)
-                if (trebleLevel > 0.7 && Math.random() > 0.75) {
+                if (trebleLevel > mobileThreshold(0.7) && Math.random() > mobileRandom(0.75)) {
                     const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
                     const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
                     const size = 80 + Math.random() * 80; // 80-160px
@@ -1706,12 +1936,13 @@
                     vortex.style.width = size + 'px';
                     vortex.style.height = size + 'px';
                     vortex.style.background = `radial-gradient(circle, transparent 20%, ${color} 40%, transparent 60%)`;
+                    vortex.style.opacity = mobileOpacity(0.7);
                     vortex.classList.remove('active', 'implode');
                     vortex.classList.add('pulse');
                     
                     setTimeout(() => {
                         vortex.classList.remove('pulse');
-                    }, 500);
+                    }, mobileDuration(500));
                 }
                 
                 // 🎯 ZOOM BURST SOTTOCASSA - zoom PIÙ FREQUENTE e PIÙ POTENTE!
@@ -1757,11 +1988,19 @@
                     }, 100);
                 }
                 
+                // 📺 RANDOM ANALOG GLITCH - extra trigger casuale per tocco vintage
+                if (energy > 0.6 && Math.random() > 0.94) {
+                    const analogEffects = ['analogGlitch', 'colorShift'];
+                    const effect = analogEffects[Math.floor(Math.random() * analogEffects.length)];
+                    console.log('📺 Analog glitch:', effect);
+                    randomEffects[effect]();
+                }
+                
                 // ⚫⚪ NEGATIVE LAYER - raggi rotativi POTENZIATI!
                 // Su bassi: attiva raggi singoli o multipli
-                if (bassLevel > 0.7 && Math.random() > 0.3) {
+                if (bassLevel > mobileThreshold(0.7) && Math.random() > mobileRandom(0.3)) {
                     const rayPattern = Math.random() < 0.5 ? rotatingRays[0] : rotatingRays[1];
-                    negativeLayer.style.opacity = '0.95'; // AUMENTATO da 0.8 a 0.95!
+                    negativeLayer.style.opacity = mobileOpacity(0.95);
                     rayPattern.style.opacity = '1';
                     rayPattern.classList.add('active');
                     
@@ -1769,13 +2008,13 @@
                         negativeLayer.style.opacity = '0';
                         rayPattern.style.opacity = '0';
                         rayPattern.classList.remove('active');
-                    }, 180 + Math.random() * 120); // 180-300ms
+                    }, mobileDuration(180 + Math.random() * 120));
                 }
                 
                 // Su alti: attiva spirale o croce (45° anti-fascista!)
-                if (trebleLevel > 0.65 && Math.random() > 0.4) {
+                if (trebleLevel > mobileThreshold(0.65) && Math.random() > mobileRandom(0.4)) {
                     const rayPattern = Math.random() < 0.5 ? rotatingRays[2] : rotatingRays[3];
-                    negativeLayer.style.opacity = '0.98'; // AUMENTATO da 0.9 a 0.98!
+                    negativeLayer.style.opacity = mobileOpacity(0.98);
                     rayPattern.style.opacity = '1';
                     rayPattern.classList.add('active');
                     
@@ -1783,14 +2022,14 @@
                         negativeLayer.style.opacity = '0';
                         rayPattern.style.opacity = '0';
                         rayPattern.classList.remove('active');
-                    }, 150 + Math.random() * 100); // 150-250ms
+                    }, mobileDuration(150 + Math.random() * 100));
                 }
                 
                 // 🌊 FRACTAL TEARS - distorsioni frattali organiche
-                if (bassLevel > 0.78 && Math.random() > 0.5) {
+                if (bassLevel > mobileThreshold(0.78) && Math.random() > mobileRandom(0.5)) {
                     const tear = fractalTears[Math.floor(Math.random() * fractalTears.length)];
                     const shape = fractalShapes[Math.floor(Math.random() * fractalShapes.length)];
-                    const size = 80 + Math.random() * 180; // 80-260px
+                    const size = (isMobile ? 120 : 80) + Math.random() * (isMobile ? 250 : 180); // più grandi su mobile
                     
                     // Posizione random
                     tear.style.top = (20 + Math.random() * 60) + '%';
@@ -1800,13 +2039,13 @@
                     tear.style.clipPath = shape;
                     tear.classList.add('active');
                     
-                    setTimeout(() => tear.classList.remove('active'), 500);
+                    setTimeout(() => tear.classList.remove('active'), mobileDuration(500));
                 }
 
                 
                 // ⭕ CIRCULAR STROBO - cerchi concentrici espandenti (AUMENTATA PROBABILITÀ)
                 // Su bassi: lancia cerchi concentrici
-                if (bassLevel > 0.8 && Math.random() > 0.5) {
+                if (bassLevel > mobileThreshold(0.8) && Math.random() > mobileRandom(0.5)) {
                     const circle = circularStrobos[Math.floor(Math.random() * circularStrobos.length)];
                     circle.classList.add('active');
                     
@@ -1850,64 +2089,64 @@
                     setTimeout(() => zone.classList.remove('active'), 200);
                 }
                 
-                // �🎆 GEOMETRIC STROBES - brillamenti geometrici sui beat
+                // 🎆 GEOMETRIC STROBES - brillamenti geometrici sui beat
                 // Bass -> cerchi + radial burst
-                if (bassLevel > 0.75 && Math.random() > 0.6) {
+                if (bassLevel > mobileThreshold(0.75) && Math.random() > mobileRandom(0.6)) {
                     const choice = Math.random();
                     if (choice < 0.4) {
                         // Cerchi concentrici
-                        strobeCircle1.style.opacity = '0.9';
-                        strobeCircle2.style.opacity = '0.7';
+                        strobeCircle1.style.opacity = mobileOpacity(0.9);
+                        strobeCircle2.style.opacity = mobileOpacity(0.7);
                         setTimeout(() => {
                             strobeCircle1.style.opacity = '0';
                             strobeCircle2.style.opacity = '0';
-                        }, 60);
+                        }, mobileDuration(60));
                     } else if (choice < 0.7) {
                         // Radial burst dal centro
-                        strobeRadial.style.opacity = '0.8';
+                        strobeRadial.style.opacity = mobileOpacity(0.8);
                         setTimeout(() => {
                             strobeRadial.style.opacity = '0';
-                        }, 80);
+                        }, mobileDuration(80));
                     } else {
                         // Bottom crowd flash
-                        strobeBottom.style.opacity = '0.9';
+                        strobeBottom.style.opacity = mobileOpacity(0.9);
                         setTimeout(() => {
                             strobeBottom.style.opacity = '0';
-                        }, 70);
+                        }, mobileDuration(70));
                     }
                 }
             }
             
             // Mid -> speaker walls laterali
-            if (midLevel > 0.7 && Math.random() > 0.8) {
+            if (midLevel > mobileThreshold(0.7) && Math.random() > mobileRandom(0.8)) {
                 if (Math.random() < 0.5) {
-                    strobeLeftWall.style.opacity = '0.8';
+                    strobeLeftWall.style.opacity = mobileOpacity(0.8);
                     setTimeout(() => {
                         strobeLeftWall.style.opacity = '0';
-                    }, 50);
+                    }, mobileDuration(50));
                 } else {
-                    strobeRightWall.style.opacity = '0.8';
+                    strobeRightWall.style.opacity = mobileOpacity(0.8);
                     setTimeout(() => {
                         strobeRightWall.style.opacity = '0';
-                    }, 50);
+                    }, mobileDuration(50));
                 }
             }
             
             // Treble -> top flash (antenna beams)
-            if (trebleLevel > 0.75 && Math.random() > 0.85) {
-                strobeTop.style.opacity = '0.9';
+            if (trebleLevel > mobileThreshold(0.75) && Math.random() > mobileRandom(0.85)) {
+                strobeTop.style.opacity = mobileOpacity(0.9);
                 setTimeout(() => {
                     strobeTop.style.opacity = '0';
-                }, 40);
+                }, mobileDuration(40));
             }
             
             // Peak energy -> random geometric strobe
-            if (energy > 0.8 && Math.random() > 0.92) {
+            if (energy > mobileThreshold(0.8) && Math.random() > mobileRandom(0.92)) {
                 const randomStrobe = geoStrobes[Math.floor(Math.random() * geoStrobes.length)];
-                randomStrobe.style.opacity = '0.95';
+                randomStrobe.style.opacity = mobileOpacity(0.95);
                 setTimeout(() => {
                     randomStrobe.style.opacity = '0';
-                }, 30 + Math.random() * 40);
+                }, mobileDuration(30 + Math.random() * 40));
             }
             
             // 🌊 CONTINUOUS MOTION BLUR - blur motion sui medi
