@@ -1922,6 +1922,92 @@
         let stateTimer = 0;
         let nextStateChange = Math.random() * 20000 + 30000; // 30-50s
 
+        // 🔧 AUDIO STREAM HEALTH MONITORING - Non-spammy error tracking
+        let streamHealthStatus = {
+            lastDataTime: Date.now(),
+            lastErrorTime: 0,
+            lastErrorMsg: '',
+            errorCount: 0,
+            retryCount: 0,
+            maxRetries: 3,
+            stalledCount: 0,
+            lastLoggedError: null,
+            lastHealthCheck: 0
+        };
+
+        // Health check interval (5 seconds)
+        let healthCheckInterval = null;
+
+        function startHealthMonitoring() {
+            if (healthCheckInterval) clearInterval(healthCheckInterval);
+
+            healthCheckInterval = setInterval(() => {
+                const timeSinceLastData = Date.now() - streamHealthStatus.lastDataTime;
+
+                // If no data for 10+ seconds, consider stream stalled
+                if (timeSinceLastData > 10000 && isPlaying) {
+                    if (streamHealthStatus.stalledCount === 0) {
+                        console.warn('⚠️ Stream appears stalled (no data for 10s)');
+                        audioStatus.textContent = 'STALLED - RETRYING...';
+                    }
+                    streamHealthStatus.stalledCount++;
+
+                    // Auto-retry after 3 stall detections
+                    if (streamHealthStatus.stalledCount >= 3 && streamHealthStatus.retryCount < streamHealthStatus.maxRetries) {
+                        console.log(`🔄 Auto-retry attempt ${streamHealthStatus.retryCount + 1}/${streamHealthStatus.maxRetries}`);
+                        attemptAutoRecovery();
+                    }
+                } else if (timeSinceLastData < 10000 && streamHealthStatus.stalledCount > 0) {
+                    // Stream recovered
+                    console.log('✅ Stream recovered');
+                    streamHealthStatus.stalledCount = 0;
+                    audioStatus.textContent = 'STREAMING';
+                }
+
+                streamHealthStatus.lastHealthCheck = Date.now();
+            }, 5000);
+        }
+
+        function stopHealthMonitoring() {
+            if (healthCheckInterval) {
+                clearInterval(healthCheckInterval);
+                healthCheckInterval = null;
+            }
+        }
+
+        function attemptAutoRecovery() {
+            streamHealthStatus.retryCount++;
+
+            try {
+                // Try to resume audio context
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume().then(() => {
+                        console.log('🔄 AudioContext resumed');
+                    });
+                }
+
+                // Try to resume playback
+                if (audioElement && audioElement.paused) {
+                    audioElement.play().then(() => {
+                        console.log('🔄 Playback resumed');
+                        streamHealthStatus.stalledCount = 0;
+                    }).catch(err => {
+                        console.warn(`🔄 Resume failed: ${err.message}`);
+
+                        // If retry fails, schedule next attempt (backoff)
+                        const backoffTime = Math.min(5000 * streamHealthStatus.retryCount, 20000);
+                        setTimeout(() => {
+                            if (isPlaying && streamHealthStatus.retryCount < streamHealthStatus.maxRetries) {
+                                attemptAutoRecovery();
+                            }
+                        }, backoffTime);
+                    });
+                }
+            } catch (err) {
+                console.error('Recovery error:', err.message);
+            }
+        }
+
         // ✨ MAGIC GLOW ELEMENTS - inizializza i nuovi effetti
         const silverGlowParticles = [
             ...document.querySelectorAll('.silver-glow-particle')
@@ -2111,65 +2197,116 @@
 
                 // Setup buffer monitoring for stream stability
                 let bufferingStartTime = null;
-                let connectionStable = false;
+                let bufferingActive = false;
 
-                // Listen for stream buffering issues
+                // Non-spammy event logging - only log meaningful state changes
                 audioElement.addEventListener('loadstart', () => {
-                    console.log('📡 Audio stream loading...');
-                    bufferingStartTime = Date.now();
-                    connectionStable = false;
-                });
-
-                audioElement.addEventListener('canplay', () => {
-                    connectionStable = true;
-                    const bufferTime = Date.now() - bufferingStartTime;
-                    console.log(`✅ Audio stream ready (buffered in ${bufferTime}ms)`);
-                });
-
-                audioElement.addEventListener('playing', () => {
-                    console.log('▶️ Stream playing');
-                });
-
-                // Prevent glitch: handle network interruptions
-                audioElement.addEventListener('stalled', () => {
-                    console.warn('⚠️ Stream stalled - buffering...');
-                });
-
-                audioElement.addEventListener('pause', () => {
-                    if (isPlaying) {
-                        console.warn('⚠️ Stream paused unexpectedly');
+                    if (!bufferingActive) {
+                        console.log('📡 Audio stream loading...');
+                        bufferingActive = true;
+                        bufferingStartTime = Date.now();
                     }
                 });
 
-                // Error handling for network issues
+                audioElement.addEventListener('canplay', () => {
+                    if (bufferingActive) {
+                        const bufferTime = Date.now() - bufferingStartTime;
+                        console.log(`✅ Audio ready (buffered: ${bufferTime}ms)`);
+                        bufferingActive = false;
+                        streamHealthStatus.lastDataTime = Date.now();
+                        streamHealthStatus.stalledCount = 0;
+                    }
+                });
+
+                audioElement.addEventListener('playing', () => {
+                    console.log('▶️ Playback active');
+                    streamHealthStatus.lastDataTime = Date.now();
+                });
+
+                // Monitor timeupdate to track if data is flowing
+                audioElement.addEventListener('timeupdate', () => {
+                    streamHealthStatus.lastDataTime = Date.now();
+                    streamHealthStatus.stalledCount = 0;
+                });
+
+                // Stalled detection - only log if it persists
+                let stalledLogTime = 0;
+                audioElement.addEventListener('stalled', () => {
+                    // Log stalled state only once every 10 seconds
+                    const now = Date.now();
+                    if (now - stalledLogTime > 10000) {
+                        console.warn('⚠️ Stalled (no data flowing)');
+                        stalledLogTime = now;
+                    }
+                });
+
+                audioElement.addEventListener('pause', () => {
+                    if (isPlaying && !bufferingActive) {
+                        console.warn('⚠️ Unexpected pause');
+                        streamHealthStatus.lastErrorTime = Date.now();
+                    }
+                });
+
+                // Error handling - non-spammy logging
+                let lastErrorLogTime = 0;
                 audioElement.addEventListener('error', (e) => {
-                    console.error('❌ Audio stream error:', e.target.error);
-                    if (e.target.error.code === e.target.error.MEDIA_ERR_NETWORK) {
-                        console.error('Network error - stream unreachable');
-                    } else if (e.target.error.code === e.target.error.MEDIA_ERR_DECODE) {
-                        console.error('Decode error - invalid stream format');
+                    const now = Date.now();
+                    let errorMsg = 'Unknown error';
+
+                    if (e.target.error) {
+                        if (e.target.error.code === e.target.error.MEDIA_ERR_NETWORK) {
+                            errorMsg = 'Network unreachable';
+                        } else if (e.target.error.code === e.target.error.MEDIA_ERR_DECODE) {
+                            errorMsg = 'Decode error (invalid format)';
+                        } else if (e.target.error.code === e.target.error.MEDIA_ERR_UNKNOWN) {
+                            errorMsg = 'Unknown error';
+                        }
+                    }
+
+                    // Only log if error message is different or 30+ seconds passed
+                    if (streamHealthStatus.lastErrorMsg !== errorMsg || now - lastErrorLogTime > 30000) {
+                        console.error(`❌ Stream error: ${errorMsg}`);
+                        lastErrorLogTime = now;
+                        streamHealthStatus.lastErrorMsg = errorMsg;
+                        audioStatus.textContent = `ERROR: ${errorMsg}`;
+                    }
+
+                    streamHealthStatus.errorCount++;
+                    streamHealthStatus.lastErrorTime = now;
+
+                    // Trigger auto-recovery if not already retrying
+                    if (isPlaying && streamHealthStatus.retryCount < streamHealthStatus.maxRetries) {
+                        console.log(`🔄 Initiating recovery (attempt ${streamHealthStatus.retryCount + 1})`);
+                        attemptAutoRecovery();
                     }
                 });
 
                 // Handle stream end (should not happen for infinite stream)
                 audioElement.addEventListener('ended', () => {
-                    console.log('Stream ended unexpectedly');
+                    console.error('❌ Stream ended unexpectedly (infinite stream should not end)');
                     isPlaying = false;
                     audioStatus.textContent = 'STREAM ENDED';
+                    streamHealthStatus.lastErrorMsg = 'Stream ended';
                 });
 
                 // Start playback
                 await audioElement.play();
                 isPlaying = true;
                 audioStatus.textContent = 'STREAMING';
+                streamHealthStatus.lastDataTime = Date.now();
 
                 console.log('✅ Audio stream started!');
+
+                // Start health monitoring
+                startHealthMonitoring();
+
                 animate();
 
             } catch (err) {
-                console.error('❌ Audio error:', err);
+                console.error('❌ Audio startup failed:', err.message);
                 isPlaying = false;
-                audioStatus.textContent = 'ERROR';
+                audioStatus.textContent = 'STARTUP ERROR';
+                stopHealthMonitoring();
             }
         }
         
@@ -2177,6 +2314,9 @@
             if (!isPlaying) return;
 
             try {
+                // Stop health monitoring first
+                stopHealthMonitoring();
+
                 // Stop audio playback
                 if (audioElement) {
                     audioElement.pause();
@@ -2189,13 +2329,18 @@
                     cancelAnimationFrame(animationId);
                 }
 
+                // Reset health status
+                streamHealthStatus.retryCount = 0;
+                streamHealthStatus.stalledCount = 0;
+                streamHealthStatus.errorCount = 0;
+
                 // Reset UI
                 isPlaying = false;
                 audioStatus.textContent = 'STOPPED';
                 signalStatus.textContent = 'Ready';
                 console.log('⏹️ Audio stream stopped');
             } catch (err) {
-                console.error('Error stopping audio:', err);
+                console.error('Error stopping audio:', err.message);
             }
         }
         
