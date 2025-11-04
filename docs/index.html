@@ -1662,6 +1662,15 @@
         // Detect device type
         const isDesktop = window.innerWidth > 768;
 
+        // Performance optimization: detect slow devices
+        const isSlowDevice = navigator.hardwareConcurrency <= 4 || !navigator.deviceMemory || navigator.deviceMemory <= 4;
+        console.log(`Device: ${isDesktop ? 'DESKTOP' : 'MOBILE'} | Slow Device: ${isSlowDevice}`);
+
+        // Frame rate throttling for slow devices (30fps vs 60fps)
+        let lastFrameTime = 0;
+        const targetFrameTime = isSlowDevice ? 1000 / 30 : 1000 / 60; // 30fps or 60fps
+        let skippedFrames = 0;
+
         // Button listeners
         document.getElementById('startBtn').addEventListener('click', startAudio);
         document.getElementById('stopBtn').addEventListener('click', stopAudio);
@@ -1904,7 +1913,16 @@
 
         function animate() {
             if (!isPlaying) return;
-            
+
+            // Frame rate throttling for performance
+            const now = performance.now();
+            if (now - lastFrameTime < targetFrameTime) {
+                skippedFrames++;
+                animationId = requestAnimationFrame(animate);
+                return;
+            }
+            lastFrameTime = now;
+
             const bufferLength = analyser.frequencyBinCount;
             const dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
@@ -2225,28 +2243,30 @@
                 }
                 
                 // � DISTORTION ZONES - distorsioni parziali graduali a tempo
-                // Distorsioni su bassi (stack speaker)
-                const distortThreshold = isMobile ? 0.3 : 0.75;
-                if (bassLevel > distortThreshold && Math.random() > (isMobile ? 0.3 : 0.7)) {
-                    const zone = distortZones[Math.floor(Math.random() * distortZones.length)];
-                    zone.classList.add('active');
-                    setTimeout(() => zone.classList.remove('active'), 400);
-                }
-                
-                // Warp glitch su medi (crowd e antenna zone) - SOGLIA RIDOTTA
-                const warpThreshold = isMobile ? 0.3 : 0.7;
-                if (midLevel > warpThreshold && Math.random() > (isMobile ? 0.3 : 0.75)) {
-                    const zone = warpZones[Math.floor(Math.random() * warpZones.length)];
-                    zone.classList.add('active');
-                    setTimeout(() => zone.classList.remove('active'), 300);
-                }
-                
-                // Chromatic split su alti (zone laterali) - SOGLIA RIDOTTA
-                const chromaThreshold = isMobile ? 0.25 : 0.7;
-                if (trebleLevel > chromaThreshold && Math.random() > (isMobile ? 0.3 : 0.8)) {
-                    const zone = chromaZones[Math.floor(Math.random() * chromaZones.length)];
-                    zone.classList.add('active');
-                    setTimeout(() => zone.classList.remove('active'), 200);
+                // Distorsioni su bassi (stack speaker) - DISABILITATO su slow devices
+                if (!isSlowDevice) {
+                    const distortThreshold = isMobile ? 0.3 : 0.75;
+                    if (bassLevel > distortThreshold && Math.random() > (isMobile ? 0.3 : 0.7)) {
+                        const zone = distortZones[Math.floor(Math.random() * distortZones.length)];
+                        zone.classList.add('active');
+                        setTimeout(() => zone.classList.remove('active'), 400);
+                    }
+
+                    // Warp glitch su medi (crowd e antenna zone) - SOGLIA RIDOTTA
+                    const warpThreshold = isMobile ? 0.3 : 0.7;
+                    if (midLevel > warpThreshold && Math.random() > (isMobile ? 0.3 : 0.75)) {
+                        const zone = warpZones[Math.floor(Math.random() * warpZones.length)];
+                        zone.classList.add('active');
+                        setTimeout(() => zone.classList.remove('active'), 300);
+                    }
+
+                    // Chromatic split su alti (zone laterali) - SOGLIA RIDOTTA
+                    const chromaThreshold = isMobile ? 0.25 : 0.7;
+                    if (trebleLevel > chromaThreshold && Math.random() > (isMobile ? 0.3 : 0.8)) {
+                        const zone = chromaZones[Math.floor(Math.random() * chromaZones.length)];
+                        zone.classList.add('active');
+                        setTimeout(() => zone.classList.remove('active'), 200);
+                    }
                 }
                 
                 // �🎆 GEOMETRIC STROBES - brillamenti geometrici sui beat
@@ -2417,21 +2437,26 @@
             vortexRotation += energy * 3;
 
             // Render con frequenza ridotta su mobile per performance
-            const renderFrequency = isSmallMobile ? 3 : isMobile ? 2 : 1;
+            let renderFrequency = isSmallMobile ? 4 : isMobile ? 2 : 1;
+            if (isSlowDevice) renderFrequency += 2;
             if (Math.floor(vortexRotation) % renderFrequency === 0) {
                 vortexCtx.clearRect(0, 0, vortexCanvas.width, vortexCanvas.height);
                 vortexCtx.save();
                 vortexCtx.translate(vortexCanvas.width / 2, vortexCanvas.height / 2);
                 vortexCtx.rotate(vortexRotation * Math.PI / 180);
 
-                // OTTIMIZZATO: meno cerchi su mobile
-                const maxRadius = isMobile ? 800 : 1000;
-                const step = isSmallMobile ? 160 : isMobile ? 140 : 120;
+                // OTTIMIZZATO: meno cerchi su mobile e slow devices
+                const maxRadius = isSlowDevice ? 600 : isMobile ? 800 : 1000;
+                const step = isSlowDevice ? 200 : isSmallMobile ? 160 : isMobile ? 140 : 120;
                 for (let r = 100; r < maxRadius; r += step) {
                     vortexCtx.strokeStyle = `rgba(255, 255, 255, ${(bassLevel * 0.6) * (1 - r / maxRadius)})`;
                     vortexCtx.lineWidth = 2 + bassLevel * 4;
-                    vortexCtx.shadowBlur = 15;
-                    vortexCtx.shadowColor = 'rgba(255, 255, 255, 0.6)';
+                    if (!isSlowDevice) {
+                        vortexCtx.shadowBlur = 15;
+                        vortexCtx.shadowColor = 'rgba(255, 255, 255, 0.6)';
+                    } else {
+                        vortexCtx.shadowBlur = 0;
+                    }
                     vortexCtx.beginPath();
                     vortexCtx.arc(0, 0, r, 0, Math.PI * 2);
                     vortexCtx.stroke();
