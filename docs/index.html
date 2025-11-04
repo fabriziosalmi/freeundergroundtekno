@@ -1442,7 +1442,7 @@
     <div id="minimalPlay">▶️</div>
 
     <!-- MENU TOGGLE BUTTON -->
-    <div id="menuToggle" class="show">☰</div>
+    <div id="menuToggle">☰</div>
 
     <!-- CONTROLS -->
     <div id="controls">
@@ -1895,6 +1895,7 @@
                 if (isDesktop) {
                     controls.classList.add('hidden');
                     menuToggle.textContent = '☰';
+                    menuToggle.classList.remove('show');  // Ensure hidden (hotspot will show)
                 }
             } catch (err) {
                 console.log('⚠️ Autoplay failed, showing minimal play button');
@@ -1903,6 +1904,10 @@
                 // Show controls on mobile
                 if (!isDesktop) {
                     controls.classList.remove('hidden');
+                }
+                // Ensure menuToggle is hidden on desktop (minimalPlay is visible)
+                if (isDesktop) {
+                    menuToggle.classList.remove('show');
                 }
             }
         });
