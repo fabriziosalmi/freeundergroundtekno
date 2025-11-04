@@ -1910,72 +1910,124 @@
             if (isPlaying) return;
 
             try {
-                console.log('🚀 Starting audio...');
+                console.log('🚀 Starting audio stream...');
 
+                // Create AudioContext
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 console.log('🔊 AudioContext created:', audioContext.state);
 
-                audioElement = new Audio(AUDIO_URL);
+                // Create audio element with proper stream configuration
+                audioElement = new Audio();
+                audioElement.src = AUDIO_URL;
                 audioElement.crossOrigin = 'anonymous';
-                audioElement.preload = 'auto';
+                audioElement.preload = 'metadata';
+                audioElement.loop = false; // CRITICAL: Prevent looping on stream end
+                audioElement.autoplay = false;
 
+                // Setup analyser for frequency analysis
                 analyser = audioContext.createAnalyser();
                 analyser.fftSize = 2048;
                 analyser.smoothingTimeConstant = 0.8;
 
+                // Create source and connect to analyser
                 const source = audioContext.createMediaElementSource(audioElement);
                 source.connect(analyser);
                 analyser.connect(audioContext.destination);
 
-                // Resume audio context se sospeso (Safari requirement)
+                // Resume audio context if suspended (Safari requirement)
                 if (audioContext.state === 'suspended') {
                     await audioContext.resume();
                     console.log('⏸️ AudioContext resumed');
                 }
 
-                // Aggiungi listeners per debug
-                audioElement.addEventListener('play', () => {
-                    console.log('▶️ Audio element playing');
-                });
-                audioElement.addEventListener('error', (e) => {
-                    console.error('❌ Audio element error:', e.target.error);
-                });
+                // Setup buffer monitoring for stream stability
+                let bufferingStartTime = null;
+                let connectionStable = false;
+
+                // Listen for stream buffering issues
                 audioElement.addEventListener('loadstart', () => {
-                    console.log('📡 Audio loading...');
-                });
-                audioElement.addEventListener('canplay', () => {
-                    console.log('✅ Audio can play');
+                    console.log('📡 Audio stream loading...');
+                    bufferingStartTime = Date.now();
+                    connectionStable = false;
                 });
 
+                audioElement.addEventListener('canplay', () => {
+                    connectionStable = true;
+                    const bufferTime = Date.now() - bufferingStartTime;
+                    console.log(`✅ Audio stream ready (buffered in ${bufferTime}ms)`);
+                });
+
+                audioElement.addEventListener('playing', () => {
+                    console.log('▶️ Stream playing');
+                });
+
+                // Prevent glitch: handle network interruptions
+                audioElement.addEventListener('stalled', () => {
+                    console.warn('⚠️ Stream stalled - buffering...');
+                });
+
+                audioElement.addEventListener('pause', () => {
+                    if (isPlaying) {
+                        console.warn('⚠️ Stream paused unexpectedly');
+                    }
+                });
+
+                // Error handling for network issues
+                audioElement.addEventListener('error', (e) => {
+                    console.error('❌ Audio stream error:', e.target.error);
+                    if (e.target.error.code === e.target.error.MEDIA_ERR_NETWORK) {
+                        console.error('Network error - stream unreachable');
+                    } else if (e.target.error.code === e.target.error.MEDIA_ERR_DECODE) {
+                        console.error('Decode error - invalid stream format');
+                    }
+                });
+
+                // Handle stream end (should not happen for infinite stream)
+                audioElement.addEventListener('ended', () => {
+                    console.log('Stream ended unexpectedly');
+                    isPlaying = false;
+                    audioStatus.textContent = 'STREAM ENDED';
+                });
+
+                // Start playback
                 await audioElement.play();
                 isPlaying = true;
-                audioStatus.textContent = 'PLAYING';
+                audioStatus.textContent = 'STREAMING';
 
-                console.log('✅ Audio playing!');
+                console.log('✅ Audio stream started!');
                 animate();
 
             } catch (err) {
                 console.error('❌ Audio error:', err);
-                alert('Audio error: ' + err.message);
+                isPlaying = false;
+                audioStatus.textContent = 'ERROR';
             }
         }
         
         function stopAudio() {
             if (!isPlaying) return;
 
-            if (audioElement) {
-                audioElement.pause();
-                audioElement.currentTime = 0;
-            }
+            try {
+                // Stop audio playback
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.currentTime = 0;
+                    audioElement.src = ''; // Clear stream source
+                }
 
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-            }
+                // Stop animation loop
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                }
 
-            isPlaying = false;
-            audioStatus.textContent = 'OFF';
-            signalStatus.textContent = 'No signal';
-            console.log('⏹️ Audio stopped');
+                // Reset UI
+                isPlaying = false;
+                audioStatus.textContent = 'STOPPED';
+                signalStatus.textContent = 'Ready';
+                console.log('⏹️ Audio stream stopped');
+            } catch (err) {
+                console.error('Error stopping audio:', err);
+            }
         }
         
         let vortexRotation = 0;
