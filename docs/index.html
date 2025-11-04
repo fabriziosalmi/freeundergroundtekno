@@ -1001,7 +1001,68 @@
             opacity: 0;
             pointer-events: none;
         }
-        
+
+        /* MENU TOGGLE BUTTON - pulsante floating per mostrare menu */
+        #menuToggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 999;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #fff;
+            color: #000;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #menuToggle.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #menuToggle:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.1);
+        }
+
+        #menuToggle:active {
+            transform: scale(0.95);
+        }
+
+        /* Su desktop: menu nascosto di default, mostra toggle */
+        @media (min-width: 769px) {
+            #controls {
+                opacity: 0;
+                pointer-events: none;
+            }
+
+            #menuToggle.show {
+                display: flex;
+            }
+        }
+
+        /* Su mobile: menu visibile di default, non mostra toggle */
+        @media (max-width: 768px) {
+            #controls {
+                opacity: 1;
+                pointer-events: auto;
+            }
+
+            #menuToggle {
+                display: none;
+            }
+        }
+
         button {
             background: #fff;
             color: #000;
@@ -1274,6 +1335,9 @@
     <!-- FREQUENCY VISUALIZER -->
     <div id="frequencyViz"></div>
     
+    <!-- MENU TOGGLE BUTTON -->
+    <div id="menuToggle" class="show">☰</div>
+
     <!-- CONTROLS -->
     <div id="controls">
         <div style="font-weight: bold; margin-bottom: 10px;">FREE UNDERGROUND TEKNO</div>
@@ -1595,22 +1659,54 @@
         }
         const freqBars = document.querySelectorAll('.freq-bar');
         
+        // Detect device type
+        const isDesktop = window.innerWidth > 768;
+
         // Button listeners
         document.getElementById('startBtn').addEventListener('click', startAudio);
         document.getElementById('stopBtn').addEventListener('click', stopAudio);
         document.getElementById('hideBtn').addEventListener('click', () => {
             controls.classList.toggle('hidden');
         });
-        
-        // Click/key to show controls
-        document.addEventListener('click', (e) => {
-            if (!controls.contains(e.target) && controls.classList.contains('hidden')) {
-                controls.classList.remove('hidden');
+
+        // Menu toggle button (desktop only)
+        const menuToggle = document.getElementById('menuToggle');
+        menuToggle.addEventListener('click', () => {
+            controls.classList.toggle('hidden');
+            if (controls.classList.contains('hidden')) {
+                menuToggle.textContent = '☰'; // menu closed
+            } else {
+                menuToggle.textContent = '✕'; // menu open
             }
         });
-        
+
+        // Click/key to show controls
+        document.addEventListener('click', (e) => {
+            if (!controls.contains(e.target) && !menuToggle.contains(e.target) && controls.classList.contains('hidden')) {
+                controls.classList.remove('hidden');
+                if (isDesktop) {
+                    menuToggle.textContent = '✕';
+                }
+            }
+        });
+
         document.addEventListener('keydown', () => {
             controls.classList.toggle('hidden');
+            if (isDesktop && !controls.classList.contains('hidden')) {
+                menuToggle.textContent = '✕';
+            } else if (isDesktop && controls.classList.contains('hidden')) {
+                menuToggle.textContent = '☰';
+            }
+        });
+
+        // AUTOPLAY on desktop at page load
+        window.addEventListener('load', () => {
+            if (isDesktop) {
+                // Auto-play after a short delay
+                setTimeout(() => {
+                    startAudio();
+                }, 500);
+            }
         });
         
         // Beat detection
