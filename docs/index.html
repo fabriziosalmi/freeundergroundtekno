@@ -641,7 +641,92 @@
             0%, 100% { transform: translate(-50%, -50%) scale(1); }
             50% { transform: translate(-50%, -50%) scale(1.2); }
         }
-        
+
+        /* ✨ SILVER GLOW PARTICLES - particelle glow argentate stroboscopiche */
+        .silver-glow-particle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 40;
+            border-radius: 50%;
+            opacity: 0;
+            filter: blur(8px);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.9),
+                        0 0 40px rgba(200, 200, 255, 0.6),
+                        0 0 60px rgba(150, 150, 255, 0.4);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(200, 200, 255, 0.5) 50%, transparent 70%);
+        }
+
+        .silver-glow-particle.active {
+            animation: glow-pulse 0.6s ease-out forwards;
+        }
+
+        @keyframes glow-pulse {
+            0% {
+                opacity: 0;
+                transform: scale(0.3);
+            }
+            40% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.8);
+            }
+        }
+
+        /* 🌀 SPIRAL WHIRL - effetti spiraloidi rotativi */
+        .spiral-whirl {
+            position: fixed;
+            pointer-events: none;
+            z-index: 35;
+            opacity: 0;
+        }
+
+        .spiral-whirl.active {
+            animation: whirl-spin 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        @keyframes whirl-spin {
+            0% {
+                opacity: 0;
+                transform: scale(0.2) rotate(0deg);
+            }
+            50% {
+                opacity: 1;
+            }
+            100% {
+                opacity: 0;
+                transform: scale(1.5) rotate(720deg);
+            }
+        }
+
+        /* ✨ SHIMMER TWINKLE - effetto scintillio */
+        .shimmer-twinkle {
+            position: fixed;
+            pointer-events: none;
+            z-index: 38;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            opacity: 0;
+            box-shadow: 0 0 15px rgba(200, 220, 255, 0.9);
+        }
+
+        .shimmer-twinkle.active {
+            animation: twinkle-flash 0.4s ease-out forwards;
+        }
+
+        @keyframes twinkle-flash {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(3);
+            }
+        }
+
         /* 🌀 LOCALIZED SPIRAL ZOOM - zoom spirale localizzati */
         .spiral-vortex {
             position: fixed;
@@ -1162,7 +1247,30 @@
     <div class="fractal-tear" id="tear4"></div>
     <div class="fractal-tear" id="tear5"></div>
     <div class="fractal-tear" id="tear6"></div>
-    
+
+    <!-- ✨ SILVER GLOW PARTICLES - glow argentati stroboscopici -->
+    <div class="silver-glow-particle" id="glow1"></div>
+    <div class="silver-glow-particle" id="glow2"></div>
+    <div class="silver-glow-particle" id="glow3"></div>
+    <div class="silver-glow-particle" id="glow4"></div>
+    <div class="silver-glow-particle" id="glow5"></div>
+    <div class="silver-glow-particle" id="glow6"></div>
+    <div class="silver-glow-particle" id="glow7"></div>
+    <div class="silver-glow-particle" id="glow8"></div>
+
+    <!-- 🌀 SPIRAL WHIRL - spiraloidi rotativi -->
+    <div class="spiral-whirl" id="whirl1"></div>
+    <div class="spiral-whirl" id="whirl2"></div>
+    <div class="spiral-whirl" id="whirl3"></div>
+    <div class="spiral-whirl" id="whirl4"></div>
+
+    <!-- ✨ SHIMMER TWINKLE - scintillio argentato -->
+    <div class="shimmer-twinkle" id="twinkle1"></div>
+    <div class="shimmer-twinkle" id="twinkle2"></div>
+    <div class="shimmer-twinkle" id="twinkle3"></div>
+    <div class="shimmer-twinkle" id="twinkle4"></div>
+    <div class="shimmer-twinkle" id="twinkle5"></div>
+
     <!-- FREQUENCY VISUALIZER -->
     <div id="frequencyViz"></div>
     
@@ -1519,7 +1627,38 @@
         let psychState = 'normal'; // normal, trip, khole, strobe, aberration, vhs
         let stateTimer = 0;
         let nextStateChange = Math.random() * 20000 + 30000; // 30-50s
-        
+
+        // ✨ MAGIC GLOW ELEMENTS - inizializza i nuovi effetti
+        const silverGlowParticles = [
+            ...document.querySelectorAll('.silver-glow-particle')
+        ];
+        const spiralWhirls = [
+            ...document.querySelectorAll('.spiral-whirl')
+        ];
+        const shimmerTwinkles = [
+            ...document.querySelectorAll('.shimmer-twinkle')
+        ];
+
+        // Posizioni strategic per lo scattering degli effetti
+        const magicPositions = [
+            { top: '15%', left: '20%' },   // alto sinistro
+            { top: '20%', right: '25%' },  // alto destro
+            { top: '45%', left: '10%' },   // sinistra medio
+            { top: '50%', right: '15%' },  // destra medio
+            { top: '75%', left: '30%' },   // basso sinistro
+            { top: '80%', right: '20%' },  // basso destro
+            { top: '35%', left: '50%', transform: 'translateX(-50%)' }, // centro
+            { top: '65%', left: '50%', transform: 'translateX(-50%)' }   // centro basso
+        ];
+
+        // Spirali 3D SVG - renderizza come path
+        function createSpiralSvg(color) {
+            const size = 50;
+            return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="filter: drop-shadow(0 0 15px ${color});">
+                <path d="M ${size/2} ${size/2} Q ${size*0.8} ${size*0.2} ${size} ${size/2} T ${size*0.2} ${size}" stroke="${color}" stroke-width="2" fill="none" opacity="0.9"/>
+            </svg>`;
+        }
+
         function changeState() {
             const states = ['normal', 'trip', 'khole', 'strobe', 'aberration', 'vhs'];
             const weights = [30, 20, 15, 10, 15, 10]; // probability weights
@@ -1939,6 +2078,53 @@
                             circle.classList.add('active');
                             setTimeout(() => circle.classList.remove('active'), 400);
                         }, i * 100); // sfasati di 100ms
+                    }
+                }
+
+                // ✨ SILVER GLOW PARTICLES - glow argentati a ritmo medi
+                const glowMidThreshold = isMobile ? 0.25 : 0.6;
+                if (midLevel > glowMidThreshold && Math.random() > (isMobile ? 0.15 : 0.45)) {
+                    const glow = silverGlowParticles[Math.floor(Math.random() * silverGlowParticles.length)];
+                    const pos = magicPositions[Math.floor(Math.random() * magicPositions.length)];
+                    const size = 40 + Math.random() * 80;
+                    glow.style.width = size + 'px';
+                    glow.style.height = size + 'px';
+                    Object.assign(glow.style, pos);
+                    glow.classList.add('active');
+                    setTimeout(() => glow.classList.remove('active'), 600);
+                }
+
+                // 🌀 SPIRAL WHIRL - spiraloidi rotativi random a ritmo
+                const whirlMidThreshold = isMobile ? 0.28 : 0.65;
+                if (midLevel > whirlMidThreshold && Math.random() > (isMobile ? 0.2 : 0.5)) {
+                    const whirl = spiralWhirls[Math.floor(Math.random() * spiralWhirls.length)];
+                    const pos = magicPositions[Math.floor(Math.random() * magicPositions.length)];
+                    const colors = ['rgba(200, 220, 255, 0.9)', 'rgba(150, 200, 255, 0.9)', 'rgba(220, 200, 255, 0.9)', 'rgba(255, 255, 200, 0.9)'];
+                    const color = colors[Math.floor(Math.random() * colors.length)];
+                    const size = 50 + Math.random() * 80;
+                    whirl.style.width = size + 'px';
+                    whirl.style.height = size + 'px';
+                    whirl.innerHTML = createSpiralSvg(color);
+                    Object.assign(whirl.style, pos);
+                    whirl.classList.add('active');
+                    setTimeout(() => {
+                        whirl.classList.remove('active');
+                        whirl.innerHTML = '';
+                    }, 800);
+                }
+
+                // ✨ SHIMMER TWINKLE - scintillio argentato random
+                const twinkleMidThreshold = isMobile ? 0.2 : 0.5;
+                if (midLevel > twinkleMidThreshold && Math.random() > (isMobile ? 0.3 : 0.7)) {
+                    const count = 1 + Math.floor(Math.random() * 3);
+                    for (let i = 0; i < count; i++) {
+                        setTimeout(() => {
+                            const twinkle = shimmerTwinkles[Math.floor(Math.random() * shimmerTwinkles.length)];
+                            const pos = magicPositions[Math.floor(Math.random() * magicPositions.length)];
+                            Object.assign(twinkle.style, pos);
+                            twinkle.classList.add('active');
+                            setTimeout(() => twinkle.classList.remove('active'), 400);
+                        }, i * 50);
                     }
                 }
                 
