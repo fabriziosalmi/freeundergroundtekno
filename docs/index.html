@@ -1039,6 +1039,42 @@
             transform: scale(0.95);
         }
 
+        /* MINIMAL PLAY BUTTON - per autoplay fallback */
+        #minimalPlay {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 999;
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #fff;
+            color: #000;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 24px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        #minimalPlay.show {
+            display: flex;
+        }
+
+        #minimalPlay:hover {
+            background: rgba(255, 255, 255, 1);
+            transform: scale(1.15);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        #minimalPlay:active {
+            transform: scale(0.95);
+        }
+
         /* Su desktop: menu nascosto di default, mostra toggle */
         @media (min-width: 769px) {
             #controls {
@@ -1335,6 +1371,9 @@
     <!-- FREQUENCY VISUALIZER -->
     <div id="frequencyViz"></div>
     
+    <!-- MINIMAL PLAY BUTTON - appears if autoplay fails -->
+    <div id="minimalPlay">▶️</div>
+
     <!-- MENU TOGGLE BUTTON -->
     <div id="menuToggle" class="show">☰</div>
 
@@ -1676,6 +1715,35 @@
         document.getElementById('stopBtn').addEventListener('click', stopAudio);
         document.getElementById('hideBtn').addEventListener('click', () => {
             controls.classList.toggle('hidden');
+            // Show minimal play button when hiding controls
+            if (controls.classList.contains('hidden')) {
+                minimalPlay.classList.add('show');
+                if (isDesktop) {
+                    menuToggle.textContent = '☰';
+                }
+            } else {
+                minimalPlay.classList.remove('show');
+            }
+        });
+
+        // Minimal play button for autoplay fallback
+        const minimalPlay = document.getElementById('minimalPlay');
+        minimalPlay.addEventListener('click', async () => {
+            if (isPlaying) return;
+            // Try to resume AudioContext if suspended
+            if (audioContext && audioContext.state === 'suspended') {
+                await audioContext.resume();
+                console.log('⏯️ AudioContext resumed by user click');
+            }
+            if (!isPlaying) {
+                await startAudio();
+            }
+            // Show full controls
+            controls.classList.remove('hidden');
+            minimalPlay.classList.remove('show');
+            if (isDesktop) {
+                menuToggle.textContent = '✕';
+            }
         });
 
         // Menu toggle button (desktop only)
@@ -1684,8 +1752,10 @@
             controls.classList.toggle('hidden');
             if (controls.classList.contains('hidden')) {
                 menuToggle.textContent = '☰'; // menu closed
+                minimalPlay.classList.add('show'); // show play button
             } else {
                 menuToggle.textContent = '✕'; // menu open
+                minimalPlay.classList.remove('show'); // hide play button
             }
         });
 
@@ -1708,10 +1778,29 @@
             }
         });
 
-        // Note: Autoplay is blocked by browser policy
-        // User must click START button to begin playback
-        // This is a security measure in modern browsers (Firefox, Safari, Chrome)
-        
+        // Try autoplay on load, show minimal play button if it fails
+        window.addEventListener('load', async () => {
+            console.log('⏯️ Attempting to start audio automatically...');
+            try {
+                await startAudio();
+                console.log('✅ Autoplay successful!');
+                minimalPlay.classList.remove('show');
+                // Hide menu on desktop after successful autoplay
+                if (isDesktop) {
+                    controls.classList.add('hidden');
+                    menuToggle.textContent = '☰';
+                }
+            } catch (err) {
+                console.log('⚠️ Autoplay failed, showing minimal play button');
+                // Show minimal play button if autoplay fails
+                minimalPlay.classList.add('show');
+                // Show controls on mobile
+                if (!isDesktop) {
+                    controls.classList.remove('hidden');
+                }
+            }
+        });
+
         // Beat detection
         let beatHistory = [];
         let lastBeatTime = 0;
