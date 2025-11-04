@@ -1144,17 +1144,31 @@
             animation: dream-glow 2.5s ease-in-out infinite;
         }
 
-        /* Su desktop: mostra toggle quando menu nascosto */
+        /* Su desktop: menuToggle nascosto, appare solo in hotspot */
         @media (min-width: 769px) {
+            #menuToggle {
+                opacity: 0;
+                pointer-events: none;
+            }
+
             #menuToggle.show {
-                display: flex;
+                opacity: 1;
+                pointer-events: auto;
             }
         }
 
-        /* Su mobile: non mostra toggle */
+        /* Su mobile: menuToggle visibile di default, fade in/out con opacity */
         @media (max-width: 768px) {
             #menuToggle {
-                display: none;
+                opacity: 1;
+                pointer-events: auto;
+                transition: opacity 0.4s ease-in-out;
+            }
+
+            /* Quando HIDE è attivo su mobile */
+            #menuToggle.hidden-mobile {
+                opacity: 0;
+                pointer-events: none;
             }
         }
 
@@ -1797,31 +1811,73 @@
                 if (isDesktop) {
                     menuToggle.classList.remove('show');  // Hide toggle on desktop
                     menuToggle.textContent = '☰';
+                } else {
+                    // Mobile: fade out menu toggle
+                    menuToggle.classList.add('hidden-mobile');
                 }
             } else {
                 controlsHidden = false;
                 minimalPlay.classList.remove('show');
                 if (isDesktop) {
                     menuToggle.classList.add('show');  // Show toggle on desktop
+                } else {
+                    // Mobile: fade in menu toggle
+                    menuToggle.classList.remove('hidden-mobile');
                 }
             }
         });
 
-        // Hotspot area: mousemove to show menu toggle if hidden (top-right corner)
-        document.addEventListener('mousemove', (e) => {
-            if (!controlsHidden || !isDesktop) return;
+        // Hotspot area: show menu toggle when hovering/touching top-right corner
+        const hotspotWidth = 150;
+        const hotspotHeight = 100;
 
-            // Check if mouse is in top-right corner (150x100px area)
-            const hotspotWidth = 150;
-            const hotspotHeight = 100;
-            const isInHotspot = e.clientX > window.innerWidth - hotspotWidth &&
-                               e.clientY < hotspotHeight;
+        function checkHotspot(clientX, clientY, isMobileDevice) {
+            const isInHotspot = clientX > window.innerWidth - hotspotWidth &&
+                               clientY < hotspotHeight;
 
             if (isInHotspot) {
-                menuToggle.classList.add('show');  // Show on hover
+                if (!isMobileDevice) {
+                    // Desktop: show with opacity
+                    menuToggle.classList.add('show');
+                } else {
+                    // Mobile: remove fade-out class for fade in
+                    menuToggle.classList.remove('hidden-mobile');
+                }
             } else {
-                menuToggle.classList.remove('show');  // Hide when leaving hotspot
+                if (!isMobileDevice) {
+                    // Desktop: hide
+                    menuToggle.classList.remove('show');
+                } else {
+                    // Mobile: add fade-out class only if controls are hidden
+                    if (controlsHidden) {
+                        menuToggle.classList.add('hidden-mobile');
+                    }
+                }
             }
+        }
+
+        // Desktop: mousemove hotspot
+        document.addEventListener('mousemove', (e) => {
+            if (!controlsHidden) return;
+            checkHotspot(e.clientX, e.clientY, !isDesktop);
+        });
+
+        // Mobile: touchmove hotspot
+        let touchHideTimeout = null;
+        document.addEventListener('touchmove', (e) => {
+            if (!controlsHidden || isDesktop) return;
+            const touch = e.touches[0];
+            checkHotspot(touch.clientX, touch.clientY, true);
+        });
+
+        // Mobile: touchend - hide after touch ends
+        document.addEventListener('touchend', (e) => {
+            if (!controlsHidden || isDesktop) return;
+            // Fade out after 500ms when touch ends
+            clearTimeout(touchHideTimeout);
+            touchHideTimeout = setTimeout(() => {
+                menuToggle.classList.add('hidden-mobile');
+            }, 500);
         });
 
         // Minimal play button for autoplay fallback
@@ -1839,24 +1895,43 @@
             controls.classList.remove('hidden');
             controlsHidden = false;
             minimalPlay.classList.remove('show');
+            menuToggle.textContent = '✕';
             if (isDesktop) {
-                menuToggle.textContent = '✕';
                 menuToggle.classList.add('show');
+            } else {
+                // Mobile: show menu toggle
+                menuToggle.classList.remove('hidden-mobile');
             }
         });
 
         // Menu toggle button (desktop only)
         menuToggle.addEventListener('click', () => {
             controls.classList.toggle('hidden');
+            clearTimeout(touchHideTimeout);  // Cancel any pending hide on mobile
+
             if (controls.classList.contains('hidden')) {
                 controlsHidden = true;
                 menuToggle.textContent = '☰'; // menu closed
                 minimalPlay.classList.add('show'); // show play button
-                menuToggle.classList.remove('show');  // Hide toggle after click
+                if (isDesktop) {
+                    menuToggle.classList.remove('show');  // Hide toggle after click on desktop
+                } else {
+                    // Mobile: keep visible for a moment, then fade out
+                    setTimeout(() => {
+                        if (controlsHidden) {
+                            menuToggle.classList.add('hidden-mobile');
+                        }
+                    }, 300);
+                }
             } else {
                 controlsHidden = false;
                 menuToggle.textContent = '✕'; // menu open
                 minimalPlay.classList.remove('show'); // hide play button
+                if (isDesktop) {
+                    menuToggle.classList.add('show');  // Show on desktop
+                } else {
+                    menuToggle.classList.remove('hidden-mobile');  // Show on mobile
+                }
             }
         });
 
@@ -1868,6 +1943,10 @@
                 if (isDesktop) {
                     menuToggle.textContent = '✕';
                     menuToggle.classList.add('show');
+                } else {
+                    // Mobile: show menu toggle when showing controls
+                    menuToggle.textContent = '✕';
+                    menuToggle.classList.remove('hidden-mobile');
                 }
             }
         });
@@ -1875,12 +1954,20 @@
         document.addEventListener('keydown', () => {
             controls.classList.toggle('hidden');
             controlsHidden = controls.classList.contains('hidden');
-            if (isDesktop && !controls.classList.contains('hidden')) {
+            if (!controls.classList.contains('hidden')) {
                 menuToggle.textContent = '✕';
-                menuToggle.classList.add('show');
-            } else if (isDesktop && controls.classList.contains('hidden')) {
+                if (isDesktop) {
+                    menuToggle.classList.add('show');
+                } else {
+                    menuToggle.classList.remove('hidden-mobile');
+                }
+            } else {
                 menuToggle.textContent = '☰';
-                menuToggle.classList.remove('show');
+                if (isDesktop) {
+                    menuToggle.classList.remove('show');
+                } else {
+                    menuToggle.classList.add('hidden-mobile');
+                }
             }
         });
 
