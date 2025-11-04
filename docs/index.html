@@ -936,16 +936,158 @@
             font-family: 'Courier New', monospace;
             font-weight: bold;
             font-size: 11px;
+            touch-action: manipulation;
+            transition: background 0.2s;
         }
-        
+
         button:hover {
             background: #ccc;
+        }
+
+        button:active {
+            background: #999;
+            transform: scale(0.98);
+        }
+
+        /* Aumenta area cliccabile su touch devices */
+        @media (hover: none) and (pointer: coarse) {
+            button {
+                padding: 12px 18px;
+                font-size: 13px;
+                min-height: 44px;
+                min-width: 44px;
+            }
+
+            #controls {
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            }
         }
         
         #stats {
             margin-top: 10px;
             font-size: 10px;
             line-height: 1.4;
+        }
+
+        /* RESPONSIVE DESIGN - MOBILE OPTIMIZATIONS */
+        @media (max-width: 768px) {
+            #controls {
+                top: 10px;
+                right: 10px;
+                left: auto;
+                padding: 12px;
+                font-size: 11px;
+                max-width: 280px;
+            }
+
+            button {
+                padding: 10px 12px;
+                margin: 4px 2px;
+                font-size: 12px;
+            }
+
+            #stats {
+                margin-top: 8px;
+                font-size: 9px;
+                line-height: 1.3;
+            }
+
+            /* Scale frequency bars per mobile */
+            #frequencyViz {
+                bottom: 10px;
+                height: 60px;
+            }
+
+            .freq-bar {
+                width: 6px;
+                max-height: 60px;
+            }
+
+            /* Speaker flashes - scale per schermi piccoli */
+            .speaker-flash {
+                width: 100px;
+                height: 250px;
+                filter: blur(20px);
+            }
+
+            .speaker-flash.left {
+                left: 10%;
+            }
+
+            .speaker-flash.right {
+                right: 10%;
+            }
+
+            /* Antenna beams - scale per mobile */
+            .antenna-beam {
+                width: 1px;
+            }
+
+            /* Circle pulse - più piccolo su mobile */
+            #circlePulse {
+                width: 50px;
+                height: 50px;
+                border: 3px solid rgba(255, 255, 255, 0.9);
+            }
+
+            /* Geometric strobes - scale per mobile */
+            #strobeCircle1 {
+                width: 150px !important;
+                height: 150px !important;
+            }
+
+            #strobeCircle2 {
+                width: 300px !important;
+                height: 300px !important;
+            }
+
+            /* Distortion zones - adjust positions for mobile */
+            .distortion-zone {
+                width: 120px !important;
+                height: 180px !important;
+            }
+
+            .warp-zone {
+                width: 200px !important;
+                height: 120px !important;
+            }
+
+            .chroma-zone {
+                width: 100px !important;
+                height: 100px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #controls {
+                top: 8px;
+                right: 8px;
+                padding: 10px;
+                font-size: 10px;
+                max-width: 240px;
+            }
+
+            button {
+                padding: 8px 10px;
+                margin: 3px 2px;
+                font-size: 10px;
+                width: 100%;
+            }
+
+            #frequencyViz {
+                bottom: 5px;
+                height: 50px;
+                gap: 2px;
+            }
+
+            .freq-bar {
+                width: 5px;
+            }
+
+            /* Disable some heavy effects on very small screens */
+            .dust-particle {
+                display: none;
+            }
         }
     </style>
 </head>
@@ -1128,10 +1270,90 @@
         
         const spiralAnimations = ['active', 'implode', 'pulse'];
         
-        // Inizializza posizioni spirali
-        spiralVortexes.forEach((vortex, i) => {
-            Object.assign(vortex.style, spiralPositions[i]);
-        });
+        // Rileva se è mobile
+        const isMobile = window.innerWidth <= 768;
+        const isSmallMobile = window.innerWidth <= 480;
+
+        // Funzione per scalare le posizioni in base al viewport
+        function adaptToViewport() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            if (width <= 768) {
+                // Scala le posizioni delle spirali per mobile
+                const mobilePositions = [
+                    { top: '20%', left: '15%' },   // stack speaker sinistro
+                    { top: '20%', left: '85%' },   // stack speaker destro
+                    { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' },   // centro
+                    { top: '15%', left: '50%', transform: 'translate(-50%, -50%)' },   // antenna
+                    { bottom: '20%', left: '50%', transform: 'translate(-50%, 0%)' }   // crowd
+                ];
+
+                spiralVortexes.forEach((vortex, i) => {
+                    Object.assign(vortex.style, mobilePositions[i]);
+                    // Riduci dimensioni su mobile
+                    if (width <= 480) {
+                        vortex.style.width = '60px';
+                        vortex.style.height = '60px';
+                    } else {
+                        vortex.style.width = '80px';
+                        vortex.style.height = '80px';
+                    }
+                });
+
+                // Scala distortion zones per mobile
+                const mobileDistortPositions = [
+                    { top: '20%', left: '15%', width: '100px', height: '150px' },
+                    { top: '20%', right: '15%', width: '100px', height: '150px' },
+                    { top: '45%', left: '50%', width: '120px', height: '120px', transform: 'translateX(-50%)' }
+                ];
+
+                distortZones.forEach((zone, i) => {
+                    Object.assign(zone.style, mobileDistortPositions[i]);
+                });
+
+                // Scala warp zones per mobile
+                const mobileWarpPositions = [
+                    { top: '10%', left: '25%', width: '150px', height: '100px' },
+                    { bottom: '15%', left: '50%', width: '200px', height: '120px', transform: 'translateX(-50%)' }
+                ];
+
+                warpZones.forEach((zone, i) => {
+                    Object.assign(zone.style, mobileWarpPositions[i]);
+                });
+
+                // Scala chroma zones per mobile
+                const mobileChromaPositions = [
+                    { top: '40%', left: '10%', width: '80px', height: '80px' },
+                    { top: '40%', right: '10%', width: '80px', height: '80px' },
+                    { top: '60%', left: '50%', width: '100px', height: '100px', transform: 'translateX(-50%)' }
+                ];
+
+                chromaZones.forEach((zone, i) => {
+                    Object.assign(zone.style, mobileChromaPositions[i]);
+                });
+            } else {
+                // Desktop layout
+                spiralVortexes.forEach((vortex, i) => {
+                    Object.assign(vortex.style, spiralPositions[i]);
+                });
+                distortZones.forEach((zone, i) => {
+                    Object.assign(zone.style, distortPositions[i]);
+                });
+                warpZones.forEach((zone, i) => {
+                    Object.assign(zone.style, warpPositions[i]);
+                });
+                chromaZones.forEach((zone, i) => {
+                    Object.assign(zone.style, chromaPositions[i]);
+                });
+            }
+        }
+
+        // Inizializza le posizioni
+        adaptToViewport();
+
+        // Re-adatta quando la finestra viene ridimensionata
+        window.addEventListener('resize', adaptToViewport);
         
         // ⚫⚪ Negative layer con raggi rotativi
         const negativeLayer = document.getElementById('negativeLayer');
@@ -1226,8 +1448,9 @@
         vortexCanvas.width = window.innerWidth;
         vortexCanvas.height = window.innerHeight;
         
-        // Create tunnel rings (OTTIMIZZATO: meno anelli)
-        for (let i = 0; i < 6; i++) { // ridotto da 10 a 6
+        // Create tunnel rings (OTTIMIZZATO: ancora meno su mobile)
+        const tunnelRingCount = isSmallMobile ? 3 : isMobile ? 4 : 6;
+        for (let i = 0; i < tunnelRingCount; i++) {
             const ring = document.createElement('div');
             ring.className = 'tunnel-ring';
             ring.style.animationDelay = `${i * 0.5}s`;
@@ -1242,8 +1465,9 @@
             vhsLines.appendChild(line);
         }
         
-        // Create dust particles (OTTIMIZZATO: meno particelle)
-        for (let i = 0; i < 15; i++) { // ridotto da 30 a 15
+        // Create dust particles (OTTIMIZZATO: ancora meno su mobile)
+        const dustParticleCount = isSmallMobile ? 5 : isMobile ? 8 : 15;
+        for (let i = 0; i < dustParticleCount; i++) {
             const dust = document.createElement('div');
             dust.className = 'dust-particle';
             dust.style.left = Math.random() * 100 + '%';
@@ -1822,12 +2046,15 @@
             }
             
             // 🌀 CIRCLE PULSE (centro) - MOLTO più visibile con zoom burst
-            const pulseSize = 150 + bassLevel * 600;
+            // Scala diverse per mobile e desktop
+            const basePulseSize = isMobile ? 80 : 150;
+            const pulseMultiplier = isMobile ? 300 : 600;
+            const pulseSize = basePulseSize + bassLevel * pulseMultiplier;
             const pulseBurst = (Date.now() - lastZoomBurst < 300) ? 1.5 : 1; // amplifica durante zoom burst
             circlePulse.style.width = (pulseSize * pulseBurst) + 'px';
             circlePulse.style.height = (pulseSize * pulseBurst) + 'px';
             circlePulse.style.opacity = 0.5 + bassLevel * 0.5;
-            circlePulse.style.borderWidth = (3 + bassLevel * 10) + 'px';
+            circlePulse.style.borderWidth = (Math.max(2, isMobile ? 2 : 3) + bassLevel * (isMobile ? 5 : 10)) + 'px';
             
             // Glow extra su burst
             if (pulseBurst > 1) {
@@ -1850,28 +2077,32 @@
                 flash.style.filter = `blur(${30 + midLevel * 50}px)`;
             });
             
-            // ⚡ ANTENNA BEAMS (centro alto) - più lunghi
+            // ⚡ ANTENNA BEAMS (centro alto) - più lunghi (limitato su mobile)
             antennaBeams.forEach((beam, i) => {
-                const height = trebleLevel * 500;
+                const maxHeight = isMobile ? 250 : 500;
+                const height = Math.min(trebleLevel * (isMobile ? 250 : 500), maxHeight);
                 beam.style.height = height + 'px';
                 beam.style.opacity = trebleLevel * 1.2;
                 beam.style.transform = `rotate(${(i - 1) * 20 + trebleLevel * 60}deg)`;
-                beam.style.width = (2 + trebleLevel * 4) + 'px';
+                beam.style.width = (isMobile ? 1 : 2 + trebleLevel * 4) + 'px';
             });
             
-            // 🎨 VORTEX ROTATION - ruota e pulsa (OTTIMIZZATO: meno cerchi)
+            // 🎨 VORTEX ROTATION - ruota e pulsa (OTTIMIZZATO: meno cerchi su mobile)
             vortexRotation += energy * 3;
-            
-            // Render solo ogni 2 frame per alleggerire
-            if (Math.floor(vortexRotation) % 2 === 0) {
+
+            // Render con frequenza ridotta su mobile per performance
+            const renderFrequency = isSmallMobile ? 3 : isMobile ? 2 : 1;
+            if (Math.floor(vortexRotation) % renderFrequency === 0) {
                 vortexCtx.clearRect(0, 0, vortexCanvas.width, vortexCanvas.height);
                 vortexCtx.save();
                 vortexCtx.translate(vortexCanvas.width / 2, vortexCanvas.height / 2);
                 vortexCtx.rotate(vortexRotation * Math.PI / 180);
-                
-                // OTTIMIZZATO: meno cerchi (solo 8 invece di 15+)
-                for (let r = 100; r < 1000; r += 120) {
-                    vortexCtx.strokeStyle = `rgba(255, 255, 255, ${(bassLevel * 0.6) * (1 - r / 1000)})`;
+
+                // OTTIMIZZATO: meno cerchi su mobile
+                const maxRadius = isMobile ? 800 : 1000;
+                const step = isSmallMobile ? 160 : isMobile ? 140 : 120;
+                for (let r = 100; r < maxRadius; r += step) {
+                    vortexCtx.strokeStyle = `rgba(255, 255, 255, ${(bassLevel * 0.6) * (1 - r / maxRadius)})`;
                     vortexCtx.lineWidth = 2 + bassLevel * 4;
                     vortexCtx.shadowBlur = 15;
                     vortexCtx.shadowColor = 'rgba(255, 255, 255, 0.6)';
