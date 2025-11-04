@@ -1978,11 +1978,14 @@
                 await startAudio();
                 console.log('✅ Autoplay successful!');
                 minimalPlay.classList.remove('show');
-                // Hide menu on desktop after successful autoplay
+                // Hide controls on both desktop and mobile after successful autoplay
+                controls.classList.add('hidden');
                 if (isDesktop) {
-                    controls.classList.add('hidden');
                     menuToggle.textContent = '☰';
                     menuToggle.classList.remove('show');  // Ensure hidden (hotspot will show)
+                } else {
+                    // Mobile: also fade out menu toggle on successful autoplay
+                    menuToggle.classList.add('hidden-mobile');
                 }
             } catch (err) {
                 console.log('⚠️ Autoplay failed, showing minimal play button');
