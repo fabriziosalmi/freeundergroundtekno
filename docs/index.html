@@ -1075,25 +1075,15 @@
             transform: scale(0.95);
         }
 
-        /* Su desktop: menu nascosto di default, mostra toggle */
+        /* Su desktop: mostra toggle quando menu nascosto */
         @media (min-width: 769px) {
-            #controls {
-                opacity: 0;
-                pointer-events: none;
-            }
-
             #menuToggle.show {
                 display: flex;
             }
         }
 
-        /* Su mobile: menu visibile di default, non mostra toggle */
+        /* Su mobile: non mostra toggle */
         @media (max-width: 768px) {
-            #controls {
-                opacity: 1;
-                pointer-events: auto;
-            }
-
             #menuToggle {
                 display: none;
             }
@@ -1710,6 +1700,10 @@
         const targetFrameTime = isSlowDevice ? 1000 / 30 : 1000 / 60; // 30fps or 60fps
         let skippedFrames = 0;
 
+        // Get UI elements
+        const minimalPlay = document.getElementById('minimalPlay');
+        const menuToggle = document.getElementById('menuToggle');
+
         // Button listeners
         document.getElementById('startBtn').addEventListener('click', startAudio);
         document.getElementById('stopBtn').addEventListener('click', stopAudio);
@@ -1727,7 +1721,6 @@
         });
 
         // Minimal play button for autoplay fallback
-        const minimalPlay = document.getElementById('minimalPlay');
         minimalPlay.addEventListener('click', async () => {
             if (isPlaying) return;
             // Try to resume AudioContext if suspended
@@ -1747,7 +1740,6 @@
         });
 
         // Menu toggle button (desktop only)
-        const menuToggle = document.getElementById('menuToggle');
         menuToggle.addEventListener('click', () => {
             controls.classList.toggle('hidden');
             if (controls.classList.contains('hidden')) {
