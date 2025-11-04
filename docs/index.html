@@ -1189,6 +1189,10 @@
             <div>Bass: <span id="bassVal">0</span>%</div>
             <div>Mid: <span id="midVal">0</span>%</div>
             <div>Treble: <span id="trebleVal">0</span>%</div>
+            <div id="debugAudio" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #fff; font-size: 8px; display: none;">
+                <div>Audio: <span id="audioStatus">OFF</span></div>
+                <div>Signal: <span id="signalStatus">No data</span></div>
+            </div>
         </div>
     </div>
 
@@ -1390,6 +1394,14 @@
         const bassVal = document.getElementById('bassVal');
         const midVal = document.getElementById('midVal');
         const trebleVal = document.getElementById('trebleVal');
+        const debugAudio = document.getElementById('debugAudio');
+        const audioStatus = document.getElementById('audioStatus');
+        const signalStatus = document.getElementById('signalStatus');
+
+        // Show debug on mobile
+        if (isMobile) {
+            debugAudio.style.display = 'block';
+        }
         
         // 🌀 Distortion zones
         const distortZones = [
@@ -1590,28 +1602,52 @@
         
         async function startAudio() {
             if (isPlaying) return;
-            
+
             try {
                 console.log('🚀 Starting audio...');
-                
+
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                console.log('🔊 AudioContext created:', audioContext.state);
+
                 audioElement = new Audio(AUDIO_URL);
                 audioElement.crossOrigin = 'anonymous';
-                
+                audioElement.preload = 'auto';
+
                 analyser = audioContext.createAnalyser();
                 analyser.fftSize = 2048;
                 analyser.smoothingTimeConstant = 0.8;
-                
+
                 const source = audioContext.createMediaElementSource(audioElement);
                 source.connect(analyser);
                 analyser.connect(audioContext.destination);
-                
+
+                // Resume audio context se sospeso (Safari requirement)
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                    console.log('⏸️ AudioContext resumed');
+                }
+
+                // Aggiungi listeners per debug
+                audioElement.addEventListener('play', () => {
+                    console.log('▶️ Audio element playing');
+                });
+                audioElement.addEventListener('error', (e) => {
+                    console.error('❌ Audio element error:', e.target.error);
+                });
+                audioElement.addEventListener('loadstart', () => {
+                    console.log('📡 Audio loading...');
+                });
+                audioElement.addEventListener('canplay', () => {
+                    console.log('✅ Audio can play');
+                });
+
                 await audioElement.play();
                 isPlaying = true;
-                
+                audioStatus.textContent = 'PLAYING';
+
                 console.log('✅ Audio playing!');
                 animate();
-                
+
             } catch (err) {
                 console.error('❌ Audio error:', err);
                 alert('Audio error: ' + err.message);
@@ -1620,17 +1656,19 @@
         
         function stopAudio() {
             if (!isPlaying) return;
-            
+
             if (audioElement) {
                 audioElement.pause();
                 audioElement.currentTime = 0;
             }
-            
+
             if (animationId) {
                 cancelAnimationFrame(animationId);
             }
-            
+
             isPlaying = false;
+            audioStatus.textContent = 'OFF';
+            signalStatus.textContent = 'No signal';
             console.log('⏹️ Audio stopped');
         }
         
@@ -2126,6 +2164,19 @@
             bassVal.textContent = Math.round(bassLevel * 100);
             midVal.textContent = Math.round(midLevel * 100);
             trebleVal.textContent = Math.round(trebleLevel * 100);
+
+            // Update signal status
+            const totalSignal = bassLevel + midLevel + trebleLevel;
+            if (totalSignal > 0.05) {
+                signalStatus.textContent = '✓ Signal OK';
+            } else {
+                signalStatus.textContent = 'No signal';
+            }
+
+            // Debug: Log frequency data ogni 60 frame per verificare se c'è segnale
+            if (Math.floor(Date.now() / 1000) % 2 === 0 && Math.random() < 0.05) {
+                console.log(`🎵 Frequencies - Bass: ${Math.round(bassLevel*100)}%, Mid: ${Math.round(midLevel*100)}%, Treble: ${Math.round(trebleLevel*100)}%`);
+            }
             
             animationId = requestAnimationFrame(animate);
         }
