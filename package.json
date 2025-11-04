@@ -1,0 +1,32 @@
+{
+  "name": "freetekno-youtube-streamer",
+  "version": "1.0.0",
+  "description": "Stream FreeTekno radio visualization to YouTube with independent audio/video capture",
+  "main": "stream-to-youtube.js",
+  "bin": {
+    "freetekno-stream": "stream-to-youtube.js"
+  },
+  "scripts": {
+    "start": "node stream-to-youtube.js",
+    "test": "node stream-to-youtube.js --dry-run"
+  },
+  "keywords": [
+    "youtube",
+    "streaming",
+    "ffmpeg",
+    "audio",
+    "video",
+    "live"
+  ],
+  "author": "FreeTekno",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^21.0.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "preferGlobal": true,
+  "bin": "stream-to-youtube.js"
+}
