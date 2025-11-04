@@ -1708,15 +1708,9 @@
             }
         });
 
-        // AUTOPLAY on desktop at page load
-        window.addEventListener('load', () => {
-            if (isDesktop) {
-                // Auto-play after a short delay
-                setTimeout(() => {
-                    startAudio();
-                }, 500);
-            }
-        });
+        // Note: Autoplay is blocked by browser policy
+        // User must click START button to begin playback
+        // This is a security measure in modern browsers (Firefox, Safari, Chrome)
         
         // Beat detection
         let beatHistory = [];
@@ -2504,6 +2498,8 @@
         });
         
         console.log('🎵 FREE UNDERGROUND TEKNO - Radio VJ System Ready');
+        console.log('⏯️  Click the ▶️ START button to begin playback');
+        console.log('📱 On desktop: Click ☰ menu button (top-right) to show controls');
     </script>
 </body>
 </html>
