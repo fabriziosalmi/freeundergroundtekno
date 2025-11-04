@@ -1131,14 +1131,27 @@
         
         // 📱 MOBILE DETECTION
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         
         // 📱 MOBILE OPTIMIZATION HELPERS
         const mobileOpacity = (desktop) => isMobile ? Math.min(desktop * 1.5, 1) : desktop; // +50% opacità su mobile
-        const mobileThreshold = (desktop) => isMobile ? desktop * 0.7 : desktop; // soglie più basse su mobile (più frequenti)
-        const mobileRandom = (desktop) => isMobile ? desktop * 0.5 : desktop; // probabilità più alte su mobile
-        const mobileDuration = (desktop) => isMobile ? desktop * 1.5 : desktop; // effetti più lunghi su mobile
+        const mobileThreshold = (desktop) => {
+            if (isIOS) return desktop * 0.4; // iOS: soglie MOLTO più basse (60% riduzione!)
+            return isMobile ? desktop * 0.7 : desktop; // Android: soglie più basse
+        };
+        const mobileRandom = (desktop) => {
+            if (isIOS) return desktop * 0.3; // iOS: probabilità 3x più alte
+            return isMobile ? desktop * 0.5 : desktop; // Android: probabilità 2x
+        };
+        const mobileDuration = (desktop) => isMobile ? desktop * 1.8 : desktop; // effetti quasi 2x più lunghi su mobile
         
-        console.log('📱 Mobile mode:', isMobile);
+        console.log('📱 Device detection:', { isMobile, isIOS });
+        console.log('🎨 Mobile optimizations active:', {
+            opacityMultiplier: isMobile ? 1.5 : 1,
+            thresholdMultiplier: isIOS ? 0.4 : (isMobile ? 0.7 : 1),
+            randomMultiplier: isIOS ? 0.3 : (isMobile ? 0.5 : 1),
+            durationMultiplier: isMobile ? 1.8 : 1
+        });
         
         // DOM elements
         const controls = document.getElementById('controls');
@@ -1375,6 +1388,12 @@
         let lastBeatTime = 0;
         let bpm = 0;
         let beatCount = 0; // contatore beat per trigger ritmici
+        
+        // 🍎 iOS FALLBACK - forza effetti anche se audio analysis è debole
+        let iosFallbackTimer = 0;
+        let iosFallbackBeat = 0;
+        const IOS_FALLBACK_BPM = 135; // assume ~135 BPM (tekno standard)
+        const IOS_FALLBACK_INTERVAL = 60000 / IOS_FALLBACK_BPM; // ~444ms per beat
         
         // 🎬 RANDOM EFFECTS DIRECTOR - sceglie casualmente effetti A TEMPO
         let lastRandomEffect = 0;
@@ -1720,9 +1739,46 @@
             const midData = dataArray.slice(40, 120);     // 500-2kHz
             const trebleData = dataArray.slice(150, 300); // 4-8kHz
             
-            const bassLevel = bassData.reduce((a, b) => a + b) / (bassData.length * 255);
-            const midLevel = midData.reduce((a, b) => a + b) / (midData.length * 255);
-            const trebleLevel = trebleData.reduce((a, b) => a + b) / (trebleData.length * 255);
+            let bassLevel = bassData.reduce((a, b) => a + b) / (bassData.length * 255);
+            let midLevel = midData.reduce((a, b) => a + b) / (midData.length * 255);
+            let trebleLevel = trebleData.reduce((a, b) => a + b) / (trebleData.length * 255);
+            
+            // 🍎 iOS FALLBACK - se audio analysis non funziona, simula beat
+            if (isIOS) {
+                iosFallbackTimer += 16; // ~60fps
+                
+                // Se i valori sono troppo bassi (< 0.1), forza valori simulati
+                if (bassLevel < 0.1 && midLevel < 0.1 && trebleLevel < 0.1) {
+                    console.warn('📱 iOS: Audio analysis debole, usando fallback simulato');
+                    
+                    // Simula beat a ~135 BPM
+                    const beatPhase = (iosFallbackTimer % IOS_FALLBACK_INTERVAL) / IOS_FALLBACK_INTERVAL;
+                    
+                    // Kick simulation (ogni beat)
+                    if (beatPhase < 0.2) {
+                        bassLevel = 0.7 + Math.random() * 0.3; // 0.7-1.0
+                    } else {
+                        bassLevel = 0.2 + Math.random() * 0.2; // 0.2-0.4
+                    }
+                    
+                    // Continuous mid/high simulation
+                    midLevel = 0.4 + Math.random() * 0.3; // 0.4-0.7
+                    trebleLevel = 0.3 + Math.random() * 0.4; // 0.3-0.7
+                    
+                    // Trigger fallback beat
+                    if (beatPhase < 0.05 && Date.now() - lastBeatTime > 300) {
+                        iosFallbackBeat++;
+                        lastBeatTime = Date.now();
+                        beatCount++;
+                        console.log('🍎 iOS fallback beat:', iosFallbackBeat);
+                    }
+                } else {
+                    // Audio analysis funziona, boost comunque i valori per iOS
+                    bassLevel = Math.min(bassLevel * 1.5, 1);
+                    midLevel = Math.min(midLevel * 1.5, 1);
+                    trebleLevel = Math.min(trebleLevel * 1.5, 1);
+                }
+            }
             
             // Overall energy
             const energy = (bassLevel + midLevel + trebleLevel) / 3;
@@ -1837,14 +1893,16 @@
                 beatCount++; // incrementa contatore beat
                 
                 // 🎬 RANDOM EFFECTS DIRECTOR - trigger casuale A TEMPO ogni N beat
-                // Ogni 8-16 beat (circa ogni 2-4 secondi a 120 BPM), lancia un effetto random
-                const beatTrigger = isMobile ? 6 : 8; // più frequente su mobile
-                if (beatCount % beatTrigger === 0 && Math.random() > 0.3) {
+                // Ogni 4-8 beat (più frequente su iOS), lancia un effetto random
+                const beatTrigger = isIOS ? 4 : (isMobile ? 6 : 8); // iOS: ogni 4 beat!
+                const triggerProbability = isIOS ? 0.1 : 0.3; // iOS: 90% probabilità vs 70%
+                
+                if (beatCount % beatTrigger === 0 && Math.random() > triggerProbability) {
                     // Scelta casuale pesata degli effetti
                     const weights = {
                         blurWave: 10,
                         glowPulse: 10,
-                        spinBurst: 5,  // meno frequente
+                        spinBurst: isIOS ? 2 : 5,  // meno rotazioni su iOS (performance)
                         multiStrobo: 15,
                         spiralCascade: 12,
                         analogGlitch: 8, // tocco analogico
@@ -1859,7 +1917,7 @@
                     for (const [effect, weight] of Object.entries(weights)) {
                         rand -= weight;
                         if (rand <= 0) {
-                            console.log('🎬 Random effect A TEMPO:', effect);
+                            console.log('🎬 Random effect A TEMPO:', effect, '(beat', beatCount + ')');
                             randomEffects[effect]();
                             break;
                         }
@@ -2304,6 +2362,17 @@
             bassVal.textContent = Math.round(bassLevel * 100);
             midVal.textContent = Math.round(midLevel * 100);
             trebleVal.textContent = Math.round(trebleLevel * 100);
+            
+            // 📊 iOS Debug log (ogni 2 secondi)
+            if (isIOS && Date.now() % 2000 < 20) {
+                console.log('📊 iOS Audio levels:', {
+                    bass: Math.round(bassLevel * 100) + '%',
+                    mid: Math.round(midLevel * 100) + '%',
+                    treble: Math.round(trebleLevel * 100) + '%',
+                    energy: Math.round(energy * 100) + '%',
+                    fallbackActive: bassLevel >= 0.5 // se >= 0.5 probabilmente è fallback
+                });
+            }
             
             animationId = requestAnimationFrame(animate);
         }
