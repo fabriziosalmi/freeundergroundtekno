@@ -1349,12 +1349,6 @@
             }
         }
 
-        // Inizializza le posizioni
-        adaptToViewport();
-
-        // Re-adatta quando la finestra viene ridimensionata
-        window.addEventListener('resize', adaptToViewport);
-        
         // ⚫⚪ Negative layer con raggi rotativi
         const negativeLayer = document.getElementById('negativeLayer');
         const rotatingRays = [
@@ -1443,7 +1437,12 @@
             Object.assign(zone.style, chromaPositions[i]);
         });
 
-        
+        // Inizializza le posizioni responsive e ridimensionamento
+        adaptToViewport();
+
+        // Re-adatta quando la finestra viene ridimensionata
+        window.addEventListener('resize', adaptToViewport);
+
         // Setup canvas
         vortexCanvas.width = window.innerWidth;
         vortexCanvas.height = window.innerHeight;
@@ -1637,7 +1636,12 @@
         
         let vortexRotation = 0;
         let zoomIntensity = 1;
-        
+
+        // Inizializza target point per il movimento della camera
+        window.targetPoint = { x: 0, y: 0 };
+        window.lastTargetChange = Date.now();
+        window.currentEasing = 'easeInOut';
+
         function animate() {
             if (!isPlaying) return;
             
@@ -2033,12 +2037,7 @@
             }
             
             // Applica TUTTI i movimenti combinati
-            background.style.transform = `
-                scale(${zoomIntensity + depthZoom}) 
-                rotate(${rotateAmount + swayRotateZ}deg)
-                rotateX(${swayRotateX}deg)
-                translate(${swayX + burstOffsetX}px, ${swayY + burstOffsetY}px)
-            `;
+            background.style.transform = `scale(${zoomIntensity + depthZoom}) rotate(${rotateAmount + swayRotateZ}deg) rotateX(${swayRotateX}deg) translate(${swayX + burstOffsetX}px, ${swayY + burstOffsetY}px)`;
             
             // Blur durante zoom burst verso target
             if (burstBlur > 0) {
