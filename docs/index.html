@@ -1084,10 +1084,6 @@
                 width: 5px;
             }
 
-            /* Disable some heavy effects on very small screens */
-            .dust-particle {
-                display: none;
-            }
         }
     </style>
 </head>
@@ -1736,11 +1732,12 @@
             // Applica easing corrente
             const currentEasingFunc = easing[window.currentEasing || 'easeInOut'];
             
-            // Beat detection
-            if (bassLevel > 0.7 && Date.now() - lastBeatTime > 200) {
+            // Beat detection - SOGLIA RIDOTTA per mobile
+            const beatThreshold = isMobile ? 0.3 : 0.7;
+            if (bassLevel > beatThreshold && Date.now() - lastBeatTime > 200) {
                 beatHistory.push(Date.now());
                 if (beatHistory.length > 10) beatHistory.shift();
-                
+
                 if (beatHistory.length >= 2) {
                     const intervals = [];
                     for (let i = 1; i < beatHistory.length; i++) {
@@ -1749,36 +1746,37 @@
                     const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
                     bpm = Math.round(60000 / avgInterval);
                 }
-                
+
                 lastBeatTime = Date.now();
-                
-                // Crowd strobe on beat
-                crowdStrobe.style.opacity = '1';
+
+                // Crowd strobe on beat - AUMENTATO
+                crowdStrobe.style.opacity = isMobile ? '0.95' : '1';
                 setTimeout(() => {
                     crowdStrobe.style.opacity = '0';
-                }, 100);
-                
-                // 💫 SUPER SPATIAL GLOW STROBO - attiva su cassa dritta (4/4 beat)
-                // Cambia pattern e colore randomicamente quando c'è cassa dritta
-                if (bassLevel > 0.8 && Math.random() > 0.5) {
+                }, 120);
+
+                // 💫 SUPER SPATIAL GLOW STROBO - attiva su cassa dritta (SOGLIA RIDOTTA)
+                const spatialStroboThreshold = isMobile ? 0.35 : 0.8;
+                if (bassLevel > spatialStroboThreshold && Math.random() > 0.2) { // AUMENTATA la frequenza (0.5 -> 0.2)
                     // Cambia pattern e colore casualmente
-                    if (Math.random() > 0.7) {
+                    if (Math.random() > 0.5) { // AUMENTATA la frequenza (0.7 -> 0.5)
                         currentStroboPattern = stroboPatterns[Math.floor(Math.random() * stroboPatterns.length)];
                         currentStroboColor = stroboColors[Math.floor(Math.random() * stroboColors.length)];
                         spatialStrobo.className = currentStroboPattern;
                         spatialStrobo.style.setProperty('--glow-color', currentStroboColor);
                     }
-                    
-                    // Flash strobo spaziale
-                    spatialStrobo.style.opacity = '0.9';
+
+                    // Flash strobo spaziale - AUMENTATO OPACITÀ
+                    spatialStrobo.style.opacity = isMobile ? '1' : '0.9';
                     setTimeout(() => {
                         spatialStrobo.style.opacity = '0';
-                    }, 50 + Math.random() * 50); // durata randomica 50-100ms
+                    }, 50 + Math.random() * 80); // durata aumentata 50-130ms
                 }
-                
+
                 // 🌀 SPIRAL ZOOM VORTEXES - attiva spirali localizzate randomicamente
+                const spiralBassThreshold = isMobile ? 0.35 : 0.8;
                 // Su bassi forti: spirale explosion (zoom out)
-                if (bassLevel > 0.8 && Math.random() > 0.65) {
+                if (bassLevel > spiralBassThreshold && Math.random() > 0.2) { // AUMENTATA frequenza (0.65 -> 0.2)
                     const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
                     const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
                     const size = 100 + Math.random() * 150; // 100-250px
@@ -1794,118 +1792,128 @@
                     }, 800);
                 }
                 
-                // Su medi: spirale implode (zoom in)
-                if (midLevel > 0.75 && Math.random() > 0.7) {
+                // Su medi: spirale implode (zoom in) - SOGLIA RIDOTTA
+                const midThreshold = isMobile ? 0.35 : 0.75;
+                if (midLevel > midThreshold && Math.random() > 0.3) { // AUMENTATA frequenza (0.7 -> 0.3)
                     const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
                     const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
                     const size = 120 + Math.random() * 100; // 120-220px
-                    
+
                     vortex.style.width = size + 'px';
                     vortex.style.height = size + 'px';
                     vortex.style.background = `conic-gradient(from 0deg, ${color} 0deg, transparent 120deg, ${color} 240deg, transparent 360deg)`;
                     vortex.classList.remove('active', 'pulse');
                     vortex.classList.add('implode');
-                    
+
                     setTimeout(() => {
                         vortex.classList.remove('implode');
                     }, 600);
                 }
-                
-                // Su alti: spirale pulse (pulsante)
-                if (trebleLevel > 0.7 && Math.random() > 0.75) {
+
+                // Su alti: spirale pulse (pulsante) - SOGLIA RIDOTTA
+                const trebleThreshold = isMobile ? 0.3 : 0.7;
+                if (trebleLevel > trebleThreshold && Math.random() > 0.35) { // AUMENTATA frequenza (0.75 -> 0.35)
                     const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
                     const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
                     const size = 80 + Math.random() * 80; // 80-160px
-                    
+
                     vortex.style.width = size + 'px';
                     vortex.style.height = size + 'px';
                     vortex.style.background = `radial-gradient(circle, transparent 20%, ${color} 40%, transparent 60%)`;
                     vortex.classList.remove('active', 'implode');
                     vortex.classList.add('pulse');
-                    
+
                     setTimeout(() => {
                         vortex.classList.remove('pulse');
                     }, 500);
                 }
-                
+
                 // 🎯 ZOOM BURST SOTTOCASSA - zoom PIÙ FREQUENTE e PIÙ POTENTE!
-                if (bassLevel > 0.8 && Date.now() - lastZoomBurst > 600 && Math.random() > 0.4) {
+                const zoomThreshold = isMobile ? 0.35 : 0.8;
+                if (bassLevel > zoomThreshold && Date.now() - lastZoomBurst > (isMobile ? 400 : 600) && Math.random() > (isMobile ? 0.2 : 0.4)) {
                     document.body.classList.add('zoom-burst');
                     lastZoomBurst = Date.now();
                     setTimeout(() => {
                         document.body.classList.remove('zoom-burst');
                     }, 300);
                 }
-                
+
                 // 💥 SHAKE BURST - scossa rapida su peak
-                if (bassLevel > 0.9 && Date.now() - lastShakeBurst > 1500 && Math.random() > 0.7) {
+                const shakeThreshold = isMobile ? 0.4 : 0.9;
+                if (bassLevel > shakeThreshold && Date.now() - lastShakeBurst > (isMobile ? 800 : 1500) && Math.random() > (isMobile ? 0.3 : 0.7)) {
                     document.body.classList.add('shake-burst');
                     lastShakeBurst = Date.now();
                     setTimeout(() => {
                         document.body.classList.remove('shake-burst');
                     }, 200);
                 }
-                
-                // Random strobe on peak beats
-                if (bassLevel > 0.85 && Math.random() > 0.7) {
-                    strobeFlash.style.opacity = '0.8';
+
+                // Random strobe on peak beats - SOGLIA RIDOTTA
+                const strobeThreshold = isMobile ? 0.35 : 0.85;
+                if (bassLevel > strobeThreshold && Math.random() > (isMobile ? 0.3 : 0.7)) {
+                    strobeFlash.style.opacity = isMobile ? '1' : '0.8';
                     setTimeout(() => {
                         strobeFlash.style.opacity = '0';
-                    }, 30);
+                    }, 40);
                 }
-                
-                // Random VHS glitch on strong beats
-                if (bassLevel > 0.8 && Math.random() > 0.85) {
-                    vhsLines.style.opacity = '0.8';
+
+                // Random VHS glitch on strong beats - SOGLIA RIDOTTA
+                const vhsThreshold = isMobile ? 0.35 : 0.8;
+                if (bassLevel > vhsThreshold && Math.random() > (isMobile ? 0.5 : 0.85)) {
+                    vhsLines.style.opacity = isMobile ? '1' : '0.8';
                     background.style.transform = `scale(${zoomIntensity}) rotate(${rotateAmount}deg) translateX(${Math.random() * 10 - 5}px)`;
                     setTimeout(() => {
                         vhsLines.style.opacity = (psychState === 'vhs' ? '0.6' : '0');
                     }, 80);
                 }
                 
-                // Random grain spike
-                if (energy > 0.7 && Math.random() > 0.9) {
-                    grainOverlay.style.opacity = '0.5';
+                // Random grain spike - SOGLIA RIDOTTA
+                const grainThreshold = isMobile ? 0.3 : 0.7;
+                if (energy > grainThreshold && Math.random() > (isMobile ? 0.5 : 0.9)) {
+                    grainOverlay.style.opacity = isMobile ? '0.8' : '0.5';
                     setTimeout(() => {
                         grainOverlay.style.opacity = (psychState === 'vhs' ? '0.4' : '0.15');
                     }, 100);
                 }
-                
+
                 // ⚫⚪ NEGATIVE LAYER - raggi rotativi POTENZIATI!
-                // Su bassi: attiva raggi singoli o multipli
-                if (bassLevel > 0.7 && Math.random() > 0.3) {
+                // Su bassi: attiva raggi singoli o multipli - SOGLIA RIDOTTA
+                const negRayBasaThreshold = isMobile ? 0.3 : 0.7;
+                if (bassLevel > negRayBasaThreshold && Math.random() > (isMobile ? 0.05 : 0.3)) {
                     const rayPattern = Math.random() < 0.5 ? rotatingRays[0] : rotatingRays[1];
-                    negativeLayer.style.opacity = '0.95'; // AUMENTATO da 0.8 a 0.95!
+                    negativeLayer.style.opacity = isMobile ? '1' : '0.95';
                     rayPattern.style.opacity = '1';
                     rayPattern.classList.add('active');
-                    
+
                     setTimeout(() => {
                         negativeLayer.style.opacity = '0';
                         rayPattern.style.opacity = '0';
                         rayPattern.classList.remove('active');
                     }, 180 + Math.random() * 120); // 180-300ms
                 }
-                
-                // Su alti: attiva spirale o croce (45° anti-fascista!)
-                if (trebleLevel > 0.65 && Math.random() > 0.4) {
+
+                // Su alti: attiva spirale o croce - SOGLIA RIDOTTA
+                const negRayTrebleThreshold = isMobile ? 0.25 : 0.65;
+                if (trebleLevel > negRayTrebleThreshold && Math.random() > (isMobile ? 0.1 : 0.4)) {
                     const rayPattern = Math.random() < 0.5 ? rotatingRays[2] : rotatingRays[3];
-                    negativeLayer.style.opacity = '0.98'; // AUMENTATO da 0.9 a 0.98!
+                    negativeLayer.style.opacity = isMobile ? '1' : '0.98';
                     rayPattern.style.opacity = '1';
                     rayPattern.classList.add('active');
-                    
+
                     setTimeout(() => {
                         negativeLayer.style.opacity = '0';
                         rayPattern.style.opacity = '0';
                         rayPattern.classList.remove('active');
                     }, 150 + Math.random() * 100); // 150-250ms
                 }
-                
-                // 🌊 FRACTAL TEARS - distorsioni frattali organiche
-                if (bassLevel > 0.78 && Math.random() > 0.5) {
+
+                // 🌊 FRACTAL TEARS - distorsioni frattali organiche - SOGLIA RIDOTTA
+                const fractalThreshold = isMobile ? 0.35 : 0.78;
+                if (bassLevel > fractalThreshold && Math.random() > (isMobile ? 0.2 : 0.5)) {
                     const tear = fractalTears[Math.floor(Math.random() * fractalTears.length)];
                     const shape = fractalShapes[Math.floor(Math.random() * fractalShapes.length)];
                     const size = 80 + Math.random() * 180; // 80-260px
-                    
+
                     // Posizione random
                     tear.style.top = (20 + Math.random() * 60) + '%';
                     tear.style.left = (10 + Math.random() * 80) + '%';
@@ -1913,24 +1921,25 @@
                     tear.style.height = size + 'px';
                     tear.style.clipPath = shape;
                     tear.classList.add('active');
-                    
+
                     setTimeout(() => tear.classList.remove('active'), 500);
                 }
 
-                
-                // ⭕ CIRCULAR STROBO - cerchi concentrici espandenti (AUMENTATA PROBABILITÀ)
+                // ⭕ CIRCULAR STROBO - cerchi concentrici espandenti - SOGLIA RIDOTTA
+                const circularBassThreshold = isMobile ? 0.35 : 0.8;
                 // Su bassi: lancia cerchi concentrici
-                if (bassLevel > 0.8 && Math.random() > 0.5) {
+                if (bassLevel > circularBassThreshold && Math.random() > (isMobile ? 0.15 : 0.5)) {
                     const circle = circularStrobos[Math.floor(Math.random() * circularStrobos.length)];
                     circle.classList.add('active');
-                    
+
                     setTimeout(() => {
                         circle.classList.remove('active');
                     }, 400);
                 }
-                
-                // Su alti: lancia multipli cerchi veloci
-                if (trebleLevel > 0.75 && Math.random() > 0.55) {
+
+                // Su alti: lancia multipli cerchi veloci - SOGLIA RIDOTTA
+                const circularTrebleThreshold = isMobile ? 0.3 : 0.75;
+                if (trebleLevel > circularTrebleThreshold && Math.random() > (isMobile ? 0.2 : 0.55)) {
                     // Lancia 2-3 cerchi in rapida successione
                     const count = 2 + Math.floor(Math.random() * 2);
                     for (let i = 0; i < count; i++) {
@@ -1944,21 +1953,24 @@
                 
                 // � DISTORTION ZONES - distorsioni parziali graduali a tempo
                 // Distorsioni su bassi (stack speaker)
-                if (bassLevel > 0.75 && Math.random() > 0.7) {
+                const distortThreshold = isMobile ? 0.3 : 0.75;
+                if (bassLevel > distortThreshold && Math.random() > (isMobile ? 0.3 : 0.7)) {
                     const zone = distortZones[Math.floor(Math.random() * distortZones.length)];
                     zone.classList.add('active');
                     setTimeout(() => zone.classList.remove('active'), 400);
                 }
                 
-                // Warp glitch su medi (crowd e antenna zone)
-                if (midLevel > 0.7 && Math.random() > 0.75) {
+                // Warp glitch su medi (crowd e antenna zone) - SOGLIA RIDOTTA
+                const warpThreshold = isMobile ? 0.3 : 0.7;
+                if (midLevel > warpThreshold && Math.random() > (isMobile ? 0.3 : 0.75)) {
                     const zone = warpZones[Math.floor(Math.random() * warpZones.length)];
                     zone.classList.add('active');
                     setTimeout(() => zone.classList.remove('active'), 300);
                 }
                 
-                // Chromatic split su alti (zone laterali)
-                if (trebleLevel > 0.7 && Math.random() > 0.8) {
+                // Chromatic split su alti (zone laterali) - SOGLIA RIDOTTA
+                const chromaThreshold = isMobile ? 0.25 : 0.7;
+                if (trebleLevel > chromaThreshold && Math.random() > (isMobile ? 0.3 : 0.8)) {
                     const zone = chromaZones[Math.floor(Math.random() * chromaZones.length)];
                     zone.classList.add('active');
                     setTimeout(() => zone.classList.remove('active'), 200);
@@ -1966,25 +1978,26 @@
                 
                 // �🎆 GEOMETRIC STROBES - brillamenti geometrici sui beat
                 // Bass -> cerchi + radial burst
-                if (bassLevel > 0.75 && Math.random() > 0.6) {
+                const geoStrobeThreshold = isMobile ? 0.3 : 0.75;
+                if (bassLevel > geoStrobeThreshold && Math.random() > (isMobile ? 0.2 : 0.6)) {
                     const choice = Math.random();
                     if (choice < 0.4) {
-                        // Cerchi concentrici
-                        strobeCircle1.style.opacity = '0.9';
-                        strobeCircle2.style.opacity = '0.7';
+                        // Cerchi concentrici - OPACITÀ AUMENTATA
+                        strobeCircle1.style.opacity = isMobile ? '1' : '0.9';
+                        strobeCircle2.style.opacity = isMobile ? '0.9' : '0.7';
                         setTimeout(() => {
                             strobeCircle1.style.opacity = '0';
                             strobeCircle2.style.opacity = '0';
                         }, 60);
                     } else if (choice < 0.7) {
-                        // Radial burst dal centro
-                        strobeRadial.style.opacity = '0.8';
+                        // Radial burst dal centro - OPACITÀ AUMENTATA
+                        strobeRadial.style.opacity = isMobile ? '1' : '0.8';
                         setTimeout(() => {
                             strobeRadial.style.opacity = '0';
                         }, 80);
                     } else {
-                        // Bottom crowd flash
-                        strobeBottom.style.opacity = '0.9';
+                        // Bottom crowd flash - OPACITÀ AUMENTATA
+                        strobeBottom.style.opacity = isMobile ? '1' : '0.9';
                         setTimeout(() => {
                             strobeBottom.style.opacity = '0';
                         }, 70);
@@ -1992,33 +2005,36 @@
                 }
             }
             
-            // Mid -> speaker walls laterali
-            if (midLevel > 0.7 && Math.random() > 0.8) {
+            // Mid -> speaker walls laterali - SOGLIA RIDOTTA
+            const speakerMidThreshold = isMobile ? 0.3 : 0.7;
+            if (midLevel > speakerMidThreshold && Math.random() > (isMobile ? 0.3 : 0.8)) {
                 if (Math.random() < 0.5) {
-                    strobeLeftWall.style.opacity = '0.8';
+                    strobeLeftWall.style.opacity = isMobile ? '1' : '0.8';
                     setTimeout(() => {
                         strobeLeftWall.style.opacity = '0';
                     }, 50);
                 } else {
-                    strobeRightWall.style.opacity = '0.8';
+                    strobeRightWall.style.opacity = isMobile ? '1' : '0.8';
                     setTimeout(() => {
                         strobeRightWall.style.opacity = '0';
                     }, 50);
                 }
             }
-            
-            // Treble -> top flash (antenna beams)
-            if (trebleLevel > 0.75 && Math.random() > 0.85) {
-                strobeTop.style.opacity = '0.9';
+
+            // Treble -> top flash (antenna beams) - SOGLIA RIDOTTA
+            const antennaTrebleThreshold = isMobile ? 0.3 : 0.75;
+            if (trebleLevel > antennaTrebleThreshold && Math.random() > (isMobile ? 0.3 : 0.85)) {
+                strobeTop.style.opacity = isMobile ? '1' : '0.9';
                 setTimeout(() => {
                     strobeTop.style.opacity = '0';
                 }, 40);
             }
-            
-            // Peak energy -> random geometric strobe
-            if (energy > 0.8 && Math.random() > 0.92) {
+
+            // Peak energy -> random geometric strobe - SOGLIA RIDOTTA
+            const peakEnergyThreshold = isMobile ? 0.3 : 0.8;
+            if (energy > peakEnergyThreshold && Math.random() > (isMobile ? 0.7 : 0.92)) {
                 const randomStrobe = geoStrobes[Math.floor(Math.random() * geoStrobes.length)];
-                randomStrobe.style.opacity = '0.95';
+                randomStrobe.style.opacity = isMobile ? '1' : '0.95';
                 setTimeout(() => {
                     randomStrobe.style.opacity = '0';
                 }, 30 + Math.random() * 40);
