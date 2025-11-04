@@ -1784,16 +1784,43 @@
         // Button listeners
         document.getElementById('startBtn').addEventListener('click', startAudio);
         document.getElementById('stopBtn').addEventListener('click', stopAudio);
+
+        // Track if controls are hidden
+        let controlsHidden = false;
+
         document.getElementById('hideBtn').addEventListener('click', () => {
             controls.classList.toggle('hidden');
             // Show minimal play button when hiding controls
             if (controls.classList.contains('hidden')) {
+                controlsHidden = true;
                 minimalPlay.classList.add('show');
                 if (isDesktop) {
+                    menuToggle.classList.remove('show');  // Hide toggle on desktop
                     menuToggle.textContent = '☰';
                 }
             } else {
+                controlsHidden = false;
                 minimalPlay.classList.remove('show');
+                if (isDesktop) {
+                    menuToggle.classList.add('show');  // Show toggle on desktop
+                }
+            }
+        });
+
+        // Hotspot area: mousemove to show menu toggle if hidden (top-right corner)
+        document.addEventListener('mousemove', (e) => {
+            if (!controlsHidden || !isDesktop) return;
+
+            // Check if mouse is in top-right corner (150x100px area)
+            const hotspotWidth = 150;
+            const hotspotHeight = 100;
+            const isInHotspot = e.clientX > window.innerWidth - hotspotWidth &&
+                               e.clientY < hotspotHeight;
+
+            if (isInHotspot) {
+                menuToggle.classList.add('show');  // Show on hover
+            } else {
+                menuToggle.classList.remove('show');  // Hide when leaving hotspot
             }
         });
 
@@ -1810,9 +1837,11 @@
             }
             // Show full controls
             controls.classList.remove('hidden');
+            controlsHidden = false;
             minimalPlay.classList.remove('show');
             if (isDesktop) {
                 menuToggle.textContent = '✕';
+                menuToggle.classList.add('show');
             }
         });
 
@@ -1820,9 +1849,12 @@
         menuToggle.addEventListener('click', () => {
             controls.classList.toggle('hidden');
             if (controls.classList.contains('hidden')) {
+                controlsHidden = true;
                 menuToggle.textContent = '☰'; // menu closed
                 minimalPlay.classList.add('show'); // show play button
+                menuToggle.classList.remove('show');  // Hide toggle after click
             } else {
+                controlsHidden = false;
                 menuToggle.textContent = '✕'; // menu open
                 minimalPlay.classList.remove('show'); // hide play button
             }
@@ -1832,18 +1864,23 @@
         document.addEventListener('click', (e) => {
             if (!controls.contains(e.target) && !menuToggle.contains(e.target) && controls.classList.contains('hidden')) {
                 controls.classList.remove('hidden');
+                controlsHidden = false;
                 if (isDesktop) {
                     menuToggle.textContent = '✕';
+                    menuToggle.classList.add('show');
                 }
             }
         });
 
         document.addEventListener('keydown', () => {
             controls.classList.toggle('hidden');
+            controlsHidden = controls.classList.contains('hidden');
             if (isDesktop && !controls.classList.contains('hidden')) {
                 menuToggle.textContent = '✕';
+                menuToggle.classList.add('show');
             } else if (isDesktop && controls.classList.contains('hidden')) {
                 menuToggle.textContent = '☰';
+                menuToggle.classList.remove('show');
             }
         });
 
