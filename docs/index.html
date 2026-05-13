@@ -2278,6 +2278,7 @@
                 analyser = audioContext.createAnalyser();
                 analyser.fftSize = 2048;
                 analyser.smoothingTimeConstant = 0.8;
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
 
                 // Create source and connect to analyser
                 const source = audioContext.createMediaElementSource(audioElement);
@@ -2439,6 +2440,7 @@
             }
         }
         
+        let dataArray = null;
         let vortexRotation = 0;
         let zoomIntensity = 1;
 
@@ -2452,25 +2454,28 @@
 
             // Frame rate throttling for performance
             const now = performance.now();
-            if (now - lastFrameTime < targetFrameTime) {
+            const deltaTime = now - lastFrameTime;
+            if (deltaTime < targetFrameTime) {
                 skippedFrames++;
                 animationId = requestAnimationFrame(animate);
                 return;
             }
             lastFrameTime = now;
 
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
             analyser.getByteFrequencyData(dataArray);
             
-            // Frequency bands
-            const bassData = dataArray.slice(0, 15);      // 0-250Hz
-            const midData = dataArray.slice(40, 120);     // 500-2kHz
-            const trebleData = dataArray.slice(150, 300); // 4-8kHz
-            
-            const bassLevel = bassData.reduce((a, b) => a + b) / (bassData.length * 255);
-            const midLevel = midData.reduce((a, b) => a + b) / (midData.length * 255);
-            const trebleLevel = trebleData.reduce((a, b) => a + b) / (trebleData.length * 255);
+            // Frequency bands (direct index summation, no allocations)
+            let bassSum = 0;
+            for (let i = 0; i < 15; i++) bassSum += dataArray[i];
+            const bassLevel = bassSum / (15 * 255);
+
+            let midSum = 0;
+            for (let i = 40; i < 120; i++) midSum += dataArray[i];
+            const midLevel = midSum / (80 * 255);
+
+            let treSum = 0;
+            for (let i = 150; i < 300; i++) treSum += dataArray[i];
+            const trebleLevel = treSum / (150 * 255);
             
             // Overall energy
             const energy = (bassLevel + midLevel + trebleLevel) / 3;
@@ -2504,7 +2509,7 @@
             }
 
             // State machine timer
-            stateTimer += 16; // ~60fps
+            stateTimer += deltaTime;
             if (stateTimer > nextStateChange) {
                 changeState();
             }
@@ -3058,14 +3063,6 @@
             
             animationId = requestAnimationFrame(animate);
         }
-        
-        // AUTOPLAY removed - browser blocks it
-        window.addEventListener('load', () => {
-            console.log('🎵 FREE UNDERGROUND TEKNO - Radio VJ System Ready');
-            console.log('👆 Click START to begin');
-            // Show controls on load
-            controls.classList.remove('hidden');
-        });
         
         console.log('🎵 FREE UNDERGROUND TEKNO - Radio VJ System Ready');
         console.log('⏯️  Click the ▶️ START button to begin playback');
