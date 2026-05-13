@@ -1,6 +1,6 @@
 {
   "name": "freetekno-youtube-streamer",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Stream FreeTekno radio visualization to YouTube with independent audio/video capture",
   "main": "stream-to-youtube.js",
   "bin": "stream-to-youtube.js",

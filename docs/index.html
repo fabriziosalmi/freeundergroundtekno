@@ -2152,7 +2152,10 @@
             pupilCanvas.height = window.innerHeight;
         });
 
-        function drawPupil(time, bass, offX, offY) {
+        // Iris parametric ring around the pupil. Toggle in 1 sec to disable.
+        const IRIS_ENABLED = true;
+
+        function drawPupil(time, bass, mid, treble, offX, offY) {
             const w = pupilCanvas.width;
             const h = pupilCanvas.height;
             const cx = w / 2 + offX;
@@ -2169,6 +2172,42 @@
             if (silenceMode) scale = 1 + Math.sin(time * 0.002) * 0.03;
             const r = baseR * scale;
             const _act = 1 - calmness;
+
+            // === IRIS (parametric ring) ===
+            // Drawn FIRST so the pupil dark fill that comes next covers the center —
+            // anatomically correct (the iris sits around the pupil, not over it).
+            // - BASS    → ring thickness  (1 → ~5 px)
+            // - MID     → ring radius     (breath in/out, threshold curve)
+            // - TREBLE  → high-freq jitter (vibrazione sui hi-hat)
+            // - BPM     → pulse on the beat
+            // Alpha attenuates with calmness so it fades in silence.
+            if (IRIS_ENABLED) {
+                const irisBaseR = r * 2.4;
+                const midDrive = 0.5 + Math.max(0, mid - 0.3) * 1.5;
+                const irisR = irisBaseR + r * 0.5 * (midDrive - 0.5) + bpmPulseIntensity * r * 0.18;
+                const irisThick = 1 + bass * 4;
+                const irisAlpha = Math.min(1, (0.18 + bass * 0.5 + mid * 0.25 + cassoneIntensity * 0.3) * _act);
+                if (irisAlpha > 0.02) {
+                    pupilCtx.save();
+                    pupilCtx.shadowBlur = 0;
+                    pupilCtx.strokeStyle = `rgba(255,255,255,${irisAlpha})`;
+                    pupilCtx.lineWidth = irisThick;
+                    pupilCtx.beginPath();
+                    pupilCtx.arc(cx, cy, irisR, 0, Math.PI * 2);
+                    pupilCtx.stroke();
+                    // Treble jitter: ghost ring slightly offset, dimmer
+                    if (treble > 0.30) {
+                        const tj = (Math.random() - 0.5) * treble * 4;
+                        pupilCtx.globalAlpha = treble * 0.55;
+                        pupilCtx.lineWidth = Math.max(0.5, irisThick * 0.6);
+                        pupilCtx.beginPath();
+                        pupilCtx.arc(cx, cy, irisR + tj, 0, Math.PI * 2);
+                        pupilCtx.stroke();
+                        pupilCtx.globalAlpha = 1;
+                    }
+                    pupilCtx.restore();
+                }
+            }
 
             pupilCtx.save();
             if (raveMode) {
@@ -3590,7 +3629,7 @@
                 negativeLayer.style.setProperty('--pupil-y', pupilOffY.toFixed(1) + 'px');
             }
             // Draw the pupil on its dedicated top canvas (always on top of everything).
-            drawPupil(Date.now(), bassLevel, pupilOffX, pupilOffY);
+            drawPupil(Date.now(), bassLevel, midLevel, trebleLevel, pupilOffX, pupilOffY);
 
             // Coalesced blur: sum mid-driven soft blur + burst blur, drive a
             // spring-damper so the rise/fall is always eased (never flat).
