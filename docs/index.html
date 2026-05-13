@@ -23,14 +23,16 @@
             position: fixed;
             width: 100vw;
             height: 100vh;
-            background-image: url('./freetekno.png');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
+            background: #000;
             z-index: 0;
             transition: transform 0.05s ease-out, filter 0.1s ease-out;
             transform-origin: center center;
             will-change: transform, filter;
+        }
+
+        #proceduralBg {
+            width: 100%;
+            height: 100%;
         }
         
         /* Zoom burst effect SOTTOCASSA - PIÙ POTENTE! */
@@ -1336,7 +1338,7 @@
 </head>
 <body>
     <!-- BACKGROUND -->
-    <div id="background"></div>
+    <div id="background"><canvas id="proceduralBg"></canvas></div>
     
     <!-- ANALOG EFFECTS LAYERS -->
     <div id="grainOverlay"></div>
@@ -1495,6 +1497,8 @@
         const antennaBeams = document.querySelectorAll('.antenna-beam');
         const vortexCanvas = document.getElementById('vortexRotation');
         const vortexCtx = vortexCanvas.getContext('2d');
+        const bgCanvas = document.getElementById('proceduralBg');
+        const bgCtx = bgCanvas.getContext('2d');
         const tunnelEffect = document.getElementById('tunnelEffect');
         const frequencyViz = document.getElementById('frequencyViz');
         const vhsLines = document.getElementById('vhsLines');
@@ -1558,10 +1562,563 @@
         const isMobile = window.innerWidth <= 768;
         const isSmallMobile = window.innerWidth <= 480;
 
+        // ===== PROCEDURAL BACKGROUND =====
+        // Offscreen canvas for pre-rendered hex grid
+        let hexGridCanvas = document.createElement('canvas');
+        let hexGridCtx = hexGridCanvas.getContext('2d');
+        let spiralAngleAccum = 0;
+
+        // ===== V2 LAYERED ART STATE =====
+        // Layer 0: Star Field / Warehouse Dust
+        const starCount = isSmallMobile ? 80 : isMobile ? 120 : 200;
+        const bgParticles = [];
+        for (let i = 0; i < starCount; i++) {
+            bgParticles.push({
+                x: Math.random(),
+                y: Math.random(),
+                size: Math.random() * 1.5 + 0.5,
+                speed: Math.random() * 0.0002 + 0.0001,
+                twinkleOffset: Math.random() * Math.PI * 2,
+                warm: false // set true for marathon golden particles
+            });
+        }
+
+        // Layer 1: Pulse Rings pool
+        const pulseRingMax = isMobile ? 4 : 6;
+        const pulseRings = [];
+        for (let i = 0; i < pulseRingMax; i++) {
+            pulseRings.push({ active: false, radius: 0, alpha: 0, maxRadius: 0 });
+        }
+        let pulseRingIdx = 0;
+        let lastPulseTime = 0;
+
+        // Layer 4: Frequency Ring LUT
+        const freqBinCount = isMobile ? 32 : 64;
+        const freqRingSin = new Float32Array(freqBinCount);
+        const freqRingCos = new Float32Array(freqBinCount);
+        for (let i = 0; i < freqBinCount; i++) {
+            const angle = (i / freqBinCount) * Math.PI * 2 - Math.PI / 2;
+            freqRingSin[i] = Math.sin(angle);
+            freqRingCos[i] = Math.cos(angle);
+        }
+
+        // Layer 6: Sacred Geometry
+        let sacredGeoAlpha = 0;
+        let sacredGeoAngle = 0;
+        let sacredGeoBoost = 0;
+
+        // Layer 7: Tekno Culture Text Flash
+        const teknoWords = [
+            'FREE', 'TEKNO', 'SOUND SYSTEM', '23', 'SPIRAL TRIBE', 'RESIST', 'BASS',
+            'UNITE', 'UNDERGROUND', 'RAVE ON', 'WORLD', '15 YEARS', 'DIY', 'TAZ',
+            'ACID', 'WAREHOUSE', 'SQUAT', 'TRIBE', 'NOMAD', 'HARDCORE', 'GABBER',
+            'BREAKCORE', 'JUNGLE', 'DnB', 'HARDTEK', 'FRENCHCORE', 'MENTAL',
+            'POSITIVE', 'FREEDOM', 'CHAOS', 'LOVE'
+        ];
+        const activeFlashes = [
+            { active: false, word: '', x: 0, y: 0, birth: 0, duration: 1000 },
+            { active: false, word: '', x: 0, y: 0, birth: 0, duration: 1000 },
+            { active: false, word: '', x: 0, y: 0, birth: 0, duration: 1000 }
+        ];
+
+        // State detection buffers
+        const energyHistorySize = 60;
+        const energyHistory = new Float32Array(energyHistorySize);
+        let energyHistoryIdx = 0;
+        let energyHistoryFilled = false;
+
+        // Drop detector
+        let dropCooldownUntil = 0;
+        let dropFlashIntensity = 0;
+
+        // Rave mode (sustained peak)
+        let raveMode = false;
+        let ravePeakStart = 0;
+
+        // Silence / Breakdown
+        let silenceMode = false;
+        let silenceStart = 0;
+
+        // Marathon mode (15 years tribute)
+        let marathonMode = false;
+        let marathonFlashShown = false;
+        let marathonFlashStart = 0;
+        let playStartTime = 0;
+
+        function rebuildHexGrid() {
+            const w = bgCanvas.width;
+            const h = bgCanvas.height;
+            hexGridCanvas.width = w;
+            hexGridCanvas.height = h;
+            hexGridCtx.clearRect(0, 0, w, h);
+
+            const hexRadius = 20;
+            const hexHeight = hexRadius * 2;
+            const hexWidth = Math.sqrt(3) * hexRadius;
+            const vertSpacing = hexHeight * 0.75;
+            const cx = w / 2;
+            const cy = h / 2;
+            const maxDist = Math.sqrt(cx * cx + cy * cy);
+
+            hexGridCtx.strokeStyle = 'rgba(255,255,255,1)';
+            hexGridCtx.lineWidth = 0.5;
+
+            for (let row = -1; row * vertSpacing < h + hexHeight; row++) {
+                const y = row * vertSpacing;
+                const offset = (row % 2 !== 0) ? hexWidth / 2 : 0;
+                for (let col = -1; col * hexWidth < w + hexWidth; col++) {
+                    const x = col * hexWidth + offset;
+                    const dist = Math.sqrt((x - cx) ** 2 + (y - cy) ** 2);
+                    const radialFade = 1 - Math.min(dist / maxDist, 1);
+                    const alpha = 0.03 + radialFade * 0.05;
+                    hexGridCtx.globalAlpha = alpha;
+                    hexGridCtx.beginPath();
+                    for (let i = 0; i < 6; i++) {
+                        const angle = Math.PI / 3 * i - Math.PI / 6;
+                        const hx = x + hexRadius * Math.cos(angle);
+                        const hy = y + hexRadius * Math.sin(angle);
+                        if (i === 0) hexGridCtx.moveTo(hx, hy);
+                        else hexGridCtx.lineTo(hx, hy);
+                    }
+                    hexGridCtx.closePath();
+                    hexGridCtx.stroke();
+                }
+            }
+            hexGridCtx.globalAlpha = 1;
+        }
+        // Build initial hex grid
+        rebuildHexGrid();
+
+        function drawProceduralBg(ctx, w, h, bassLevel, midLevel, trebleLevel, energy, time, freqData) {
+            ctx.clearRect(0, 0, w, h);
+
+            const cx = w / 2;
+            const cy = h / 2;
+            const minDim = Math.min(w, h);
+
+            // ===== STATE DETECTION =====
+            // Update energy history
+            energyHistory[energyHistoryIdx] = energy;
+            energyHistoryIdx = (energyHistoryIdx + 1) % energyHistorySize;
+            if (energyHistoryIdx === 0) energyHistoryFilled = true;
+
+            // Rolling average for drop detection
+            let energyAvg = 0;
+            const histLen = energyHistoryFilled ? energyHistorySize : energyHistoryIdx;
+            if (histLen > 0) {
+                for (let i = 0; i < histLen; i++) energyAvg += energyHistory[i];
+                energyAvg /= histLen;
+            }
+
+            // Drop detector: low energy for 1s+ then bass spike
+            const isDropCandidate = energyAvg < 0.15 && histLen >= 30;
+            if (isDropCandidate && bassLevel > 0.7 && time > dropCooldownUntil) {
+                dropFlashIntensity = 1.0;
+                dropCooldownUntil = time + 5000;
+                // Spawn 3 pulse rings simultaneously
+                for (let d = 0; d < 3; d++) {
+                    const ring = pulseRings[pulseRingIdx % pulseRingMax];
+                    ring.active = true;
+                    ring.radius = minDim * 0.06;
+                    ring.alpha = 0.8 - d * 0.15;
+                    ring.maxRadius = minDim * (0.4 + d * 0.1);
+                    pulseRingIdx++;
+                }
+                sacredGeoBoost = 1.0;
+                lastPulseTime = time;
+            }
+
+            // Sustained Peak → Rave Mode
+            if (energy > 0.65) {
+                if (!ravePeakStart) ravePeakStart = time;
+                if (time - ravePeakStart > 5000) raveMode = true;
+            } else {
+                raveMode = false;
+                ravePeakStart = 0;
+            }
+
+            // Silence / Breakdown
+            if (energy < 0.08) {
+                if (!silenceStart) silenceStart = time;
+                if (time - silenceStart > 2000) silenceMode = true;
+            } else {
+                silenceMode = false;
+                silenceStart = 0;
+            }
+
+            // Marathon mode (15 minutes of playback)
+            if (playStartTime > 0 && time - playStartTime > 900000) {
+                if (!marathonMode) {
+                    marathonMode = true;
+                    // Mark every 5th particle as warm/golden
+                    for (let i = 0; i < bgParticles.length; i += 5) {
+                        bgParticles[i].warm = true;
+                    }
+                    if (!marathonFlashShown) {
+                        marathonFlashShown = true;
+                        marathonFlashStart = time;
+                    }
+                }
+            }
+
+            // BPM sync for sacred geometry
+            let bpmSyncAngle = 0;
+            let bpmStable = false;
+            let _beatH;
+            try { _beatH = beatHistory; } catch(e) { _beatH = null; }
+            if (_beatH && _beatH.length >= 4) {
+                const intervals = [];
+                for (let i = 1; i < _beatH.length; i++) {
+                    intervals.push(_beatH[i] - _beatH[i - 1]);
+                }
+                const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                let variance = 0;
+                for (let i = 0; i < intervals.length; i++) {
+                    const diff = intervals[i] - avgInterval;
+                    variance += diff * diff;
+                }
+                variance /= intervals.length;
+                bpmStable = variance < 10000; // < 100ms²
+                if (bpmStable && avgInterval > 0) {
+                    bpmSyncAngle = ((time % avgInterval) / avgInterval) * Math.PI * 2;
+                }
+            }
+
+            // ===== LAYER 0: Star Field / Warehouse Dust =====
+            const starBrightBase = silenceMode ? 0.6 : 0.25;
+            for (let i = 0; i < bgParticles.length; i++) {
+                const p = bgParticles[i];
+                // Drift upward
+                p.y -= p.speed;
+                if (p.y < -0.01) { p.y = 1.01; p.x = Math.random(); }
+
+                const twinkle = Math.sin(time * 0.003 + p.twinkleOffset) * 0.5 + 0.5;
+                const trebleBoost = trebleLevel * twinkle;
+                const alpha = starBrightBase + trebleBoost * 0.5;
+
+                if (p.warm && marathonMode) {
+                    ctx.fillStyle = `rgba(255,200,100,${alpha})`;
+                } else {
+                    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+                }
+                ctx.fillRect(p.x * w, p.y * h, p.size, p.size);
+            }
+
+            // ===== LAYER 1: Pulse Rings =====
+            // Spawn on bass peaks (non-drop)
+            if (bassLevel > 0.5 && time - lastPulseTime > 300 && time > dropCooldownUntil - 4700) {
+                const ring = pulseRings[pulseRingIdx % pulseRingMax];
+                ring.active = true;
+                ring.radius = minDim * 0.06;
+                ring.alpha = 0.6;
+                ring.maxRadius = minDim * 0.35;
+                pulseRingIdx++;
+                lastPulseTime = time;
+            }
+
+            for (let i = 0; i < pulseRingMax; i++) {
+                const ring = pulseRings[i];
+                if (!ring.active) continue;
+                ring.radius += (ring.maxRadius - ring.radius) * 0.04;
+                ring.alpha *= 0.96;
+                if (ring.alpha < 0.01) { ring.active = false; continue; }
+                ctx.beginPath();
+                ctx.arc(cx, cy, ring.radius, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255,255,255,${ring.alpha})`;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+
+            // ===== LAYER 2: Hex Grid (pre-rendered blit) =====
+            const hexMul = silenceMode ? 0.2 : 1;
+            const hexAlpha = (0.6 + bassLevel * 1.0) * hexMul;
+            ctx.globalAlpha = Math.min(hexAlpha, 1);
+            ctx.drawImage(hexGridCanvas, 0, 0);
+            ctx.globalAlpha = 1;
+
+            // ===== LAYER 3: Spiral Vortex =====
+            spiralAngleAccum += energy * 2 * 0.016;
+            const armCount = 14;
+            const spiralAlpha = 0.15 + bassLevel * 0.2;
+            const spiralLineWidth = 1.5 + bassLevel * 2;
+            ctx.strokeStyle = `rgba(255,255,255,${spiralAlpha})`;
+            ctx.lineWidth = spiralLineWidth;
+            let _slow = false;
+            try { _slow = isSlowDevice; } catch(e) {}
+            const spiralSteps = _slow ? 40 : 80;
+
+            for (let arm = 0; arm < armCount; arm++) {
+                const armAngle = (arm / armCount) * Math.PI * 2 + spiralAngleAccum;
+                ctx.beginPath();
+                for (let s = 0; s <= spiralSteps; s++) {
+                    const t = s / spiralSteps;
+                    const r = t * Math.min(cx, cy) * 0.9;
+                    const theta = armAngle + t * Math.PI * 3;
+                    const x = cx + r * Math.cos(theta);
+                    const y = cy + r * Math.sin(theta);
+                    if (s === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+            }
+
+            // ===== LAYER 4: Frequency Ring — Circular Equalizer =====
+            if (freqData && freqData.length > 0) {
+                const baseRadius = minDim * 0.06;
+                const circleRadius = baseRadius * (1 + bassLevel * 0.1);
+                const maxBarHeight = minDim * 0.08;
+                const binStep = Math.floor(freqData.length / freqBinCount);
+
+                ctx.lineWidth = isMobile ? 2 : 1.5;
+                for (let i = 0; i < freqBinCount; i++) {
+                    const val = freqData[i * binStep] / 255;
+                    const barH = val * maxBarHeight;
+                    if (barH < 1) continue; // skip silent bins
+                    const innerR = circleRadius + 4;
+                    const outerR = innerR + barH;
+                    const alpha = 0.3 + val * 0.5;
+                    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+                    ctx.beginPath();
+                    ctx.moveTo(cx + freqRingCos[i] * innerR, cy + freqRingSin[i] * innerR);
+                    ctx.lineTo(cx + freqRingCos[i] * outerR, cy + freqRingSin[i] * outerR);
+                    ctx.stroke();
+                }
+            }
+
+            // ===== LAYER 5: Central Circle + Broadcast Icon (enhanced) =====
+            const baseR = minDim * 0.06;
+            let circleScale = 1 + bassLevel * 0.1;
+            // Silence breathing
+            if (silenceMode) {
+                circleScale = 1 + Math.sin(time * 0.002) * 0.03;
+            }
+            const circleRadius = baseR * circleScale;
+
+            ctx.save();
+            if (raveMode) {
+                ctx.shadowColor = 'rgba(255,200,100,0.9)';
+                ctx.shadowBlur = 20 + bassLevel * 40;
+            } else if (marathonMode) {
+                ctx.shadowColor = 'rgba(255,200,100,0.7)';
+                ctx.shadowBlur = 15 + bassLevel * 25;
+            } else {
+                ctx.shadowColor = 'rgba(255,255,255,0.8)';
+                ctx.shadowBlur = 10 + bassLevel * 30;
+            }
+
+            // Dark fill
+            ctx.beginPath();
+            ctx.arc(cx, cy, circleRadius, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0,0,0,0.9)';
+            ctx.fill();
+
+            // Bright stroke
+            if (raveMode) {
+                ctx.strokeStyle = `rgba(255,220,150,${0.7 + bassLevel * 0.3})`;
+            } else {
+                ctx.strokeStyle = `rgba(255,255,255,${0.6 + bassLevel * 0.4})`;
+            }
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+
+            // Broadcast icon
+            const antennaHeight = circleRadius * 0.7;
+            const dotRadius = 3;
+
+            ctx.strokeStyle = `rgba(255,255,255,${0.5 + midLevel * 0.5})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - antennaHeight * 0.1);
+            ctx.lineTo(cx, cy - antennaHeight);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(cx, cy - antennaHeight, dotRadius, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(255,255,255,${0.6 + midLevel * 0.4})`;
+            ctx.fill();
+
+            const arcRadii = [18, 28, 38];
+            const arcAngleSpan = Math.PI * 0.3;
+            const arcCenterY = cy - antennaHeight;
+
+            for (let i = 0; i < arcRadii.length; i++) {
+                const r = arcRadii[i] + midLevel * 5;
+                const fade = 1 - i * 0.25;
+                const arcAlpha = (0.3 + midLevel * 0.6) * fade;
+                ctx.strokeStyle = `rgba(255,255,255,${arcAlpha})`;
+                ctx.lineWidth = 1.5;
+
+                ctx.beginPath();
+                ctx.arc(cx, arcCenterY, r, -Math.PI / 2 - arcAngleSpan - Math.PI * 0.15, -Math.PI / 2 - Math.PI * 0.15 + arcAngleSpan);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(cx, arcCenterY, r, -Math.PI / 2 + Math.PI * 0.15 - arcAngleSpan, -Math.PI / 2 + Math.PI * 0.15 + arcAngleSpan);
+                ctx.stroke();
+            }
+
+            // ===== LAYER 6: Sacred Geometry — Flower of Life =====
+            const sacredTarget = energy > 0.6 ? 1 : 0;
+            sacredGeoAlpha += (sacredTarget - sacredGeoAlpha) * 0.05;
+            sacredGeoBoost *= 0.97; // decay boost from drops
+
+            if (sacredGeoAlpha > 0.01) {
+                const geoR = minDim * 0.12;
+                // Rotation: BPM-synced when stable, else energy-driven
+                if (bpmStable) {
+                    sacredGeoAngle = bpmSyncAngle;
+                } else {
+                    sacredGeoAngle += energy * 0.02;
+                }
+                const drawAlpha = sacredGeoAlpha * (0.15 + sacredGeoBoost * 0.3);
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(sacredGeoAngle);
+                ctx.strokeStyle = `rgba(255,255,255,${drawAlpha})`;
+                ctx.lineWidth = 1;
+
+                // Central circle
+                ctx.beginPath();
+                ctx.arc(0, 0, geoR, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // 6 surrounding circles
+                for (let i = 0; i < 6; i++) {
+                    const a = (i / 6) * Math.PI * 2;
+                    ctx.beginPath();
+                    ctx.arc(Math.cos(a) * geoR, Math.sin(a) * geoR, geoR, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Outer hexagon
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
+                    const hx = Math.cos(a) * geoR * 2;
+                    const hy = Math.sin(a) * geoR * 2;
+                    if (i === 0) ctx.moveTo(hx, hy);
+                    else ctx.lineTo(hx, hy);
+                }
+                ctx.closePath();
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // ===== LAYER 7: Tekno Culture Text Flash =====
+            const fontSize = isMobile ? 10 : 14;
+
+            // Spawn logic
+            let freeSlot = -1;
+            for (let i = 0; i < 3; i++) {
+                if (!activeFlashes[i].active) { freeSlot = i; break; }
+            }
+
+            if (freeSlot >= 0) {
+                let shouldSpawn = false;
+                let forceWord = null;
+
+                if (dropFlashIntensity > 0.5 && Math.random() < 0.5) {
+                    shouldSpawn = true;
+                } else if (bassLevel > 0.7 && Math.random() < 0.15) {
+                    shouldSpawn = true;
+                } else if (energy > 0.65 && Math.random() < 0.08) {
+                    shouldSpawn = true;
+                }
+
+                if (raveMode && freeSlot === 0) {
+                    forceWord = 'RAVE ON';
+                    shouldSpawn = true;
+                }
+
+                // Marathon "15 YEARS" flash (once, 3 seconds)
+                if (marathonFlashStart > 0 && time - marathonFlashStart < 3000 && freeSlot === 0) {
+                    forceWord = '15 YEARS';
+                    shouldSpawn = true;
+                }
+
+                if (shouldSpawn) {
+                    const flash = activeFlashes[freeSlot];
+                    flash.active = true;
+                    flash.word = forceWord || teknoWords[Math.floor(Math.random() * teknoWords.length)];
+                    flash.x = 0.1 + Math.random() * 0.8; // 10%-90% of width
+                    flash.y = 0.1 + Math.random() * 0.8;
+                    flash.birth = time;
+                    flash.duration = 800 + Math.random() * 400;
+                    if (forceWord === 'RAVE ON') {
+                        flash.x = 0.5;
+                        flash.y = 0.5;
+                    }
+                    if (forceWord === '15 YEARS') {
+                        flash.x = 0.5;
+                        flash.y = 0.45;
+                        flash.duration = 3000;
+                    }
+                }
+            }
+
+            // Render active flashes
+            ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
+            ctx.textAlign = 'center';
+            for (let i = 0; i < 3; i++) {
+                const flash = activeFlashes[i];
+                if (!flash.active) continue;
+                const elapsed = time - flash.birth;
+                if (elapsed > flash.duration) { flash.active = false; continue; }
+                const progress = elapsed / flash.duration;
+                // Fast fade-in (first 15%), slow fade-out (85%)
+                let alpha;
+                if (progress < 0.15) {
+                    alpha = progress / 0.15;
+                } else {
+                    alpha = 1 - (progress - 0.15) / 0.85;
+                }
+                alpha *= 0.7;
+
+                if (flash.word === 'RAVE ON' && raveMode) {
+                    ctx.fillStyle = `rgba(255,200,100,${alpha})`;
+                } else if (flash.word === '15 YEARS') {
+                    ctx.fillStyle = `rgba(255,200,100,${alpha})`;
+                } else {
+                    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+                }
+                ctx.fillText(flash.word, flash.x * w, flash.y * h);
+            }
+            ctx.textAlign = 'start';
+
+            // ===== LAYER 8: State Overlays =====
+            // Drop burst flash
+            if (dropFlashIntensity > 0.01) {
+                ctx.fillStyle = `rgba(255,255,255,${dropFlashIntensity * 0.3})`;
+                ctx.fillRect(0, 0, w, h);
+                dropFlashIntensity *= 0.92;
+            }
+
+            // Rave mode warm tint
+            if (raveMode) {
+                ctx.fillStyle = 'rgba(255,200,100,0.04)';
+                ctx.fillRect(0, 0, w, h);
+            }
+
+            // Silence mode blue tint
+            if (silenceMode) {
+                ctx.fillStyle = 'rgba(100,120,200,0.05)';
+                ctx.fillRect(0, 0, w, h);
+            }
+        }
+
         // Funzione per scalare le posizioni in base al viewport
         function adaptToViewport() {
             const width = window.innerWidth;
             const height = window.innerHeight;
+
+            bgCanvas.width = width;
+            bgCanvas.height = height;
+            rebuildHexGrid();
+            // Redraw procedural bg after resize (canvas clear)
+            if (!isPlaying) {
+                drawProceduralBg(bgCtx, width, height, 0, 0, 0, 0, Date.now(), null);
+            }
 
             if (width <= 768) {
                 // Scala le posizioni delle spirali per mobile
@@ -1738,7 +2295,11 @@
         // Setup canvas
         vortexCanvas.width = window.innerWidth;
         vortexCanvas.height = window.innerHeight;
-        
+        bgCanvas.width = window.innerWidth;
+        bgCanvas.height = window.innerHeight;
+        // Initial static render of procedural background (no audio)
+        drawProceduralBg(bgCtx, bgCanvas.width, bgCanvas.height, 0, 0, 0, 0, Date.now(), null);
+
         // Create tunnel rings (OTTIMIZZATO: ancora meno su mobile)
         const tunnelRingCount = isSmallMobile ? 3 : isMobile ? 4 : 6;
         for (let i = 0; i < tunnelRingCount; i++) {
@@ -2389,6 +2950,7 @@
                 // Start playback
                 await audioElement.play();
                 isPlaying = true;
+                playStartTime = Date.now();
                 audioStatus.textContent = 'STREAMING';
                 streamHealthStatus.lastDataTime = Date.now();
 
@@ -2443,6 +3005,7 @@
         
         let dataArray = null;
         let vortexRotation = 0;
+        let bgFrameCount = 0;
         let zoomIntensity = 1;
 
         // Inizializza target point per il movimento della camera
@@ -3003,6 +3566,14 @@
                 beam.style.width = (isMobile ? 1 : 2 + trebleLevel * 4) + 'px';
             });
             
+            // 🖼️ PROCEDURAL BACKGROUND - render with audio reactivity
+            bgFrameCount++;
+            let bgRenderFrequency = isSmallMobile ? 4 : isMobile ? 2 : 1;
+            if (isSlowDevice) bgRenderFrequency += 2;
+            if (bgFrameCount % bgRenderFrequency === 0) {
+                drawProceduralBg(bgCtx, bgCanvas.width, bgCanvas.height, bassLevel, midLevel, trebleLevel, energy, Date.now(), dataArray);
+            }
+
             // 🎨 VORTEX ROTATION - ruota e pulsa (OTTIMIZZATO: meno cerchi su mobile)
             vortexRotation += energy * 3;
 
