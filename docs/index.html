@@ -2188,24 +2188,56 @@
             pupilCtx.fillStyle = 'rgba(0,0,0,0.92)';
             pupilCtx.fill();
 
-            // Optional: webcam reflection inside the pupil. Mirror-flipped,
-            // B&W high-contrast soft blur. Composite-add over the dark fill so
-            // it reads as a reflection on a dark surface, not as a photo.
+            // Webcam reflection — v1 treatment: HDR + scanlines + VCR jitter + lens vignette.
+            // Mirror-flipped, B&W high contrast. Composite 'lighter' so the reflection
+            // reads on a dark surface, not as a photo.
             if (webcamReady && webcamMode > 0 && webcamVideo.readyState >= 2) {
                 pupilCtx.save();
                 pupilCtx.beginPath();
                 pupilCtx.arc(cx, cy, r, 0, Math.PI * 2);
                 pupilCtx.clip();
                 pupilCtx.translate(cx, cy);
-                pupilCtx.scale(-1, 1); // horizontal flip → looks like a mirror
-                pupilCtx.shadowBlur = 0; // no glow on the inner image
-                pupilCtx.filter = 'saturate(0) brightness(0.85) contrast(1.6) blur(2px)';
-                pupilCtx.globalCompositeOperation = 'lighter'; // brighter parts shine through, dark blends with the pupil
+                pupilCtx.scale(-1, 1); // mirror
+                pupilCtx.shadowBlur = 0;
+
                 const vw = webcamVideo.videoWidth || 320;
                 const vh = webcamVideo.videoHeight || 240;
-                const drawW = r * 2.6;
+                // Oversize → central emphasis (poor-man's lens, peripheral compressed by clip)
+                const drawW = r * 3.2;
                 const drawH = drawW * (vh / vw);
-                pupilCtx.drawImage(webcamVideo, -drawW / 2, -drawH / 2, drawW, drawH);
+
+                // HDR-ish: high contrast + slight bloom blur, fully B&W
+                pupilCtx.filter = 'saturate(0) brightness(0.95) contrast(1.85) blur(1.3px)';
+                pupilCtx.globalCompositeOperation = 'lighter';
+                // VCR horizontal jitter: ~8% of frames the image shifts a few px
+                const vcrJitter = (Math.random() < 0.08) ? (Math.random() - 0.5) * 10 : 0;
+                pupilCtx.drawImage(webcamVideo, -drawW / 2 + vcrJitter, -drawH / 2, drawW, drawH);
+
+                // Occasional ghost pass (luminance-shifted, brighter, more blur) → VCR feel
+                if (Math.random() < 0.12) {
+                    pupilCtx.filter = 'saturate(0) brightness(1.15) contrast(2.0) blur(2.2px)';
+                    pupilCtx.globalAlpha = 0.28;
+                    pupilCtx.drawImage(webcamVideo, -drawW / 2 + 3, -drawH / 2 + 1, drawW, drawH);
+                    pupilCtx.globalAlpha = 1;
+                }
+
+                // Reset for opaque overlays
+                pupilCtx.filter = 'none';
+                pupilCtx.globalCompositeOperation = 'source-over';
+
+                // Scanlines — 2 px spacing, dark line every 2 rows
+                pupilCtx.fillStyle = 'rgba(0,0,0,0.32)';
+                for (let y = -r; y < r; y += 2) {
+                    pupilCtx.fillRect(-r, y, r * 2, 1);
+                }
+
+                // Lens vignette inside the pupil — darken periphery, central area kept bright
+                const innerGrad = pupilCtx.createRadialGradient(0, 0, r * 0.35, 0, 0, r);
+                innerGrad.addColorStop(0, 'rgba(0,0,0,0)');
+                innerGrad.addColorStop(1, 'rgba(0,0,0,0.7)');
+                pupilCtx.fillStyle = innerGrad;
+                pupilCtx.fillRect(-r, -r, r * 2, r * 2);
+
                 pupilCtx.restore();
             }
 
