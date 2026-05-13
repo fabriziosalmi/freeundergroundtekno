@@ -226,32 +226,6 @@
             mix-blend-mode: overlay;
         }
         
-        /* ANTENNA BEAMS - raggi dalle antenne centrali */
-        .antenna-beam {
-            position: fixed;
-            top: 30%;
-            left: 50%;
-            width: 2px;
-            height: 0;
-            background: linear-gradient(to bottom, rgba(255,255,255,1), transparent);
-            transform-origin: top center;
-            pointer-events: none;
-            z-index: 2;
-            opacity: 0;
-        }
-        
-        .antenna-beam.left {
-            margin-left: -100px;
-        }
-        
-        .antenna-beam.center {
-            margin-left: 0;
-        }
-        
-        .antenna-beam.right {
-            margin-left: 100px;
-        }
-        
         /* VORTEX ROTATION - rotazione cerchi più visibile */
         #vortexRotation {
             position: fixed;
@@ -431,17 +405,6 @@
             }
         }
         
-        /* FREQUENCY VISUALIZER - barre frequenze in basso - DISABILITATO */
-        #frequencyViz {
-            display: none;
-        }
-        
-        .freq-bar {
-            width: 8px;
-            background: linear-gradient(to top, #fff, #888);
-            opacity: 0.8;
-            transition: height 0.05s;
-        }
         
         /* 🌀 DISTORTION ZONES - distorsioni parziali graduali */
         .distortion-zone {
@@ -986,96 +949,62 @@
             }
         }
         
-        /* CONTROLS */
-        #controls {
+        /* LIVE TOGGLE — iOS pill style */
+        #liveToggle {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 14px;
+            right: 14px;
             z-index: 1000;
-            background: rgba(0,0,0,0.9);
-            padding: 15px;
-            border: 2px solid #fff;
-            color: #fff;
-            font-size: 12px;
-            transition: opacity 0.3s;
-        }
-        
-        #controls.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        /* MENU TOGGLE BUTTON - pulsante floating per mostrare menu */
-        #menuToggle {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 999;
-            background: rgba(255, 255, 255, 0.9);
-            border: 2px solid #fff;
-            color: #000;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 20px;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            transition: all 0.3s;
+            gap: 7px;
+            background: rgba(30,30,30,0.55);
+            backdrop-filter: blur(24px) saturate(1.4);
+            -webkit-backdrop-filter: blur(24px) saturate(1.4);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 100px;
+            color: rgba(255,255,255,0.85);
+            padding: 7px 14px 7px 11px;
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            opacity: 0.45;
+            transition: opacity 0.35s ease, transform 0.12s ease, background 0.3s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.35), inset 0 0.5px 0 rgba(255,255,255,0.06);
+        }
+        #liveToggle:hover {
+            opacity: 0.85;
+            background: rgba(40,40,40,0.65);
+        }
+        #liveToggle:active {
+            transform: scale(0.93);
+            background: rgba(50,50,50,0.7);
+        }
+        #liveToggle.playing {
+            opacity: 0.55;
+        }
+        #liveToggle.playing:hover {
+            opacity: 0.9;
+        }
+        #liveToggle.autohide {
             opacity: 0;
             pointer-events: none;
         }
-
-        #menuToggle.show {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        #menuToggle:hover {
-            background: rgba(255, 255, 255, 1);
-            transform: scale(1.1);
-        }
-
-        #menuToggle:active {
-            transform: scale(0.95);
-        }
-
-        /* MINIMAL PLAY BUTTON - per autoplay fallback */
-        #minimalPlay {
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 999;
-        background: rgba(255, 255, 255, 0);
-        border: 0px solid #fff0;
-        color: #000;
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        cursor: pointer;
-        font-size: 24px;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        transition: all 0.2s;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
-
-        #minimalPlay.show {
+        #liveIcon {
+            font-size: 11px;
+            line-height: 1;
             display: flex;
+            align-items: center;
         }
-
-        #minimalPlay:hover {
-            background: rgba(255, 255, 255, 1);
-            transform: scale(1.15);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-        }
-
-        #minimalPlay:active {
-            transform: scale(0.95);
+        #liveLabel {
+            font-size: 10px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            opacity: 0.7;
         }
 
         /* 💫 DREAM SOUNDSYSTEM LAYER - blurred memory flashes */
@@ -1147,111 +1076,9 @@
             animation: dream-glow 2.5s ease-in-out infinite;
         }
 
-        /* Su desktop: menuToggle nascosto, appare solo in hotspot */
-        @media (min-width: 769px) {
-            #menuToggle {
-                opacity: 0;
-                pointer-events: none;
-            }
-
-            #menuToggle.show {
-                opacity: 1;
-                pointer-events: auto;
-            }
-        }
-
-        /* Su mobile: menuToggle visibile di default, fade in/out con opacity */
-        @media (max-width: 768px) {
-            #menuToggle {
-                opacity: 1;
-                pointer-events: auto;
-                transition: opacity 0.4s ease-in-out;
-            }
-
-            /* Quando HIDE è attivo su mobile */
-            #menuToggle.hidden-mobile {
-                opacity: 0;
-                pointer-events: none;
-            }
-        }
-
-        button {
-            background: #fff;
-            color: #000;
-            border: none;
-            padding: 8px 15px;
-            margin: 3px;
-            cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            font-size: 11px;
-            touch-action: manipulation;
-            transition: background 0.2s;
-        }
-
-        button:hover {
-            background: #ccc;
-        }
-
-        button:active {
-            background: #999;
-            transform: scale(0.98);
-        }
-
-        /* Aumenta area cliccabile su touch devices */
-        @media (hover: none) and (pointer: coarse) {
-            button {
-                padding: 12px 18px;
-                font-size: 13px;
-                min-height: 44px;
-                min-width: 44px;
-            }
-
-            #controls {
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
-            }
-        }
-        
-        #stats {
-            margin-top: 10px;
-            font-size: 10px;
-            line-height: 1.4;
-        }
 
         /* RESPONSIVE DESIGN - MOBILE OPTIMIZATIONS */
         @media (max-width: 768px) {
-            #controls {
-                top: 10px;
-                right: 10px;
-                left: auto;
-                padding: 12px;
-                font-size: 11px;
-                max-width: 280px;
-            }
-
-            button {
-                padding: 10px 12px;
-                margin: 4px 2px;
-                font-size: 12px;
-            }
-
-            #stats {
-                margin-top: 8px;
-                font-size: 9px;
-                line-height: 1.3;
-            }
-
-            /* Scale frequency bars per mobile */
-            #frequencyViz {
-                bottom: 10px;
-                height: 60px;
-            }
-
-            .freq-bar {
-                width: 6px;
-                max-height: 60px;
-            }
-
             /* Speaker flashes - scale per schermi piccoli */
             .speaker-flash {
                 width: 100px;
@@ -1265,11 +1092,6 @@
 
             .speaker-flash.right {
                 right: 10%;
-            }
-
-            /* Antenna beams - scale per mobile */
-            .antenna-beam {
-                width: 1px;
             }
 
             /* Circle pulse - più piccolo su mobile */
@@ -1307,33 +1129,6 @@
             }
         }
 
-        @media (max-width: 480px) {
-            #controls {
-                top: 8px;
-                right: 8px;
-                padding: 10px;
-                font-size: 10px;
-                max-width: 240px;
-            }
-
-            button {
-                padding: 8px 10px;
-                margin: 3px 2px;
-                font-size: 10px;
-                width: 100%;
-            }
-
-            #frequencyViz {
-                bottom: 5px;
-                height: 50px;
-                gap: 2px;
-            }
-
-            .freq-bar {
-                width: 5px;
-            }
-
-        }
     </style>
 </head>
 <body>
@@ -1374,10 +1169,6 @@
     <!-- CROWD STROBE (folla) -->
     <div id="crowdStrobe"></div>
     
-    <!-- ANTENNA BEAMS (centro alto) -->
-    <div class="antenna-beam left"></div>
-    <div class="antenna-beam center"></div>
-    <div class="antenna-beam right"></div>
     
     <!-- 🌀 DISTORTION ZONES - zone di distorsione parziale -->
     <div class="distortion-zone" id="distort1"></div>
@@ -1444,8 +1235,6 @@
     <div class="shimmer-twinkle" id="twinkle4"></div>
     <div class="shimmer-twinkle" id="twinkle5"></div>
 
-    <!-- FREQUENCY VISUALIZER -->
-    <div id="frequencyViz"></div>
 
     <!-- 💫 DREAM SOUNDSYSTEM FLASH LAYER - blurred memories of parties -->
     <div id="dreamLayer">
@@ -1455,28 +1244,11 @@
         <div class="dream-image" id="dream4"></div>
     </div>
 
-    <!-- MINIMAL PLAY BUTTON - appears if autoplay fails -->
-    <div id="minimalPlay"></div>
-
-    <!-- MENU TOGGLE BUTTON -->
-    <div id="menuToggle">☰</div>
-
-    <!-- CONTROLS -->
-    <div id="controls">
-        <div style="font-weight: bold; margin-bottom: 10px;">FREE UNDERGROUND TEKNO</div>
-        <button id="startBtn">▶️ START</button>
-        <button id="stopBtn">⏹️ STOP</button>
-        <button id="hideBtn">👁️ HIDE</button>
-        <div id="stats">
-            <div>Bass: <span id="bassVal">0</span>%</div>
-            <div>Mid: <span id="midVal">0</span>%</div>
-            <div>Treble: <span id="trebleVal">0</span>%</div>
-            <div id="debugAudio" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #fff; font-size: 8px; display: none;">
-                <div>Audio: <span id="audioStatus">OFF</span></div>
-                <div>Signal: <span id="signalStatus">No data</span></div>
-            </div>
-        </div>
-    </div>
+    <!-- LIVE TOGGLE BUTTON -->
+    <button id="liveToggle" aria-label="Play/Stop">
+        <span id="liveIcon">&#9654;</span>
+        <span id="liveLabel"></span>
+    </button>
 
     <script>
         const AUDIO_URL = 'https://radio.freeundergroundtekno.org/listen/free_underground_tekno/radio.mp3';
@@ -1488,19 +1260,16 @@
         let animationId = null;
         
         // DOM elements
-        const controls = document.getElementById('controls');
         const background = document.getElementById('background');
         const strobeFlash = document.getElementById('strobeFlash');
         const circlePulse = document.getElementById('circlePulse');
         const speakerFlashes = document.querySelectorAll('.speaker-flash');
         const crowdStrobe = document.getElementById('crowdStrobe');
-        const antennaBeams = document.querySelectorAll('.antenna-beam');
         const vortexCanvas = document.getElementById('vortexRotation');
         const vortexCtx = vortexCanvas.getContext('2d');
         const bgCanvas = document.getElementById('proceduralBg');
         const bgCtx = bgCanvas.getContext('2d');
         const tunnelEffect = document.getElementById('tunnelEffect');
-        const frequencyViz = document.getElementById('frequencyViz');
         const vhsLines = document.getElementById('vhsLines');
         const grainOverlay = document.getElementById('grainOverlay');
         
@@ -1592,16 +1361,6 @@
         let pulseRingIdx = 0;
         let lastPulseTime = 0;
 
-        // Layer 4: Frequency Ring LUT
-        const freqBinCount = isMobile ? 32 : 64;
-        const freqRingSin = new Float32Array(freqBinCount);
-        const freqRingCos = new Float32Array(freqBinCount);
-        for (let i = 0; i < freqBinCount; i++) {
-            const angle = (i / freqBinCount) * Math.PI * 2 - Math.PI / 2;
-            freqRingSin[i] = Math.sin(angle);
-            freqRingCos[i] = Math.cos(angle);
-        }
-
         // Layer 6: Sacred Geometry
         let sacredGeoAlpha = 0;
         let sacredGeoAngle = 0;
@@ -1630,6 +1389,13 @@
         let marathonFlashShown = false;
         let marathonFlashStart = 0;
         let playStartTime = 0;
+
+        // Pupil dilation state
+        let steadyBeatCount = 0;
+        let lastSteadyBeatTime = 0;
+        let pupilDilation = 0;      // 0-1, smoothed
+        let pupilTarget = 0;        // 0-1, raw target
+        let lastBeatInterval = 0;   // ms, last interval between beats
 
         function rebuildHexGrid() {
             const w = bgCanvas.width;
@@ -1770,6 +1536,32 @@
                 }
             }
 
+            // Pupil dilation: steady beats make the pupil grow
+            if (_beatH && _beatH.length >= 3) {
+                const recentIntervals = [];
+                for (let i = Math.max(1, _beatH.length - 4); i < _beatH.length; i++) {
+                    recentIntervals.push(_beatH[i] - _beatH[i-1]);
+                }
+                const avgInt = recentIntervals.reduce((a,b) => a+b, 0) / recentIntervals.length;
+                const lastInt = recentIntervals[recentIntervals.length - 1];
+                const deviation = Math.abs(lastInt - avgInt) / avgInt;
+
+                if (deviation < 0.3 && time - _beatH[_beatH.length-1] < 1000) {
+                    // Beat is steady
+                    if (lastInt !== lastBeatInterval) {
+                        steadyBeatCount = Math.min(steadyBeatCount + 1, 20);
+                        lastBeatInterval = lastInt;
+                        lastSteadyBeatTime = time;
+                    }
+                }
+            }
+            // Decay when no steady beats
+            if (time - lastSteadyBeatTime > 500) {
+                steadyBeatCount = Math.max(0, steadyBeatCount - 0.05); // smooth decay per frame
+            }
+            pupilTarget = Math.min(1, steadyBeatCount / 16);
+            pupilDilation += (pupilTarget - pupilDilation) * 0.08; // smooth lerp
+
             // ===== LAYER 0: Star Field / Warehouse Dust =====
             const starBrightBase = silenceMode ? 0.6 : 0.25;
             for (let i = 0; i < bgParticles.length; i++) {
@@ -1848,32 +1640,10 @@
                 ctx.stroke();
             }
 
-            // ===== LAYER 4: Frequency Ring — Circular Equalizer =====
-            if (freqData && freqData.length > 0) {
-                const baseRadius = minDim * 0.06;
-                const circleRadius = baseRadius * (1 + bassLevel * 0.1);
-                const maxBarHeight = minDim * 0.08;
-                const binStep = Math.floor(freqData.length / freqBinCount);
-
-                ctx.lineWidth = isMobile ? 2 : 1.5;
-                for (let i = 0; i < freqBinCount; i++) {
-                    const val = freqData[i * binStep] / 255;
-                    const barH = val * maxBarHeight;
-                    if (barH < 1) continue; // skip silent bins
-                    const innerR = circleRadius + 4;
-                    const outerR = innerR + barH;
-                    const alpha = 0.3 + val * 0.5;
-                    ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-                    ctx.beginPath();
-                    ctx.moveTo(cx + freqRingCos[i] * innerR, cy + freqRingSin[i] * innerR);
-                    ctx.lineTo(cx + freqRingCos[i] * outerR, cy + freqRingSin[i] * outerR);
-                    ctx.stroke();
-                }
-            }
 
             // ===== LAYER 5: Central Circle + Broadcast Icon (enhanced) =====
             const baseR = minDim * 0.06;
-            let circleScale = 1 + bassLevel * 0.1;
+            let circleScale = 1 + bassLevel * 0.1 + pupilDilation * 0.5;
             // Silence breathing
             if (silenceMode) {
                 circleScale = 1 + Math.sin(time * 0.002) * 0.03;
@@ -2096,18 +1866,10 @@
             'polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%)'
         ];
         
-        // Stats displays
-        const bassVal = document.getElementById('bassVal');
-        const midVal = document.getElementById('midVal');
-        const trebleVal = document.getElementById('trebleVal');
-        const debugAudio = document.getElementById('debugAudio');
-        const audioStatus = document.getElementById('audioStatus');
-        const signalStatus = document.getElementById('signalStatus');
-
-        // Show debug on mobile
-        if (isMobile) {
-            debugAudio.style.display = 'block';
-        }
+        // Audio status (internal, no visible UI — console only)
+        const _nullEl = { set textContent(v) { /* no-op, DOM removed */ } };
+        const audioStatus = _nullEl;
+        const signalStatus = _nullEl;
         
         // 🌀 Distortion zones
         const distortZones = [
@@ -2200,16 +1962,6 @@
             document.body.appendChild(dust);
         }
         
-        // Create frequency bars (OTTIMIZZATO: meno barre)
-        const barCount = 32; // ridotto da 40 per performance
-        for (let i = 0; i < barCount; i++) {
-            const bar = document.createElement('div');
-            bar.className = 'freq-bar';
-            bar.style.height = '10px';
-            frequencyViz.appendChild(bar);
-        }
-        const freqBars = document.querySelectorAll('.freq-bar');
-        
         // Detect device type
         const isDesktop = window.innerWidth > 768;
 
@@ -2222,214 +1974,48 @@
         const targetFrameTime = isSlowDevice ? 1000 / 30 : 1000 / 60; // 30fps or 60fps
         let skippedFrames = 0;
 
-        // Get UI elements
-        const minimalPlay = document.getElementById('minimalPlay');
-        const menuToggle = document.getElementById('menuToggle');
+        // Live toggle button
+        const liveToggle = document.getElementById('liveToggle');
+        const liveIcon = document.getElementById('liveIcon');
+        const liveLabel = document.getElementById('liveLabel');
+        let autoHideTimer = null;
 
-        // Button listeners
-        document.getElementById('startBtn').addEventListener('click', startAudio);
-        document.getElementById('stopBtn').addEventListener('click', stopAudio);
-
-        // Track if controls are hidden
-        let controlsHidden = false;
-
-        document.getElementById('hideBtn').addEventListener('click', () => {
-            controls.classList.toggle('hidden');
-            // Show minimal play button when hiding controls
-            if (controls.classList.contains('hidden')) {
-                controlsHidden = true;
-                minimalPlay.classList.add('show');
-                if (isDesktop) {
-                    menuToggle.classList.remove('show');  // Hide toggle on desktop
-                    menuToggle.textContent = '☰';
-                } else {
-                    // Mobile: fade out menu toggle
-                    menuToggle.classList.add('hidden-mobile');
-                }
-            } else {
-                controlsHidden = false;
-                minimalPlay.classList.remove('show');
-                if (isDesktop) {
-                    menuToggle.classList.add('show');  // Show toggle on desktop
-                } else {
-                    // Mobile: fade in menu toggle
-                    menuToggle.classList.remove('hidden-mobile');
-                }
-            }
-        });
-
-        // Hotspot area: show menu toggle when hovering/touching top-right corner
-        const hotspotWidth = 150;
-        const hotspotHeight = 100;
-
-        function checkHotspot(clientX, clientY, isMobileDevice) {
-            const isInHotspot = clientX > window.innerWidth - hotspotWidth &&
-                               clientY < hotspotHeight;
-
-            if (isInHotspot) {
-                if (!isMobileDevice) {
-                    // Desktop: show with opacity
-                    menuToggle.classList.add('show');
-                } else {
-                    // Mobile: remove fade-out class for fade in
-                    menuToggle.classList.remove('hidden-mobile');
-                }
-            } else {
-                if (!isMobileDevice) {
-                    // Desktop: hide
-                    menuToggle.classList.remove('show');
-                } else {
-                    // Mobile: add fade-out class only if controls are hidden
-                    if (controlsHidden) {
-                        menuToggle.classList.add('hidden-mobile');
-                    }
-                }
-            }
+        function resetAutoHide() {
+            liveToggle.classList.remove('autohide');
+            clearTimeout(autoHideTimer);
+            autoHideTimer = setTimeout(() => {
+                if (isPlaying) liveToggle.classList.add('autohide');
+            }, 3000);
         }
 
-        // Desktop: mousemove hotspot
-        document.addEventListener('mousemove', (e) => {
-            if (!controlsHidden) return;
-            checkHotspot(e.clientX, e.clientY, !isDesktop);
-        });
-
-        // Mobile: touchmove hotspot
-        let touchHideTimeout = null;
-        document.addEventListener('touchmove', (e) => {
-            if (!controlsHidden || isDesktop) return;
-            const touch = e.touches[0];
-            checkHotspot(touch.clientX, touch.clientY, true);
-        });
-
-        // Mobile: touchend - hide after touch ends
-        document.addEventListener('touchend', (e) => {
-            if (!controlsHidden || isDesktop) return;
-            // Fade out after 500ms when touch ends
-            clearTimeout(touchHideTimeout);
-            touchHideTimeout = setTimeout(() => {
-                menuToggle.classList.add('hidden-mobile');
-            }, 500);
-        });
-
-        // Minimal play button for autoplay fallback
-        minimalPlay.addEventListener('click', async () => {
-            if (isPlaying) return;
-            // Try to resume AudioContext if suspended
-            if (audioContext && audioContext.state === 'suspended') {
-                await audioContext.resume();
-                console.log('⏯️ AudioContext resumed by user click');
-            }
-            if (!isPlaying) {
+        liveToggle.addEventListener('click', async () => {
+            if (isPlaying) {
+                stopAudio();
+                liveIcon.textContent = '\u25B6';
+                liveLabel.textContent = '';
+                liveToggle.classList.remove('playing');
+            } else {
                 await startAudio();
-            }
-            // Show full controls
-            controls.classList.remove('hidden');
-            controlsHidden = false;
-            minimalPlay.classList.remove('show');
-            menuToggle.textContent = '✕';
-            if (isDesktop) {
-                menuToggle.classList.add('show');
-            } else {
-                // Mobile: show menu toggle
-                menuToggle.classList.remove('hidden-mobile');
+                liveIcon.textContent = '\u23F8';
+                liveLabel.textContent = 'LIVE';
+                liveToggle.classList.add('playing');
+                resetAutoHide();
             }
         });
 
-        // Menu toggle button (desktop only)
-        menuToggle.addEventListener('click', () => {
-            controls.classList.toggle('hidden');
-            clearTimeout(touchHideTimeout);  // Cancel any pending hide on mobile
+        document.addEventListener('mousemove', resetAutoHide);
+        document.addEventListener('touchstart', resetAutoHide);
 
-            if (controls.classList.contains('hidden')) {
-                controlsHidden = true;
-                menuToggle.textContent = '☰'; // menu closed
-                minimalPlay.classList.add('show'); // show play button
-                if (isDesktop) {
-                    menuToggle.classList.remove('show');  // Hide toggle after click on desktop
-                } else {
-                    // Mobile: keep visible for a moment, then fade out
-                    setTimeout(() => {
-                        if (controlsHidden) {
-                            menuToggle.classList.add('hidden-mobile');
-                        }
-                    }, 300);
-                }
-            } else {
-                controlsHidden = false;
-                menuToggle.textContent = '✕'; // menu open
-                minimalPlay.classList.remove('show'); // hide play button
-                if (isDesktop) {
-                    menuToggle.classList.add('show');  // Show on desktop
-                } else {
-                    menuToggle.classList.remove('hidden-mobile');  // Show on mobile
-                }
-            }
-        });
-
-        // Click/key to show controls
-        document.addEventListener('click', (e) => {
-            if (!controls.contains(e.target) && !menuToggle.contains(e.target) && controls.classList.contains('hidden')) {
-                controls.classList.remove('hidden');
-                controlsHidden = false;
-                if (isDesktop) {
-                    menuToggle.textContent = '✕';
-                    menuToggle.classList.add('show');
-                } else {
-                    // Mobile: show menu toggle when showing controls
-                    menuToggle.textContent = '✕';
-                    menuToggle.classList.remove('hidden-mobile');
-                }
-            }
-        });
-
-        document.addEventListener('keydown', () => {
-            controls.classList.toggle('hidden');
-            controlsHidden = controls.classList.contains('hidden');
-            if (!controls.classList.contains('hidden')) {
-                menuToggle.textContent = '✕';
-                if (isDesktop) {
-                    menuToggle.classList.add('show');
-                } else {
-                    menuToggle.classList.remove('hidden-mobile');
-                }
-            } else {
-                menuToggle.textContent = '☰';
-                if (isDesktop) {
-                    menuToggle.classList.remove('show');
-                } else {
-                    menuToggle.classList.add('hidden-mobile');
-                }
-            }
-        });
-
-        // Try autoplay on load, show minimal play button if it fails
+        // Try autoplay on load
         window.addEventListener('load', async () => {
-            console.log('⏯️ Attempting to start audio automatically...');
             try {
                 await startAudio();
-                console.log('✅ Autoplay successful!');
-                minimalPlay.classList.remove('show');
-                // Hide controls on both desktop and mobile after successful autoplay
-                controls.classList.add('hidden');
-                if (isDesktop) {
-                    menuToggle.textContent = '☰';
-                    menuToggle.classList.remove('show');  // Ensure hidden (hotspot will show)
-                } else {
-                    // Mobile: also fade out menu toggle on successful autoplay
-                    menuToggle.classList.add('hidden-mobile');
-                }
+                liveIcon.textContent = '\u23F8';
+                liveLabel.textContent = 'LIVE';
+                liveToggle.classList.add('playing');
+                resetAutoHide();
             } catch (err) {
-                console.log('⚠️ Autoplay failed, showing minimal play button');
-                // Show minimal play button if autoplay fails
-                minimalPlay.classList.add('show');
-                // Show controls on mobile
-                if (!isDesktop) {
-                    controls.classList.remove('hidden');
-                }
-                // Ensure menuToggle is hidden on desktop (minimalPlay is visible)
-                if (isDesktop) {
-                    menuToggle.classList.remove('show');
-                }
+                console.log('Autoplay blocked, user tap required');
             }
         });
 
@@ -3425,16 +3011,6 @@
                 flash.style.filter = `blur(${30 + midLevel * 50}px)`;
             });
             
-            // ⚡ ANTENNA BEAMS (centro alto) - più lunghi (limitato su mobile)
-            antennaBeams.forEach((beam, i) => {
-                const maxHeight = isMobile ? 250 : 500;
-                const height = Math.min(trebleLevel * (isMobile ? 250 : 500), maxHeight);
-                beam.style.height = height + 'px';
-                beam.style.opacity = trebleLevel * 1.2;
-                beam.style.transform = `rotate(${(i - 1) * 20 + trebleLevel * 60}deg)`;
-                beam.style.width = (isMobile ? 1 : 2 + trebleLevel * 4) + 'px';
-            });
-            
             // 🖼️ PROCEDURAL BACKGROUND - render with audio reactivity
             bgFrameCount++;
             let bgRenderFrequency = isSmallMobile ? 4 : isMobile ? 2 : 1;
@@ -3474,42 +3050,15 @@
                 vortexCtx.restore();
             }
             
-            // 📊 FREQUENCY BARS
-            const samplesPerBar = Math.floor(dataArray.length / barCount);
-            freqBars.forEach((bar, i) => {
-                const start = i * samplesPerBar;
-                const end = start + samplesPerBar;
-                let barSum = 0;
-                for (let j = start; j < end; j++) barSum += dataArray[j];
-                const barLevel = barSum / (samplesPerBar * 255);
-                bar.style.height = (10 + barLevel * 90) + 'px';
-                bar.style.opacity = 0.6 + barLevel * 0.4;
-            });
-            
-            // Update stats
-            bassVal.textContent = Math.round(bassLevel * 100);
-            midVal.textContent = Math.round(midLevel * 100);
-            trebleVal.textContent = Math.round(trebleLevel * 100);
-
-            // Update signal status
-            const totalSignal = bassLevel + midLevel + trebleLevel;
-            if (totalSignal > 0.05) {
-                signalStatus.textContent = '✓ Signal OK';
-            } else {
-                signalStatus.textContent = 'No signal';
-            }
-
-            // Debug: Log frequency data ogni 60 frame per verificare se c'è segnale
+            // Debug: Log frequency data occasionally
             if (Math.floor(Date.now() / 1000) % 2 === 0 && Math.random() < 0.05) {
-                console.log(`🎵 Frequencies - Bass: ${Math.round(bassLevel*100)}%, Mid: ${Math.round(midLevel*100)}%, Treble: ${Math.round(trebleLevel*100)}%`);
+                console.log(`Frequencies - Bass: ${Math.round(bassLevel*100)}%, Mid: ${Math.round(midLevel*100)}%, Treble: ${Math.round(trebleLevel*100)}%`);
             }
             
             animationId = requestAnimationFrame(animate);
         }
         
-        console.log('🎵 FREE UNDERGROUND TEKNO - Radio VJ System Ready');
-        console.log('⏯️  Click the ▶️ START button to begin playback');
-        console.log('📱 On desktop: Click ☰ menu button (top-right) to show controls');
+        console.log('FREE UNDERGROUND TEKNO - Radio VJ System Ready');
     </script>
 </body>
 </html>
