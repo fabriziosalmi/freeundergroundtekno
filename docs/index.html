@@ -798,6 +798,29 @@
             opacity: 0;
             mix-blend-mode: difference; /* effetto negativo/inverso */
             transition: opacity 0.05s linear;
+            /* Pupil mask: cuts a soft hole that follows the pupil as it moves.
+               --pupil-x / --pupil-y are px offsets from viewport center (set
+               from JS each frame). --pupil-r drives the hole size + feather.
+               Multi-stop gradient → contour mai netto. */
+            --pupil-r: 80px;
+            --pupil-x: 0px;
+            --pupil-y: 0px;
+            -webkit-mask: radial-gradient(circle at
+                calc(50% + var(--pupil-x)) calc(50% + var(--pupil-y)),
+                transparent 0,
+                transparent calc(var(--pupil-r) * 0.55),
+                rgba(0,0,0,0.20) calc(var(--pupil-r) * 0.80),
+                rgba(0,0,0,0.55) var(--pupil-r),
+                rgba(0,0,0,0.85) calc(var(--pupil-r) + 40px),
+                #000 calc(var(--pupil-r) + 90px));
+            mask: radial-gradient(circle at
+                calc(50% + var(--pupil-x)) calc(50% + var(--pupil-y)),
+                transparent 0,
+                transparent calc(var(--pupil-r) * 0.55),
+                rgba(0,0,0,0.20) calc(var(--pupil-r) * 0.80),
+                rgba(0,0,0,0.55) var(--pupil-r),
+                rgba(0,0,0,0.85) calc(var(--pupil-r) + 40px),
+                #000 calc(var(--pupil-r) + 90px));
         }
         
         /* Raggi rotativi dal centro */
@@ -1129,6 +1152,35 @@
             }
         }
 
+        /* PUPIL CANVAS — dedicated high-z layer so the central pupil sits on top
+           of every audio-reactive layer, including the vortex rings that used to
+           pass through it. Static at viewport center (no sway). */
+        #pupilCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 600;
+        }
+
+        /* SILENCE MODE — page eases into stillness when audio drops out.
+           JS already fades the audio-reactive layers; here we pause the
+           purely-CSS continuous animations so nothing keeps moving on its own. */
+        body.silent .dust-particle,
+        body.silent .vhs-line,
+        body.silent #grainOverlay,
+        body.silent #tunnelEffect .tunnel-ring {
+            animation-play-state: paused;
+        }
+        body.silent .dust-particle,
+        body.silent .vhs-line,
+        body.silent #grainOverlay {
+            opacity: 0;
+            transition: opacity 0.8s ease-out;
+        }
+
     </style>
 </head>
 <body>
@@ -1140,7 +1192,11 @@
     <div id="vhsLines"></div>
     <div id="scanlines"></div>
     <div id="vignette"></div>
-    
+
+    <!-- PUPIL — sits on its own high-z canvas so it stays on top of every other
+         layer (vortex rings, spiral, hex, sacred geo, dreams, particles). -->
+    <canvas id="pupilCanvas"></canvas>
+
     <!-- STROBE FLASH -->
     <div id="strobeFlash"></div>
     
@@ -1352,6 +1408,24 @@
             });
         }
 
+        // Pre-rendered glow sprites for stars: a soft radial gradient blitted per
+        // particle. Removes the hard fillRect edges that read as "square pixels"
+        // when alpha saturates on bright passages.
+        function _makeStarSprite(r, g, b) {
+            const c = document.createElement('canvas');
+            c.width = c.height = 16;
+            const sctx = c.getContext('2d');
+            const grad = sctx.createRadialGradient(8, 8, 0, 8, 8, 8);
+            grad.addColorStop(0,    `rgba(${r},${g},${b},1)`);
+            grad.addColorStop(0.35, `rgba(${r},${g},${b},0.55)`);
+            grad.addColorStop(1,    `rgba(${r},${g},${b},0)`);
+            sctx.fillStyle = grad;
+            sctx.fillRect(0, 0, 16, 16);
+            return c;
+        }
+        const starSpriteWhite = _makeStarSprite(255, 255, 255);
+        const starSpriteWarm  = _makeStarSprite(255, 200, 100);
+
         // Layer 1: Pulse Rings pool
         const pulseRingMax = isMobile ? 4 : 6;
         const pulseRings = [];
@@ -1365,6 +1439,21 @@
         let sacredGeoAlpha = 0;
         let sacredGeoAngle = 0;
         let sacredGeoBoost = 0;
+
+        // === Layer 0b: Constellation lines on treble onsets (hi-hats / cymbals) ===
+        // Thin white segments connecting nearby star particles, brief life: ease-in 200ms,
+        // ease-out 400ms. Independent of the beat budget (fires on non-bass content).
+        const constellationMax = 6;
+        const constellations = [];
+        for (let i = 0; i < constellationMax; i++) {
+            constellations.push({ active: false, t0: 0, points: [] });
+        }
+        let constIdx = 0;
+        let lastConstellation = 0;
+        // Rolling treble baseline for onset detection
+        const trebleHist = new Float32Array(20);
+        let trebleHistIdx = 0;
+        let trebleHistFilled = false;
 
         // State detection buffers
         const energyHistorySize = 60;
@@ -1383,6 +1472,10 @@
         // Silence / Breakdown
         let silenceMode = false;
         let silenceStart = 0;
+        // 0 = full activity, 1 = full quiet. Spring-damped toward silenceMode so
+        // the scene eases into/out of stillness, never with a flat linear ramp.
+        let calmness = 0;
+        let calmnessVelocity = 0;
 
         // Marathon mode (15 years tribute)
         let marathonMode = false;
@@ -1400,6 +1493,33 @@
         // BPM pulse field state
         let bpmPulsePhase = 0;
         let bpmPulseIntensity = 0;
+        // BPM sync state (set inside drawProceduralBg, consumed by pupil motion in animate())
+        let bpmSyncAngle = 0;
+        let bpmStable = false;
+
+        // ===== CASSONE SOSTENUTO ("spaccone") — pupil bulge on sustained bass =====
+        // bassMA on a rolling window. When it's high AND BPM is stable, target = 1
+        // → pupil inflates with a slight overshoot ("flex"), releases slowly ("aw").
+        const bassHistory = new Float32Array(60); // ~1 s @ 60 fps
+        let bassHistoryIdx = 0;
+        let bassHistoryFilled = false;
+        let cassoneIntensity = 0;
+        let cassoneVel = 0;
+
+        // ===== PUPIL MOTION STATE (decoupled from #background sway) =====
+        // Spring-damped offset relative to viewport center. Different "moods"
+        // produce different targets + tuning so the pupil reads as a living eye,
+        // not a passive passenger of the bg transform.
+        let pupilOffX = 0, pupilOffY = 0;
+        let pupilVelX = 0, pupilVelY = 0;
+        let pupilTargetX = 0, pupilTargetY = 0;
+        // Bass-snap memory (target jumps every Nth beat)
+        let lastBassSnapBeat = -1;
+        let bassSnapTargetX = 0, bassSnapTargetY = 0;
+        let bassSnapUntil = 0;
+        // Saccade memory (micro jolt on hi-hat onset)
+        let saccadeT0 = 0;
+        let saccadeX = 0, saccadeY = 0;
 
         function rebuildHexGrid() {
             const w = bgCanvas.width;
@@ -1517,9 +1637,9 @@
                 }
             }
 
-            // BPM sync for sacred geometry
-            let bpmSyncAngle = 0;
-            let bpmStable = false;
+            // BPM sync for sacred geometry (module-level: written here, read by pupil motion)
+            bpmSyncAngle = 0;
+            bpmStable = false;
             let _beatH;
             try { _beatH = beatHistory; } catch(e) { _beatH = null; }
             if (_beatH && _beatH.length >= 4) {
@@ -1570,24 +1690,57 @@
             pupilDilation += (pupilTarget - pupilDilation) * 0.08; // smooth lerp
 
             // ===== LAYER 0: Star Field / Warehouse Dust =====
-            const starBrightBase = silenceMode ? 0.6 : 0.25;
-            for (let i = 0; i < bgParticles.length; i++) {
-                const p = bgParticles[i];
-                // Drift upward
-                p.y -= p.speed;
-                if (p.y < -0.01) { p.y = 1.01; p.x = Math.random(); }
+            // _active is still needed by downstream layers (hex, spiral, vortex…).
+            const _active = 1 - calmness;
+            const STARS_ENABLED = true;
+            if (STARS_ENABLED) {
+                const starBrightBase = 0.25 * _active + 0.06 * calmness;
+                for (let i = 0; i < bgParticles.length; i++) {
+                    const p = bgParticles[i];
+                    // Drift upward (halts in silence)
+                    p.y -= p.speed * _active;
+                    if (p.y < -0.01) { p.y = 1.01; p.x = Math.random(); }
 
-                const twinkle = Math.sin(time * 0.003 + p.twinkleOffset) * 0.5 + 0.5;
-                const trebleBoost = trebleLevel * twinkle;
-                const bpmBoost = bpmPulseIntensity * 0.4;
-                const alpha = starBrightBase + trebleBoost * 0.5 + bpmBoost;
+                    const twinkle = Math.sin(time * 0.003 + p.twinkleOffset) * 0.5 + 0.5;
+                    const trebleBoost = trebleLevel * twinkle;
+                    const bpmBoost = bpmPulseIntensity * 0.4;
+                    const alpha = Math.min(1, starBrightBase + (trebleBoost * 0.5 + bpmBoost) * _active);
+                    if (alpha < 0.01) continue;
 
-                if (p.warm && marathonMode) {
-                    ctx.fillStyle = `rgba(255,200,100,${alpha})`;
-                } else {
-                    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+                    const dispSize = Math.max(2, p.size * 2);
+                    const sprite = (p.warm && marathonMode) ? starSpriteWarm : starSpriteWhite;
+                    ctx.globalAlpha = alpha;
+                    ctx.drawImage(sprite, p.x * w - dispSize / 2, p.y * h - dispSize / 2, dispSize, dispSize);
                 }
-                ctx.fillRect(p.x * w, p.y * h, p.size, p.size);
+                ctx.globalAlpha = 1;
+            }
+
+            // ===== LAYER 0b: Constellation Lines (treble onsets) =====
+            // Ease-in 200ms (smoothstep), ease-out 400ms (1-t²). Suppressed in silence.
+            ctx.lineWidth = 0.6;
+            for (let i = 0; i < constellationMax; i++) {
+                const c = constellations[i];
+                if (!c.active) continue;
+                const age = time - c.t0;
+                if (age > 600) { c.active = false; continue; }
+                let a;
+                if (age < 200) {
+                    const u = age / 200;
+                    a = u * u * (3 - 2 * u) * 0.55;
+                } else {
+                    const u = (age - 200) / 400;
+                    a = (1 - u * u) * 0.55;
+                }
+                a *= _active;
+                if (a < 0.01) continue;
+                ctx.strokeStyle = `rgba(255,255,255,${a})`;
+                ctx.beginPath();
+                for (let j = 0; j < c.points.length; j++) {
+                    const p = bgParticles[c.points[j]];
+                    if (j === 0) ctx.moveTo(p.x * w, p.y * h);
+                    else ctx.lineTo(p.x * w, p.y * h);
+                }
+                ctx.stroke();
             }
 
             // ===== LAYER 0.5: Radial BPM Wave =====
@@ -1627,9 +1780,9 @@
             }
 
             // ===== LAYER 2: Hex Grid (pre-rendered blit) =====
-            const hexMul = silenceMode ? 0.2 : 1;
             const hexBpmBoost = bpmPulseIntensity * 0.3;
-            const hexAlpha = (0.6 + bassLevel * 1.0 + hexBpmBoost) * hexMul;
+            // Smooth fade-out with calmness instead of binary silenceMode jump.
+            const hexAlpha = (0.6 + bassLevel * 1.0 + hexBpmBoost) * _active;
             ctx.globalAlpha = Math.min(hexAlpha, 1);
             ctx.drawImage(hexGridCanvas, 0, 0);
             ctx.globalAlpha = 1;
@@ -1641,73 +1794,70 @@
                 spiralAngleAccum += energy * 2 * 0.016;
             }
             const armCount = 14;
-            const spiralAlpha = 0.15 + bassLevel * 0.2;
+            const spiralAlpha = (0.15 + bassLevel * 0.2) * _active; // fades in silence
             const spiralLineWidth = 1.5 + bassLevel * 2;
             let _slow = false;
             try { _slow = isSlowDevice; } catch(e) {}
             const spiralSteps = _slow ? 40 : 80;
 
+            // Radial gradient approximates the original quadratic fade-out (1 - t²)
+            // with a single strokeStyle so we can stroke each arm as one path:
+            // 14 strokes/frame instead of 14 × 80 = 1120.
+            const spiralMaxR = Math.min(cx, cy) * 0.9;
+            const spiralGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, spiralMaxR);
+            spiralGradient.addColorStop(0,    `rgba(255,255,255,${spiralAlpha})`);
+            spiralGradient.addColorStop(0.5,  `rgba(255,255,255,${spiralAlpha * 0.75})`);
+            spiralGradient.addColorStop(0.75, `rgba(255,255,255,${spiralAlpha * 0.44})`);
+            spiralGradient.addColorStop(1,    'rgba(255,255,255,0)');
+            ctx.strokeStyle = spiralGradient;
+            ctx.lineWidth = spiralLineWidth;
+
             for (let arm = 0; arm < armCount; arm++) {
                 const armAngle = (arm / armCount) * Math.PI * 2 + spiralAngleAccum;
-                let prevX, prevY;
+                ctx.beginPath();
                 for (let s = 0; s <= spiralSteps; s++) {
                     const t = s / spiralSteps;
-                    const r = t * Math.min(cx, cy) * 0.9;
+                    const r = t * spiralMaxR;
                     const theta = armAngle + t * Math.PI * 3;
                     const x = cx + r * Math.cos(theta);
                     const y = cy + r * Math.sin(theta);
-                    if (s > 0) {
-                        const segAlpha = spiralAlpha * (1 - t * t); // quadratic fade-out
-                        if (segAlpha < 0.01) break;
-                        ctx.beginPath();
-                        ctx.moveTo(prevX, prevY);
-                        ctx.lineTo(x, y);
-                        ctx.strokeStyle = `rgba(255,255,255,${segAlpha})`;
-                        ctx.lineWidth = spiralLineWidth * (1 - t * 0.6); // thinner toward edge
-                        ctx.stroke();
-                    }
-                    prevX = x;
-                    prevY = y;
+                    if (s === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
                 }
+                ctx.stroke();
             }
 
 
             // ===== LAYER 5: Central Circle + Broadcast Icon (enhanced) =====
-            const baseR = minDim * 0.06;
-            let circleScale = 1 + bassLevel * 0.1 + pupilDilation * 0.5;
-            // Silence breathing
-            if (silenceMode) {
-                circleScale = 1 + Math.sin(time * 0.002) * 0.03;
+            // MOVED to drawPupil() on its dedicated top-layer canvas (#pupilCanvas).
+            // Kept here disabled for reference / easy revert.
+            if (false) {
+                const baseR = minDim * 0.06;
+                let circleScale = 1 + bassLevel * 0.1 + pupilDilation * 0.5;
+                if (silenceMode) circleScale = 1 + Math.sin(time * 0.002) * 0.03;
+                const circleRadius = baseR * circleScale;
+                ctx.save();
+                if (raveMode) {
+                    ctx.shadowColor = 'rgba(255,200,100,0.9)';
+                    ctx.shadowBlur = 20 + bassLevel * 40;
+                } else if (marathonMode) {
+                    ctx.shadowColor = 'rgba(255,200,100,0.7)';
+                    ctx.shadowBlur = 15 + bassLevel * 25;
+                } else {
+                    ctx.shadowColor = 'rgba(255,255,255,0.8)';
+                    ctx.shadowBlur = (10 + bassLevel * 30) * (0.35 + 0.65 * _active);
+                }
+                ctx.beginPath();
+                ctx.arc(cx, cy, circleRadius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.9)';
+                ctx.fill();
+                ctx.strokeStyle = raveMode
+                    ? `rgba(255,220,150,${0.7 + bassLevel * 0.3})`
+                    : `rgba(255,255,255,${0.6 + bassLevel * 0.4})`;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                ctx.restore();
             }
-            const circleRadius = baseR * circleScale;
-
-            ctx.save();
-            if (raveMode) {
-                ctx.shadowColor = 'rgba(255,200,100,0.9)';
-                ctx.shadowBlur = 20 + bassLevel * 40;
-            } else if (marathonMode) {
-                ctx.shadowColor = 'rgba(255,200,100,0.7)';
-                ctx.shadowBlur = 15 + bassLevel * 25;
-            } else {
-                ctx.shadowColor = 'rgba(255,255,255,0.8)';
-                ctx.shadowBlur = 10 + bassLevel * 30;
-            }
-
-            // Dark fill
-            ctx.beginPath();
-            ctx.arc(cx, cy, circleRadius, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(0,0,0,0.9)';
-            ctx.fill();
-
-            // Bright stroke
-            if (raveMode) {
-                ctx.strokeStyle = `rgba(255,220,150,${0.7 + bassLevel * 0.3})`;
-            } else {
-                ctx.strokeStyle = `rgba(255,255,255,${0.6 + bassLevel * 0.4})`;
-            }
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.restore();
 
             // ===== LAYER 6: Sacred Geometry — Flower of Life =====
             const sacredTarget = energy > 0.6 ? 1 : 0;
@@ -1959,6 +2109,54 @@
         vortexCanvas.height = window.innerHeight;
         bgCanvas.width = window.innerWidth;
         bgCanvas.height = window.innerHeight;
+        const pupilCanvas = document.getElementById('pupilCanvas');
+        const pupilCtx = pupilCanvas.getContext('2d');
+        pupilCanvas.width = window.innerWidth;
+        pupilCanvas.height = window.innerHeight;
+        window.addEventListener('resize', () => {
+            pupilCanvas.width = window.innerWidth;
+            pupilCanvas.height = window.innerHeight;
+        });
+
+        function drawPupil(time, bass, offX, offY) {
+            const w = pupilCanvas.width;
+            const h = pupilCanvas.height;
+            const cx = w / 2 + offX;
+            const cy = h / 2 + offY;
+            const minDim = Math.min(w, h);
+
+            pupilCtx.clearRect(0, 0, w, h);
+
+            const baseR = minDim * 0.06;
+            let scale = 1 + bass * 0.1 + pupilDilation * 0.5 + cassoneIntensity * 0.5;
+            if (silenceMode) scale = 1 + Math.sin(time * 0.002) * 0.03;
+            const r = baseR * scale;
+            const _act = 1 - calmness;
+
+            pupilCtx.save();
+            if (raveMode) {
+                pupilCtx.shadowColor = 'rgba(255,200,100,0.9)';
+                pupilCtx.shadowBlur = 20 + bass * 40;
+            } else if (marathonMode) {
+                pupilCtx.shadowColor = 'rgba(255,200,100,0.7)';
+                pupilCtx.shadowBlur = 15 + bass * 25;
+            } else {
+                pupilCtx.shadowColor = 'rgba(255,255,255,0.8)';
+                pupilCtx.shadowBlur = (10 + bass * 30) * (0.35 + 0.65 * _act);
+            }
+            // Dark fill (the "pupil hole")
+            pupilCtx.beginPath();
+            pupilCtx.arc(cx, cy, r, 0, Math.PI * 2);
+            pupilCtx.fillStyle = 'rgba(0,0,0,0.92)';
+            pupilCtx.fill();
+            // Bright stroke (iris edge)
+            pupilCtx.strokeStyle = raveMode
+                ? `rgba(255,220,150,${0.7 + bass * 0.3})`
+                : `rgba(255,255,255,${0.6 + bass * 0.4})`;
+            pupilCtx.lineWidth = 2;
+            pupilCtx.stroke();
+            pupilCtx.restore();
+        }
         // Initial static render of procedural background (no audio)
         drawProceduralBg(bgCtx, bgCanvas.width, bgCanvas.height, 0, 0, 0, 0, Date.now(), null);
 
@@ -2059,6 +2257,10 @@
         let lastZoomBurst = 0;
         let lastShakeBurst = 0;
         let motionBlurActive = false;
+        // Spring-damper smoothing for the background blur: builds up & releases
+        // along an ease-in/out curve, never with a flat linear ramp.
+        let currentBlur = 0;
+        let blurVelocity = 0;
         
         // Psychedelic state machine
         let psychState = 'normal'; // normal, trip, khole, strobe, aberration, vhs
@@ -2526,7 +2728,38 @@
             let treSum = 0;
             for (let i = 150; i < 300; i++) treSum += dataArray[i];
             const trebleLevel = treSum / (150 * 255);
-            
+
+            // Calmness eases toward 1 in silence, toward 0 when sound returns.
+            // Spring-damped so the fade is curved, never linear.
+            const calmTarget = silenceMode ? 1 : 0;
+            const calmForce = (calmTarget - calmness) * 0.03;
+            calmnessVelocity = calmnessVelocity * 0.80 + calmForce;
+            calmness += calmnessVelocity;
+            if (calmness < 0) { calmness = 0; calmnessVelocity = 0; }
+            if (calmness > 1) { calmness = 1; calmnessVelocity = 0; }
+            const activity = 1 - calmness; // convenience inverse
+
+            // Cassone detector: 1 s rolling bass moving average. When tempo is stable
+            // AND bassMA is high, target → 1 → pupil inflates with a slight overshoot
+            // ("flex"), then releases slowly. Asymmetric spring: rise fast, fall slow.
+            bassHistory[bassHistoryIdx] = bassLevel;
+            bassHistoryIdx = (bassHistoryIdx + 1) % bassHistory.length;
+            if (bassHistoryIdx === 0) bassHistoryFilled = true;
+            let bassMA = 0;
+            const _bn = bassHistoryFilled ? bassHistory.length : bassHistoryIdx;
+            if (_bn > 0) {
+                for (let i = 0; i < _bn; i++) bassMA += bassHistory[i];
+                bassMA /= _bn;
+            }
+            const cassoneTarget = (bpmStable && bassMA > 0.42)
+                ? Math.min(1, (bassMA - 0.42) / 0.30) : 0;
+            const _cassF = cassoneTarget - cassoneIntensity;
+            const _cassStiff = _cassF > 0 ? 0.07 : 0.025;
+            const _cassDamp  = _cassF > 0 ? 0.70 : 0.92;
+            cassoneVel = cassoneVel * _cassDamp + _cassF * _cassStiff;
+            cassoneIntensity = Math.max(0, Math.min(1.15, cassoneIntensity + cassoneVel));
+
+
             // Overall energy
             const energy = (bassLevel + midLevel + trebleLevel) / 3;
 
@@ -2612,6 +2845,16 @@
 
                 lastBeatTime = Date.now();
 
+                // Per-beat effect budget: cap how many effects fire on the same
+                // beat to keep the scene legible. Tuned for the rave vibe; bump
+                // these numbers if it feels too quiet on drops.
+                let _flashBudget   = 1;                  // fullscreen blasts
+                let _accentBudget  = isMobile ? 4 : 3;   // local visual accents
+                let _distortBudget = isMobile ? 3 : 2;   // geometry / post-fx glitches
+                const _claimFlash   = () => _flashBudget--   > 0;
+                const _claimAccent  = () => _accentBudget--  > 0;
+                const _claimDistort = () => _distortBudget-- > 0;
+
                 // Crowd strobe on beat - AUMENTATO
                 crowdStrobe.style.opacity = isMobile ? '0.95' : '1';
                 setTimeout(() => {
@@ -2620,7 +2863,7 @@
 
                 // 💫 SUPER SPATIAL GLOW STROBO - attiva su cassa dritta (SOGLIA RIDOTTA)
                 const spatialStroboThreshold = isMobile ? 0.35 : 0.8;
-                if (bassLevel > spatialStroboThreshold && Math.random() > 0.2) { // AUMENTATA la frequenza (0.5 -> 0.2)
+                if (bassLevel > spatialStroboThreshold && Math.random() > 0.2 && _claimFlash()) { // AUMENTATA la frequenza (0.5 -> 0.2)
                     // Cambia pattern e colore casualmente
                     if (Math.random() > 0.5) { // AUMENTATA la frequenza (0.7 -> 0.5)
                         currentStroboPattern = stroboPatterns[Math.floor(Math.random() * stroboPatterns.length)];
@@ -2639,7 +2882,7 @@
                 // 🌀 SPIRAL ZOOM VORTEXES - attiva spirali localizzate randomicamente
                 const spiralBassThreshold = isMobile ? 0.35 : 0.8;
                 // Su bassi forti: spirale explosion (zoom out)
-                if (bassLevel > spiralBassThreshold && Math.random() > 0.2) { // AUMENTATA frequenza (0.65 -> 0.2)
+                if (bassLevel > spiralBassThreshold && Math.random() > 0.2 && _claimAccent()) { // AUMENTATA frequenza (0.65 -> 0.2)
                     const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
                     const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
                     const size = 100 + Math.random() * 150; // 100-250px
@@ -2657,7 +2900,7 @@
                 
                 // Su medi: spirale implode (zoom in) - SOGLIA RIDOTTA
                 const midThreshold = isMobile ? 0.35 : 0.75;
-                if (midLevel > midThreshold && Math.random() > 0.3) { // AUMENTATA frequenza (0.7 -> 0.3)
+                if (midLevel > midThreshold && Math.random() > 0.3 && _claimAccent()) { // AUMENTATA frequenza (0.7 -> 0.3)
                     const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
                     const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
                     const size = 120 + Math.random() * 100; // 120-220px
@@ -2675,7 +2918,7 @@
 
                 // Su alti: spirale pulse (pulsante) - SOGLIA RIDOTTA
                 const trebleThreshold = isMobile ? 0.3 : 0.7;
-                if (trebleLevel > trebleThreshold && Math.random() > 0.35) { // AUMENTATA frequenza (0.75 -> 0.35)
+                if (trebleLevel > trebleThreshold && Math.random() > 0.35 && _claimAccent()) { // AUMENTATA frequenza (0.75 -> 0.35)
                     const vortex = spiralVortexes[Math.floor(Math.random() * spiralVortexes.length)];
                     const color = spiralColors[Math.floor(Math.random() * spiralColors.length)];
                     const size = 80 + Math.random() * 80; // 80-160px
@@ -2693,7 +2936,7 @@
 
                 // 🎯 ZOOM BURST SOTTOCASSA - zoom PIÙ FREQUENTE e PIÙ POTENTE!
                 const zoomThreshold = isMobile ? 0.35 : 0.8;
-                if (bassLevel > zoomThreshold && Date.now() - lastZoomBurst > (isMobile ? 400 : 600) && Math.random() > (isMobile ? 0.2 : 0.4)) {
+                if (bassLevel > zoomThreshold && Date.now() - lastZoomBurst > (isMobile ? 400 : 600) && Math.random() > (isMobile ? 0.2 : 0.4) && _claimDistort()) {
                     document.body.classList.add('zoom-burst');
                     lastZoomBurst = Date.now();
                     setTimeout(() => {
@@ -2703,7 +2946,7 @@
 
                 // 💥 SHAKE BURST - scossa rapida su peak
                 const shakeThreshold = isMobile ? 0.4 : 0.9;
-                if (bassLevel > shakeThreshold && Date.now() - lastShakeBurst > (isMobile ? 800 : 1500) && Math.random() > (isMobile ? 0.3 : 0.7)) {
+                if (bassLevel > shakeThreshold && Date.now() - lastShakeBurst > (isMobile ? 800 : 1500) && Math.random() > (isMobile ? 0.3 : 0.7) && _claimDistort()) {
                     document.body.classList.add('shake-burst');
                     lastShakeBurst = Date.now();
                     setTimeout(() => {
@@ -2713,7 +2956,7 @@
 
                 // Random strobe on peak beats - SOGLIA RIDOTTA
                 const strobeThreshold = isMobile ? 0.35 : 0.85;
-                if (bassLevel > strobeThreshold && Math.random() > (isMobile ? 0.3 : 0.7)) {
+                if (bassLevel > strobeThreshold && Math.random() > (isMobile ? 0.3 : 0.7) && _claimFlash()) {
                     strobeFlash.style.opacity = isMobile ? '1' : '0.8';
                     setTimeout(() => {
                         strobeFlash.style.opacity = '0';
@@ -2722,7 +2965,7 @@
 
                 // Random VHS glitch on strong beats - SOGLIA RIDOTTA
                 const vhsThreshold = isMobile ? 0.35 : 0.8;
-                if (bassLevel > vhsThreshold && Math.random() > (isMobile ? 0.5 : 0.85)) {
+                if (bassLevel > vhsThreshold && Math.random() > (isMobile ? 0.5 : 0.85) && _claimDistort()) {
                     vhsLines.style.opacity = isMobile ? '1' : '0.8';
                     background.style.transform = `scale(${zoomIntensity}) rotate(${rotateAmount}deg) translateX(${Math.random() * 10 - 5}px)`;
                     setTimeout(() => {
@@ -2732,7 +2975,7 @@
                 
                 // Random grain spike - SOGLIA RIDOTTA
                 const grainThreshold = isMobile ? 0.3 : 0.7;
-                if (energy > grainThreshold && Math.random() > (isMobile ? 0.5 : 0.9)) {
+                if (energy > grainThreshold && Math.random() > (isMobile ? 0.5 : 0.9) && _claimDistort()) {
                     grainOverlay.style.opacity = isMobile ? '0.8' : '0.5';
                     setTimeout(() => {
                         grainOverlay.style.opacity = (psychState === 'vhs' ? '0.4' : '0.15');
@@ -2742,7 +2985,7 @@
                 // ⚫⚪ NEGATIVE LAYER - raggi rotativi POTENZIATI!
                 // Su bassi: attiva raggi singoli o multipli - SOGLIA RIDOTTA
                 const negRayBasaThreshold = isMobile ? 0.3 : 0.7;
-                if (bassLevel > negRayBasaThreshold && Math.random() > (isMobile ? 0.05 : 0.3)) {
+                if (bassLevel > negRayBasaThreshold && Math.random() > (isMobile ? 0.05 : 0.3) && _claimDistort()) {
                     const rayPattern = Math.random() < 0.5 ? rotatingRays[0] : rotatingRays[1];
                     negativeLayer.style.opacity = isMobile ? '1' : '0.95';
                     rayPattern.style.opacity = '1';
@@ -2757,7 +3000,7 @@
 
                 // Su alti: attiva spirale o croce - SOGLIA RIDOTTA
                 const negRayTrebleThreshold = isMobile ? 0.25 : 0.65;
-                if (trebleLevel > negRayTrebleThreshold && Math.random() > (isMobile ? 0.1 : 0.4)) {
+                if (trebleLevel > negRayTrebleThreshold && Math.random() > (isMobile ? 0.1 : 0.4) && _claimDistort()) {
                     const rayPattern = Math.random() < 0.5 ? rotatingRays[2] : rotatingRays[3];
                     negativeLayer.style.opacity = isMobile ? '1' : '0.98';
                     rayPattern.style.opacity = '1';
@@ -2771,8 +3014,10 @@
                 }
 
                 // 🌊 FRACTAL TEARS - distorsioni frattali organiche - SOGLIA RIDOTTA
+                // TEMP: disabled — questi sono "l'invasore" (forme bianche octagon/ellipse/star che si gonfiano).
+                const FRACTAL_TEAR_ENABLED = false;
                 const fractalThreshold = isMobile ? 0.35 : 0.78;
-                if (bassLevel > fractalThreshold && Math.random() > (isMobile ? 0.2 : 0.5)) {
+                if (FRACTAL_TEAR_ENABLED && bassLevel > fractalThreshold && Math.random() > (isMobile ? 0.2 : 0.5) && _claimAccent()) {
                     const tear = fractalTears[Math.floor(Math.random() * fractalTears.length)];
                     const shape = fractalShapes[Math.floor(Math.random() * fractalShapes.length)];
                     const size = 80 + Math.random() * 180; // 80-260px
@@ -2789,9 +3034,10 @@
                 }
 
                 // ⭕ CIRCULAR STROBO - cerchi concentrici espandenti - SOGLIA RIDOTTA
+                const CIRCULAR_STROBO_ENABLED = true;
                 const circularBassThreshold = isMobile ? 0.35 : 0.8;
                 // Su bassi: lancia cerchi concentrici
-                if (bassLevel > circularBassThreshold && Math.random() > (isMobile ? 0.15 : 0.5)) {
+                if (CIRCULAR_STROBO_ENABLED && bassLevel > circularBassThreshold && Math.random() > (isMobile ? 0.15 : 0.5) && _claimAccent()) {
                     const circle = circularStrobos[Math.floor(Math.random() * circularStrobos.length)];
                     circle.classList.add('active');
 
@@ -2802,7 +3048,7 @@
 
                 // Su alti: lancia multipli cerchi veloci - SOGLIA RIDOTTA
                 const circularTrebleThreshold = isMobile ? 0.3 : 0.75;
-                if (trebleLevel > circularTrebleThreshold && Math.random() > (isMobile ? 0.2 : 0.55)) {
+                if (CIRCULAR_STROBO_ENABLED && trebleLevel > circularTrebleThreshold && Math.random() > (isMobile ? 0.2 : 0.55) && _claimAccent()) {
                     // Lancia 2-3 cerchi in rapida successione
                     const count = 2 + Math.floor(Math.random() * 2);
                     for (let i = 0; i < count; i++) {
@@ -2816,7 +3062,7 @@
 
                 // ✨ SILVER GLOW PARTICLES - glow argentati a ritmo medi
                 const glowMidThreshold = isMobile ? 0.25 : 0.6;
-                if (midLevel > glowMidThreshold && Math.random() > (isMobile ? 0.15 : 0.45)) {
+                if (midLevel > glowMidThreshold && Math.random() > (isMobile ? 0.15 : 0.45) && _claimAccent()) {
                     const glow = silverGlowParticles[Math.floor(Math.random() * silverGlowParticles.length)];
                     const pos = magicPositions[Math.floor(Math.random() * magicPositions.length)];
                     const size = 40 + Math.random() * 80;
@@ -2829,7 +3075,7 @@
 
                 // 🌀 SPIRAL WHIRL - spiraloidi rotativi random a ritmo
                 const whirlMidThreshold = isMobile ? 0.28 : 0.65;
-                if (midLevel > whirlMidThreshold && Math.random() > (isMobile ? 0.2 : 0.5)) {
+                if (midLevel > whirlMidThreshold && Math.random() > (isMobile ? 0.2 : 0.5) && _claimAccent()) {
                     const whirl = spiralWhirls[Math.floor(Math.random() * spiralWhirls.length)];
                     const pos = magicPositions[Math.floor(Math.random() * magicPositions.length)];
                     const colors = ['rgba(200, 220, 255, 0.9)', 'rgba(150, 200, 255, 0.9)', 'rgba(220, 200, 255, 0.9)', 'rgba(255, 255, 200, 0.9)'];
@@ -2848,7 +3094,7 @@
 
                 // ✨ SHIMMER TWINKLE - scintillio argentato random
                 const twinkleMidThreshold = isMobile ? 0.2 : 0.5;
-                if (midLevel > twinkleMidThreshold && Math.random() > (isMobile ? 0.3 : 0.7)) {
+                if (midLevel > twinkleMidThreshold && Math.random() > (isMobile ? 0.3 : 0.7) && _claimAccent()) {
                     const count = 1 + Math.floor(Math.random() * 3);
                     for (let i = 0; i < count; i++) {
                         setTimeout(() => {
@@ -2865,7 +3111,7 @@
                 // Distorsioni su bassi (stack speaker) - DISABILITATO su slow devices
                 if (!isSlowDevice) {
                     const distortThreshold = isMobile ? 0.3 : 0.75;
-                    if (bassLevel > distortThreshold && Math.random() > (isMobile ? 0.3 : 0.7)) {
+                    if (bassLevel > distortThreshold && Math.random() > (isMobile ? 0.3 : 0.7) && _claimDistort()) {
                         const zone = distortZones[Math.floor(Math.random() * distortZones.length)];
                         zone.classList.add('active');
                         setTimeout(() => zone.classList.remove('active'), 400);
@@ -2873,7 +3119,7 @@
 
                     // Warp glitch su medi (crowd e antenna zone) - SOGLIA RIDOTTA
                     const warpThreshold = isMobile ? 0.3 : 0.7;
-                    if (midLevel > warpThreshold && Math.random() > (isMobile ? 0.3 : 0.75)) {
+                    if (midLevel > warpThreshold && Math.random() > (isMobile ? 0.3 : 0.75) && _claimDistort()) {
                         const zone = warpZones[Math.floor(Math.random() * warpZones.length)];
                         zone.classList.add('active');
                         setTimeout(() => zone.classList.remove('active'), 300);
@@ -2881,7 +3127,7 @@
 
                     // Chromatic split su alti (zone laterali) - SOGLIA RIDOTTA
                     const chromaThreshold = isMobile ? 0.25 : 0.7;
-                    if (trebleLevel > chromaThreshold && Math.random() > (isMobile ? 0.3 : 0.8)) {
+                    if (trebleLevel > chromaThreshold && Math.random() > (isMobile ? 0.3 : 0.8) && _claimDistort()) {
                         const zone = chromaZones[Math.floor(Math.random() * chromaZones.length)];
                         zone.classList.add('active');
                         setTimeout(() => zone.classList.remove('active'), 200);
@@ -2891,7 +3137,7 @@
                 // �🎆 GEOMETRIC STROBES - brillamenti geometrici sui beat
                 // Bass -> cerchi + radial burst
                 const geoStrobeThreshold = isMobile ? 0.3 : 0.75;
-                if (bassLevel > geoStrobeThreshold && Math.random() > (isMobile ? 0.2 : 0.6)) {
+                if (bassLevel > geoStrobeThreshold && Math.random() > (isMobile ? 0.2 : 0.6) && _claimAccent()) {
                     const choice = Math.random();
                     if (choice < 0.4) {
                         // Cerchi concentrici - OPACITÀ AUMENTATA
@@ -2951,19 +3197,62 @@
                     randomStrobe.style.opacity = '0';
                 }, 30 + Math.random() * 40);
             }
-            
-            // 🌊 CONTINUOUS MOTION BLUR - blur motion sui medi
-            if (midLevel > 0.75) {
-                const blurAmount = midLevel * 3;
-                background.style.filter = `blur(${blurAmount}px)`;
-                motionBlurActive = true;
-            } else if (motionBlurActive) {
-                background.style.filter = 'blur(0)';
-                motionBlurActive = false;
+
+            // ✶ CONSTELLATION LINES — hi-hat / cymbal onsets connect nearby star particles
+            // with thin white segments. Independent channel: no beat-budget contention.
+            {
+                let trebleBaseline = 0;
+                const n = trebleHistFilled ? trebleHist.length : trebleHistIdx;
+                if (n > 4) {
+                    for (let i = 0; i < n; i++) trebleBaseline += trebleHist[i];
+                    trebleBaseline /= n;
+                }
+                trebleHist[trebleHistIdx] = trebleLevel;
+                trebleHistIdx = (trebleHistIdx + 1) % trebleHist.length;
+                if (trebleHistIdx === 0) trebleHistFilled = true;
+
+                const tNow = Date.now();
+                // Onset: ratio over baseline + absolute floor + cooldown + not in deep silence
+                const isOnset = trebleLevel > 0.22
+                    && trebleLevel > trebleBaseline * 1.55
+                    && tNow - lastConstellation > 140
+                    && activity > 0.35;
+                if (isOnset && bgParticles.length >= 3) {
+                    // Pick anchor + 1-2 nearby particles in normalized space
+                    const anchorIdx = Math.floor(Math.random() * bgParticles.length);
+                    const anchor = bgParticles[anchorIdx];
+                    const maxDist = 0.18;
+                    const candidates = [];
+                    for (let i = 0; i < bgParticles.length; i++) {
+                        if (i === anchorIdx) continue;
+                        const dx = bgParticles[i].x - anchor.x;
+                        const dy = bgParticles[i].y - anchor.y;
+                        if (dx*dx + dy*dy < maxDist*maxDist) candidates.push(i);
+                    }
+                    if (candidates.length > 0) {
+                        const slot = constellations[constIdx % constellationMax];
+                        slot.active = true;
+                        slot.t0 = tNow;
+                        const picks = [anchorIdx];
+                        const pickCount = Math.min(candidates.length, 1 + (Math.random() < 0.4 ? 1 : 0));
+                        for (let i = 0; i < pickCount; i++) {
+                            const k = Math.floor(Math.random() * candidates.length);
+                            picks.push(candidates[k]);
+                            candidates.splice(k, 1);
+                        }
+                        slot.points = picks;
+                        constIdx++;
+                        lastConstellation = tNow;
+                    }
+                }
             }
+
+            // 🌊 CONTINUOUS MOTION BLUR - target computed here, applied (lerped) at end of frame
+            // Soft ramp on mid: starts at 0.6, full strength at 0.8 (no hard 0.75 step).
             
             // 🎲 RANDOM MICRO MOVEMENTS - movimenti sottili costanti
-            if (Math.random() > 0.95) {
+            // Suppressed in silence so the scene reads as still, not twitchy.
+            if (calmness < 0.4 && Math.random() > 0.95) {
                 const microX = (Math.random() - 0.5) * 3;
                 const microY = (Math.random() - 0.5) * 3;
                 const microRotate = (Math.random() - 0.5) * 1;
@@ -3004,10 +3293,107 @@
             
             // Applica TUTTI i movimenti combinati
             background.style.transform = `scale(${zoomIntensity + depthZoom}) rotate(${rotateAmount + swayRotateZ}deg) rotateX(${swayRotateX}deg) translate(${swayX + burstOffsetX}px, ${swayY + burstOffsetY}px)`;
-            
-            // Blur durante zoom burst verso target
-            if (burstBlur > 0) {
-                background.style.filter = `blur(${burstBlur}px)`;
+
+            // ===== PUPIL MOTION (decoupled from #background sway) =====
+            // The pupil has its own coreography. Behaviour modes layer in priority,
+            // each with its own spring stiffness/damping for distinct "feel".
+            {
+                const _now = Date.now();
+                const _minDim = Math.min(bgCanvas.width, bgCanvas.height);
+                const _amp = _minDim * 0.04; // ~30 px on a typical viewport
+
+                // Compute target + spring tuning per active mode
+                let _tx = 0, _ty = 0;
+                let _stiff = 0.05, _damp = 0.78; // default
+
+                // BASE: silence drift — slow circular wander when scene is quiet
+                if (calmness > 0.3) {
+                    const t = _now * 0.001;
+                    const driftAmp = _amp * 0.4 * calmness;
+                    _tx = Math.cos(t * 1.05) * driftAmp;
+                    _ty = Math.sin(t * 1.05) * driftAmp;
+                    _stiff = 0.020; _damp = 0.88;
+                }
+
+                // OVERRIDE: Lissajous BPM-locked when tempo is stable
+                if (bpmStable) {
+                    const ang = bpmSyncAngle;
+                    const lissaAmp = _amp * (0.6 + midLevel * 0.6);
+                    _tx = Math.cos(ang * 0.5) * lissaAmp;
+                    _ty = Math.sin(ang) * lissaAmp * 0.7;
+                    _stiff = 0.05; _damp = 0.78;
+                }
+
+                // MODIFIER: Bass snap — every 4th beat, jump to a new random offset
+                if (beatHistory.length > 0 && beatHistory.length !== lastBassSnapBeat && beatHistory.length % 4 === 0) {
+                    lastBassSnapBeat = beatHistory.length;
+                    bassSnapTargetX = (Math.random() - 0.5) * _amp * 1.4;
+                    bassSnapTargetY = (Math.random() - 0.5) * _amp * 1.1;
+                    bassSnapUntil = _now + 700;
+                }
+                if (_now < bassSnapUntil) {
+                    _tx = bassSnapTargetX;
+                    _ty = bassSnapTargetY;
+                    _stiff = 0.10; _damp = 0.72;
+                }
+
+                // MODIFIER: Saccade — micro jolt on hi-hat onsets (reuses constellation onset)
+                if (_now - lastConstellation < 130) {
+                    if (saccadeT0 !== lastConstellation) {
+                        saccadeT0 = lastConstellation;
+                        saccadeX = (Math.random() - 0.5) * 28;
+                        saccadeY = (Math.random() - 0.5) * 28;
+                    }
+                    _tx += saccadeX;
+                    _ty += saccadeY;
+                    _stiff = 0.20; _damp = 0.62;
+                }
+
+                // OVERRIDE: Drop recoil — violent snap back to center on drop detection
+                if (dropFlashIntensity > 0.3) {
+                    _tx = 0; _ty = 0;
+                    _stiff = 0.30; _damp = 0.55;
+                }
+
+                pupilTargetX = _tx;
+                pupilTargetY = _ty;
+
+                // Spring-damper update — ease-in/out curve, never linear
+                pupilVelX = pupilVelX * _damp + (pupilTargetX - pupilOffX) * _stiff;
+                pupilVelY = pupilVelY * _damp + (pupilTargetY - pupilOffY) * _stiff;
+                pupilOffX += pupilVelX;
+                pupilOffY += pupilVelY;
+
+                // Update mask CSS vars: hole radius + center offset → rays follow the pupil
+                let _pupilScale = 1 + bassLevel * 0.1 + pupilDilation * 0.5 + cassoneIntensity * 0.5;
+                if (silenceMode) _pupilScale = 1 + Math.sin(_now * 0.002) * 0.03;
+                const _pupilR = _minDim * 0.06 * _pupilScale;
+                negativeLayer.style.setProperty('--pupil-r', _pupilR.toFixed(1) + 'px');
+                negativeLayer.style.setProperty('--pupil-x', pupilOffX.toFixed(1) + 'px');
+                negativeLayer.style.setProperty('--pupil-y', pupilOffY.toFixed(1) + 'px');
+            }
+            // Draw the pupil on its dedicated top canvas (always on top of everything).
+            drawPupil(Date.now(), bassLevel, pupilOffX, pupilOffY);
+
+            // Coalesced blur: sum mid-driven soft blur + burst blur, drive a
+            // spring-damper so the rise/fall is always eased (never flat).
+            let targetBlur = burstBlur;
+            if (midLevel > 0.6) {
+                const midRamp = Math.min(1, (midLevel - 0.6) / 0.2); // 0..1 across 0.6..0.8
+                targetBlur += midRamp * midLevel * 3;
+            }
+            // Spring: stiffness pulls toward target, damping smooths velocity →
+            // velocity ramps up, peaks in the middle, decays near target.
+            const blurForce = (targetBlur - currentBlur) * 0.05;
+            blurVelocity = blurVelocity * 0.78 + blurForce;
+            currentBlur += blurVelocity;
+            if (currentBlur < 0) currentBlur = 0;
+            if (currentBlur > 0.15) {
+                background.style.filter = `blur(${currentBlur.toFixed(2)}px)`;
+            } else if (background.style.filter) {
+                background.style.filter = '';
+                currentBlur = 0;
+                blurVelocity = 0;
             }
             
             // 🌀 CIRCLE PULSE (centro) - MOLTO più visibile con zoom burst
@@ -3018,7 +3404,8 @@
             const pulseBurst = (Date.now() - lastZoomBurst < 300) ? 1.5 : 1; // amplifica durante zoom burst
             circlePulse.style.width = (pulseSize * pulseBurst) + 'px';
             circlePulse.style.height = (pulseSize * pulseBurst) + 'px';
-            circlePulse.style.opacity = 0.5 + bassLevel * 0.5;
+            // Pulse opacity dimmed in silence so the breathing center reads quiet, not bright.
+            circlePulse.style.opacity = (0.5 + bassLevel * 0.5) * (0.25 + 0.75 * activity);
             circlePulse.style.borderWidth = (Math.max(2, isMobile ? 2 : 3) + bassLevel * (isMobile ? 5 : 10)) + 'px';
             
             // Glow extra su burst
@@ -3041,6 +3428,15 @@
                 flash.style.opacity = midLevel * 1.2;
                 flash.style.filter = `blur(${30 + midLevel * 50}px)`;
             });
+
+            // Continuous ambient FX dim with calmness so silence reads "almost black"
+            tunnelEffect.style.opacity = activity;
+            // body.silent pauses purely-CSS animations (dust, vhs, grain). Hysteresis
+            // around the 0.85 threshold to avoid flicker on the edge of breakdowns.
+            const wantSilent = calmness > 0.85;
+            const isSilent = document.body.classList.contains('silent');
+            if (wantSilent && !isSilent) document.body.classList.add('silent');
+            else if (!wantSilent && calmness < 0.55 && isSilent) document.body.classList.remove('silent');
             
             // 🖼️ PROCEDURAL BACKGROUND - render with audio reactivity
             bgFrameCount++;
@@ -3051,12 +3447,16 @@
             }
 
             // 🎨 VORTEX ROTATION - ruota e pulsa (OTTIMIZZATO: meno cerchi su mobile)
-            vortexRotation += energy * 3;
+            vortexRotation += energy * 3 * activity; // rotation halts in silence
 
             // Render con frequenza ridotta su mobile per performance
             let renderFrequency = isSmallMobile ? 4 : isMobile ? 2 : 1;
             if (isSlowDevice) renderFrequency += 2;
-            if (Math.floor(vortexRotation) % renderFrequency === 0) {
+            // Always clear at deep calm so no stale rings linger when bassLevel=0
+            // but the modulo gate happens to skip the render branch.
+            if (calmness > 0.85) {
+                vortexCtx.clearRect(0, 0, vortexCanvas.width, vortexCanvas.height);
+            } else if (Math.floor(vortexRotation) % renderFrequency === 0) {
                 vortexCtx.clearRect(0, 0, vortexCanvas.width, vortexCanvas.height);
                 vortexCtx.save();
                 vortexCtx.translate(vortexCanvas.width / 2, vortexCanvas.height / 2);
@@ -3066,7 +3466,7 @@
                 const maxRadius = isSlowDevice ? 600 : isMobile ? 800 : 1000;
                 const step = isSlowDevice ? 200 : isSmallMobile ? 160 : isMobile ? 140 : 120;
                 for (let r = 100; r < maxRadius; r += step) {
-                    vortexCtx.strokeStyle = `rgba(255, 255, 255, ${(bassLevel * 0.6) * (1 - r / maxRadius)})`;
+                    vortexCtx.strokeStyle = `rgba(255, 255, 255, ${(bassLevel * 0.6 * activity) * (1 - r / maxRadius)})`;
                     vortexCtx.lineWidth = 2 + bassLevel * 4;
                     if (!isSlowDevice) {
                         vortexCtx.shadowBlur = 15;

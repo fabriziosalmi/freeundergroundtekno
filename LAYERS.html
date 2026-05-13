@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Free Underground Tekno — Layer Map</title>
+<style>
+  @page { size: A4; margin: 12mm 10mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    font-size: 9pt;
+    line-height: 1.35;
+    color: #111;
+    background: #fff;
+    margin: 0;
+    padding: 0 6mm;
+  }
+  h1 { font-size: 16pt; margin: 6pt 0 2pt 0; letter-spacing: 0.5px; }
+  h2 { font-size: 11pt; margin: 10pt 0 3pt 0; padding-bottom: 2pt; border-bottom: 1px solid #000; letter-spacing: 0.3px; }
+  h3 { font-size: 9.5pt; margin: 6pt 0 2pt 0; }
+  .sub { color: #555; font-size: 8pt; margin-top: -2pt; }
+  table { border-collapse: collapse; width: 100%; font-size: 8pt; margin: 3pt 0 6pt 0; }
+  th, td { border: 0.5px solid #888; padding: 2pt 4pt; text-align: left; vertical-align: top; }
+  th { background: #eee; font-weight: 600; }
+  code, .mono { font-family: "SF Mono", "Menlo", "Consolas", monospace; font-size: 7.5pt; }
+  .on  { color: #0a7d12; font-weight: 600; }
+  .off { color: #b00; font-weight: 600; }
+  .calm { color: #946800; font-weight: 600; }
+  .new { background: #eef8ff; }
+  .legend { font-size: 7.5pt; color: #555; margin-bottom: 4pt; }
+  .col2 { column-count: 2; column-gap: 6mm; column-rule: 0.5px solid #ddd; }
+  .col2 > * { break-inside: avoid; }
+  .pill { display: inline-block; padding: 0 4pt; border-radius: 3pt; background: #000; color: #fff; font-size: 7pt; font-weight: 600; letter-spacing: 0.5px; }
+  .pill-bass { background: #000; }
+  .pill-mid { background: #555; }
+  .pill-treble { background: #888; color: #fff; }
+  .pill-energy { background: #b00; }
+  .pill-bpm { background: #006; }
+  .pill-state { background: #060; }
+  .threshold { font-family: "SF Mono", monospace; font-size: 7.5pt; }
+  .small { font-size: 7.5pt; color: #666; }
+  hr { border: none; border-top: 0.5px solid #ccc; margin: 6pt 0; }
+  .lay { background: #f6f6f6; }
+  @media print {
+    body { padding: 0; }
+    a { color: #000; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+
+<h1>FREE UNDERGROUND TEKNO — Layer Map</h1>
+<div class="sub">
+  <span class="mono">docs/index.html</span> · branch <span class="mono">thecleaner</span> ·
+  3 freq bands: <span class="pill pill-bass">BASS</span> 0–15 ·
+  <span class="pill pill-mid">MID</span> 40–120 ·
+  <span class="pill pill-treble">TREBLE</span> 150–300 · <span class="pill pill-energy">ENERGY</span> = (B+M+T)/3
+</div>
+<div class="legend">
+  Legenda stato: <span class="on">ON</span> attivo · <span class="off">OFF</span> disattivato (flag) · <span class="calm">~</span> modulato da <code>calmness</code> in silenzio · <span class="new">riga azzurra</span> = aggiunta su <code>thecleaner</code>
+</div>
+
+<h2>Stati globali (state machines)</h2>
+<table>
+  <tr><th>Stato</th><th>Trigger</th><th>Dwell</th><th>Effetto</th></tr>
+  <tr><td><b>silenceMode</b></td><td><code>energy &lt; 0.08</code></td><td>2 s</td><td>respiro cerchio, blue tint, stelle dim · alimenta <code>calmness</code></td></tr>
+  <tr class="new"><td><b>calmness</b> 0–1</td><td>spring-damped → silenceMode</td><td>~0.8 s ramp</td><td>attenua: stelle, hex, spirale, vortex, glow, tunnel · <code>body.silent</code> ferma CSS</td></tr>
+  <tr><td><b>raveMode</b></td><td><code>energy &gt; 0.65</code></td><td>5 s</td><td>tint caldo, glow shadow del cerchio espanso</td></tr>
+  <tr><td><b>marathonMode</b></td><td>playback &gt; 15 min</td><td>—</td><td>1 stella su 5 diventa "warm" (sprite warm)</td></tr>
+  <tr><td><b>dropDetector</b></td><td>energy avg &lt;0.15 + bass spike &gt;0.7</td><td>cd 5 s</td><td>flash bianco, 3 pulse rings, sacred geo boost</td></tr>
+  <tr><td><b>BPM stable</b></td><td>4+ beat con varianza &lt; 100ms²</td><td>—</td><td>spirale + sacred geo si sincronizzano</td></tr>
+  <tr><td><b>pupilDilation</b> 0–1</td><td>beat steady (deviation &lt; 0.3)</td><td>20 beat max</td><td>cerchio centrale si dilata</td></tr>
+  <tr><td><b>psychState</b></td><td>cambio ogni 30–60 s random</td><td>varia</td><td>6 stati: normal / trip / khole / strobe / aberration / vhs</td></tr>
+</table>
+
+<h2>Layer canvas (procedural background)</h2>
+<div class="sub mono">drawProceduralBg() · render-frequency desktop=1, mobile=2, slow=4</div>
+<table>
+  <tr><th>#</th><th>Layer</th><th>Trigger</th><th>Soglia / mapping</th><th>Stato</th></tr>
+  <tr class="lay"><td>L0</td><td>Star Field / Warehouse Dust (200 particles)</td><td><span class="pill pill-treble">TREBLE</span> twinkle + <span class="pill pill-bpm">BPM</span> boost</td><td class="threshold">α = 0.25 + treble·twinkle·0.5 + bpmPulse·0.4</td><td><span class="on">ON</span> <span class="calm">~drift halts + dim</span></td></tr>
+  <tr class="lay new"><td>L0b</td><td>Constellation Lines (hi-hat onsets)</td><td><span class="pill pill-treble">TREBLE</span> onset (vs baseline ×1.55)</td><td class="threshold">treble &gt; 0.22 &amp; ratio·1.55 &amp; cd 140 ms</td><td><span class="on">ON</span> <span class="calm">~suppress</span></td></tr>
+  <tr class="lay new"><td>L0.5</td><td>Radial BPM Wave (cerchio espandente)</td><td><span class="pill pill-bpm">BPM</span> stable</td><td class="threshold">bpmPulseIntensity &gt; 0.05</td><td><span class="on">ON</span></td></tr>
+  <tr class="lay"><td>L1</td><td>Pulse Rings (concentric, da centro)</td><td><span class="pill pill-bass">BASS</span> peaks · drop spawn ×3</td><td class="threshold">bass &gt; 0.5, cd 300 ms · drop: 3 ring simultanei</td><td><span class="on">ON</span></td></tr>
+  <tr class="lay"><td>L2</td><td>Hex Grid (pre-rendered, blitted)</td><td><span class="pill pill-bass">BASS</span> + <span class="pill pill-bpm">BPM</span> boost</td><td class="threshold">α = 0.6 + bass·1.0 + bpm·0.3</td><td><span class="on">ON</span> <span class="calm">~fade</span></td></tr>
+  <tr class="lay"><td>L3</td><td>Spiral Vortex (14 arms, radial gradient)</td><td><span class="pill pill-bass">BASS</span> amplitude · <span class="pill pill-bpm">BPM</span> sync rotation</td><td class="threshold">α = (0.15 + bass·0.2) · activity · radial gradient · width 1.5 + bass·2</td><td><span class="on">ON</span> <span class="calm">~fade</span> · post-fix: 14 stroke/frame (era 1120)</td></tr>
+  <tr class="lay"><td>L5</td><td>Central Circle / Pupil (broadcast icon)</td><td><span class="pill pill-bass">BASS</span> scale + dilation + breath</td><td class="threshold">r = minDim·0.06 · (1 + bass·0.1 + pupil·0.5) · silenzio: breath sin(t·0.002)</td><td><span class="on">ON</span> <span class="calm">~glow tighter</span></td></tr>
+  <tr class="lay"><td>L6</td><td>Sacred Geometry (Flower of Life)</td><td><span class="pill pill-energy">ENERGY</span> &gt; 0.6 + <span class="pill pill-bpm">BPM</span> sync</td><td class="threshold">α target = 1 if energy &gt; 0.6 else 0 · drop boost</td><td><span class="on">ON</span></td></tr>
+  <tr class="lay"><td>L8</td><td>State Overlays (tint)</td><td>drop flash · rave tint · silence blue</td><td class="threshold">drop: white α 0.3 · rave: amber α 0.04 · silence: blue α 0.05</td><td><span class="on">ON</span></td></tr>
+</table>
+
+<h2>Vortex Canvas</h2>
+<table>
+  <tr><th>Layer</th><th>Trigger</th><th>Cost note</th><th>Stato</th></tr>
+  <tr><td>Concentric Rings rotanti</td><td><span class="pill pill-energy">ENERGY</span> rotation · <span class="pill pill-bass">BASS</span> alpha</td><td>shadowBlur=15 sempre (target tier P0.2)</td><td><span class="on">ON</span> <span class="calm">~clear forzato sopra calmness 0.85</span></td></tr>
+</table>
+
+<h2>DOM Overlay (effetti per-beat, gated dal budget)</h2>
+<div class="sub">Budget per beat: <span class="pill">FLASH</span> max 1 · <span class="pill">ACCENT</span> max 3 desk / 4 mob · <span class="pill">DISTORT</span> max 2 desk / 3 mob</div>
+
+<div class="col2">
+
+<h3>Triggerati da BASS</h3>
+<table>
+<tr><th>Effetto</th><th>Soglia</th><th>Stato</th></tr>
+<tr><td>crowdStrobe (unconditional)</td><td class="threshold">ogni beat</td><td><span class="on">ON</span></td></tr>
+<tr><td>spatialStrobo (5 pattern)</td><td class="threshold">bass &gt; 0.8 · FLASH</td><td><span class="on">ON</span></td></tr>
+<tr><td>spiralVortex bass (5 elementi)</td><td class="threshold">bass &gt; 0.8 · ACCENT</td><td><span class="on">ON</span></td></tr>
+<tr><td>zoom-burst</td><td class="threshold">bass &gt; 0.8 + cd 600 ms · DISTORT</td><td><span class="on">ON</span></td></tr>
+<tr><td>shake-burst</td><td class="threshold">bass &gt; 0.9 + cd 1.5 s · DISTORT</td><td><span class="on">ON</span></td></tr>
+<tr><td>strobeFlash (bianco full-screen)</td><td class="threshold">bass &gt; 0.85 · FLASH</td><td><span class="on">ON</span></td></tr>
+<tr><td>VHS lines spike</td><td class="threshold">bass &gt; 0.8 · DISTORT</td><td><span class="on">ON</span></td></tr>
+<tr><td>negativeLayer rays (single/multi)</td><td class="threshold">bass &gt; 0.7 · DISTORT</td><td><span class="on">ON</span></td></tr>
+<tr><td>fractalTear (6 clip-path: octagon, star, etc)</td><td class="threshold">bass &gt; 0.78 · ACCENT</td><td><span class="off">OFF (l'invasore)</span></td></tr>
+<tr><td>circularStrobo (4 anelli da 50→150vw)</td><td class="threshold">bass &gt; 0.8 · ACCENT</td><td><span class="on">ON</span></td></tr>
+<tr><td>distortZone (3 zone speaker stack)</td><td class="threshold">bass &gt; 0.75 · DISTORT</td><td><span class="on">ON</span></td></tr>
+<tr><td>geo-strobe cerchi/radial/bottom</td><td class="threshold">bass &gt; 0.75 · ACCENT</td><td><span class="on">ON</span></td></tr>
+</table>
+
+<h3>Triggerati da MID</h3>
+<table>
+<tr><th>Effetto</th><th>Soglia</th><th>Stato</th></tr>
+<tr><td>spiralVortex mid (implode)</td><td class="threshold">mid &gt; 0.75 · ACCENT</td><td><span class="on">ON</span></td></tr>
+<tr><td>silverGlowParticle (8 elementi)</td><td class="threshold">mid &gt; 0.6 · ACCENT</td><td><span class="on">ON</span></td></tr>
+<tr><td>spiralWhirl (4 SVG spirali rotanti)</td><td class="threshold">mid &gt; 0.65 · ACCENT</td><td><span class="on">ON</span></td></tr>
+<tr><td>shimmerTwinkle (5 puntini scale 1→3)</td><td class="threshold">mid &gt; 0.5 · ACCENT</td><td><span class="on">ON</span></td></tr>
+<tr><td>warpZone (antenna + crowd)</td><td class="threshold">mid &gt; 0.7 · DISTORT</td><td><span class="on">ON</span></td></tr>
+<tr><td>strobeLeftWall / RightWall</td><td class="threshold">mid &gt; 0.7 (fuori budget)</td><td><span class="on">ON</span></td></tr>
+<tr><td>speaker-flash laterali (always-on)</td><td class="threshold">α = mid · 1.2</td><td><span class="on">ON</span></td></tr>
+<tr><td>dreamLayer (4 immagini blurred)</td><td class="threshold">bass &gt; 0.6 + mid &gt; 0.7 · rare</td><td><span class="on">ON</span></td></tr>
+</table>
+
+<h3>Triggerati da TREBLE</h3>
+<table>
+<tr><th>Effetto</th><th>Soglia</th><th>Stato</th></tr>
+<tr><td>spiralVortex treble (pulse)</td><td class="threshold">treble &gt; 0.7 · ACCENT</td><td><span class="on">ON</span></td></tr>
+<tr><td>negativeLayer treble (spiral/cross)</td><td class="threshold">treble &gt; 0.65 · DISTORT</td><td><span class="on">ON</span></td></tr>
+<tr><td>circularStrobo treble (2-3 in cascata)</td><td class="threshold">treble &gt; 0.75 · ACCENT</td><td><span class="on">ON</span></td></tr>
+<tr><td>chromaZone (zone laterali)</td><td class="threshold">treble &gt; 0.7 · DISTORT</td><td><span class="on">ON</span></td></tr>
+<tr><td>strobeTop (antenna beam)</td><td class="threshold">treble &gt; 0.75 (fuori budget)</td><td><span class="on">ON</span></td></tr>
+</table>
+
+<h3>Triggerati da ENERGY / altri</h3>
+<table>
+<tr><th>Effetto</th><th>Soglia</th><th>Stato</th></tr>
+<tr><td>grain spike</td><td class="threshold">energy &gt; 0.7 · DISTORT</td><td><span class="on">ON</span></td></tr>
+<tr><td>geo-strobe random</td><td class="threshold">energy &gt; 0.8 (fuori budget)</td><td><span class="on">ON</span></td></tr>
+<tr><td>circlePulse (DOM halo)</td><td class="threshold">α = (0.5 + bass·0.5) · activity</td><td><span class="on">ON</span> <span class="calm">~dim 25%</span></td></tr>
+</table>
+
+<h3>Continui (CSS animations)</h3>
+<table>
+<tr><th>Effetto</th><th>Trigger</th><th>Stato</th></tr>
+<tr><td>tunnelEffect rings (50→2000px, 3s loop)</td><td>sempre</td><td><span class="on">ON</span> <span class="calm">~opacity = activity</span> · target P0.3: transform scale</td></tr>
+<tr><td>dust-particles (15 punti, 20s)</td><td>sempre</td><td><span class="on">ON</span> · pausa con body.silent</td></tr>
+<tr><td>vhs-line (5 linee, 8s scan)</td><td>sempre + state</td><td><span class="on">ON</span> · pausa con body.silent</td></tr>
+<tr><td>grainOverlay (0.5s steps)</td><td>sempre</td><td><span class="on">ON</span> · pausa con body.silent</td></tr>
+</table>
+
+</div>
+
+<h2>State Layer (psychState)</h2>
+<table>
+<tr><th>Stato</th><th>Peso</th><th>Effetto</th><th>Durata</th></tr>
+<tr><td>normal</td><td>30%</td><td>baseline</td><td>30–60 s</td></tr>
+<tr><td>trip</td><td>20%</td><td>breath 4s loop su #background</td><td>15–30 s</td></tr>
+<tr><td>khole</td><td>15%</td><td>blur 3px + contrast 1.5 + saturate 0 (B&amp;W)</td><td>10–20 s</td></tr>
+<tr><td>strobe</td><td>10%</td><td>10–30 flash ravvicinati</td><td>5 s</td></tr>
+<tr><td>aberration</td><td>15%</td><td>drop-shadow chromatic shift</td><td>8–15 s</td></tr>
+<tr><td>vhs</td><td>10%</td><td>vhs lines α 0.6 + grain α 0.4 permanenti</td><td>10–20 s</td></tr>
+</table>
+
+<h2>Blur & Movement (coalesced)</h2>
+<table>
+<tr><th>Sistema</th><th>Sorgenti</th><th>Smoothing</th></tr>
+<tr class="new"><td><b>currentBlur</b> (su #background)</td><td>burstBlur (zoom-burst) + midRamp (mid &gt; 0.6 ramp soft fino a 0.8)</td><td>spring-damper k=0.05 / d=0.78 · target / decay easing</td></tr>
+<tr><td>transform main</td><td>zoomIntensity + depthZoom + rotateAmount + sway X/Y + rotateZ/X + burst offset</td><td>POV swirl, BPM-cyclic 2/3/2.5 s</td></tr>
+<tr><td>micro-movements</td><td>5%/frame random jitter</td><td><span class="calm">skip se calmness &gt; 0.4</span></td></tr>
+</table>
+
+<h2>Performance (cosa già fatto / cosa resta)</h2>
+<table>
+<tr><th>#</th><th>Fix</th><th>Stato</th></tr>
+<tr class="new"><td>P0.1</td><td>Spirale 1120 → 14 stroke/frame (radial gradient)</td><td><span class="on">DONE</span></td></tr>
+<tr class="new"><td>P0.7</td><td>Star sprite glow (no fillRect duro)</td><td><span class="on">DONE</span></td></tr>
+<tr class="new"><td>P2.1</td><td>Beat budget (Flash×1 / Accent×3 / Distort×2)</td><td><span class="on">DONE</span></td></tr>
+<tr class="new"><td>Blur</td><td>Spring-damper sul filter blur</td><td><span class="on">DONE</span></td></tr>
+<tr class="new"><td>Silence</td><td>calmness 0–1 + body.silent + fade su tutte le sorgenti</td><td><span class="on">DONE</span></td></tr>
+<tr class="new"><td>L0b</td><td>Constellation lines su hi-hat onsets</td><td><span class="on">DONE</span></td></tr>
+<tr><td>P0.2</td><td>Vortex shadowBlur=15 → gate sotto bass &gt; 0.5</td><td>TODO</td></tr>
+<tr><td>P0.3</td><td>tunnel-zoom da width/height → transform scale</td><td>TODO</td></tr>
+<tr><td>P0.4</td><td>circle-pulse-expand → transform scale</td><td>TODO</td></tr>
+<tr><td>P0.5</td><td>circlePulse box-shadow 3-layer → 1-layer</td><td>TODO</td></tr>
+<tr><td>P1.1/2</td><td>will-change su tutti gli overlay animati</td><td>TODO</td></tr>
+<tr><td>P5.1</td><td>document.hidden pause animate()</td><td>TODO</td></tr>
+<tr><td>P5.2</td><td>frame-rate downshift su calmness &gt; 0.85</td><td>TODO</td></tr>
+<tr><td>Asset</td><td>Step A: 24 file orfani rimossi (12 MB)</td><td>STAGED</td></tr>
+</table>
+
+<h2>Aperti / da decidere</h2>
+<ul style="margin: 4pt 0 0 12pt; padding: 0;">
+  <li><b>Mask pupilla per i raggi</b> — domanda da 1M$, via <code>mask: radial-gradient()</code> con CSS var dinamica legata al raggio del cerchio centrale.</li>
+  <li><b>Chicche per momenti senza cassa (B&amp;W autoriale)</b> — già scelta #1 = constellation lines (DONE). Prossime in coda: inverted-flash su snare · echo from the past su drop · scan-line scrub su mid sustenuto.</li>
+  <li><b>"Stelle enormi quadrati"</b> = fractal-tear → disattivati (FRACTAL_TEAR_ENABLED = false). Da decidere se rimuoverli definitivamente o rifare il look.</li>
+</ul>
+
+<div class="small" style="margin-top: 8pt; text-align: right;">
+  Generato per ragionarci sopra · branch <code>thecleaner</code> · nessun commit pushato
+</div>
+
+</body>
+</html>
