@@ -1607,20 +1607,6 @@
         let sacredGeoAngle = 0;
         let sacredGeoBoost = 0;
 
-        // Layer 7: Tekno Culture Text Flash
-        const teknoWords = [
-            'FREE', 'TEKNO', 'SOUND SYSTEM', '23', 'SPIRAL TRIBE', 'RESIST', 'BASS',
-            'UNITE', 'UNDERGROUND', 'RAVE ON', 'WORLD', '15 YEARS', 'DIY', 'TAZ',
-            'ACID', 'WAREHOUSE', 'SQUAT', 'TRIBE', 'NOMAD', 'HARDCORE', 'GABBER',
-            'BREAKCORE', 'JUNGLE', 'DnB', 'HARDTEK', 'FRENCHCORE', 'MENTAL',
-            'POSITIVE', 'FREEDOM', 'CHAOS', 'LOVE'
-        ];
-        const activeFlashes = [
-            { active: false, word: '', x: 0, y: 0, birth: 0, duration: 1000 },
-            { active: false, word: '', x: 0, y: 0, birth: 0, duration: 1000 },
-            { active: false, word: '', x: 0, y: 0, birth: 0, duration: 1000 }
-        ];
-
         // State detection buffers
         const energyHistorySize = 60;
         const energyHistory = new Float32Array(energyHistorySize);
@@ -1922,42 +1908,6 @@
             ctx.stroke();
             ctx.restore();
 
-            // Broadcast icon
-            const antennaHeight = circleRadius * 0.7;
-            const dotRadius = 3;
-
-            ctx.strokeStyle = `rgba(255,255,255,${0.5 + midLevel * 0.5})`;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(cx, cy - antennaHeight * 0.1);
-            ctx.lineTo(cx, cy - antennaHeight);
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(cx, cy - antennaHeight, dotRadius, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(255,255,255,${0.6 + midLevel * 0.4})`;
-            ctx.fill();
-
-            const arcRadii = [18, 28, 38];
-            const arcAngleSpan = Math.PI * 0.3;
-            const arcCenterY = cy - antennaHeight;
-
-            for (let i = 0; i < arcRadii.length; i++) {
-                const r = arcRadii[i] + midLevel * 5;
-                const fade = 1 - i * 0.25;
-                const arcAlpha = (0.3 + midLevel * 0.6) * fade;
-                ctx.strokeStyle = `rgba(255,255,255,${arcAlpha})`;
-                ctx.lineWidth = 1.5;
-
-                ctx.beginPath();
-                ctx.arc(cx, arcCenterY, r, -Math.PI / 2 - arcAngleSpan - Math.PI * 0.15, -Math.PI / 2 - Math.PI * 0.15 + arcAngleSpan);
-                ctx.stroke();
-
-                ctx.beginPath();
-                ctx.arc(cx, arcCenterY, r, -Math.PI / 2 + Math.PI * 0.15 - arcAngleSpan, -Math.PI / 2 + Math.PI * 0.15 + arcAngleSpan);
-                ctx.stroke();
-            }
-
             // ===== LAYER 6: Sacred Geometry — Flower of Life =====
             const sacredTarget = energy > 0.6 ? 1 : 0;
             sacredGeoAlpha += (sacredTarget - sacredGeoAlpha) * 0.05;
@@ -2004,87 +1954,6 @@
                 ctx.stroke();
                 ctx.restore();
             }
-
-            // ===== LAYER 7: Tekno Culture Text Flash =====
-            const fontSize = isMobile ? 10 : 14;
-
-            // Spawn logic
-            let freeSlot = -1;
-            for (let i = 0; i < 3; i++) {
-                if (!activeFlashes[i].active) { freeSlot = i; break; }
-            }
-
-            if (freeSlot >= 0) {
-                let shouldSpawn = false;
-                let forceWord = null;
-
-                if (dropFlashIntensity > 0.5 && Math.random() < 0.5) {
-                    shouldSpawn = true;
-                } else if (bassLevel > 0.7 && Math.random() < 0.15) {
-                    shouldSpawn = true;
-                } else if (energy > 0.65 && Math.random() < 0.08) {
-                    shouldSpawn = true;
-                }
-
-                if (raveMode && freeSlot === 0) {
-                    forceWord = 'RAVE ON';
-                    shouldSpawn = true;
-                }
-
-                // Marathon "15 YEARS" flash (once, 3 seconds)
-                if (marathonFlashStart > 0 && time - marathonFlashStart < 3000 && freeSlot === 0) {
-                    forceWord = '15 YEARS';
-                    shouldSpawn = true;
-                }
-
-                if (shouldSpawn) {
-                    const flash = activeFlashes[freeSlot];
-                    flash.active = true;
-                    flash.word = forceWord || teknoWords[Math.floor(Math.random() * teknoWords.length)];
-                    flash.x = 0.1 + Math.random() * 0.8; // 10%-90% of width
-                    flash.y = 0.1 + Math.random() * 0.8;
-                    flash.birth = time;
-                    flash.duration = 800 + Math.random() * 400;
-                    if (forceWord === 'RAVE ON') {
-                        flash.x = 0.5;
-                        flash.y = 0.5;
-                    }
-                    if (forceWord === '15 YEARS') {
-                        flash.x = 0.5;
-                        flash.y = 0.45;
-                        flash.duration = 3000;
-                    }
-                }
-            }
-
-            // Render active flashes
-            ctx.font = `bold ${fontSize}px 'Courier New', monospace`;
-            ctx.textAlign = 'center';
-            for (let i = 0; i < 3; i++) {
-                const flash = activeFlashes[i];
-                if (!flash.active) continue;
-                const elapsed = time - flash.birth;
-                if (elapsed > flash.duration) { flash.active = false; continue; }
-                const progress = elapsed / flash.duration;
-                // Fast fade-in (first 15%), slow fade-out (85%)
-                let alpha;
-                if (progress < 0.15) {
-                    alpha = progress / 0.15;
-                } else {
-                    alpha = 1 - (progress - 0.15) / 0.85;
-                }
-                alpha *= 0.7;
-
-                if (flash.word === 'RAVE ON' && raveMode) {
-                    ctx.fillStyle = `rgba(255,200,100,${alpha})`;
-                } else if (flash.word === '15 YEARS') {
-                    ctx.fillStyle = `rgba(255,200,100,${alpha})`;
-                } else {
-                    ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-                }
-                ctx.fillText(flash.word, flash.x * w, flash.y * h);
-            }
-            ctx.textAlign = 'start';
 
             // ===== LAYER 8: State Overlays =====
             // Drop burst flash
