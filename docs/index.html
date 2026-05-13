@@ -3034,11 +3034,13 @@
             }
             
             // 📊 FREQUENCY BARS
-            const samplesPerBar = Math.floor(bufferLength / barCount);
+            const samplesPerBar = Math.floor(dataArray.length / barCount);
             freqBars.forEach((bar, i) => {
                 const start = i * samplesPerBar;
-                const barData = dataArray.slice(start, start + samplesPerBar);
-                const barLevel = barData.reduce((a, b) => a + b) / (barData.length * 255);
+                const end = start + samplesPerBar;
+                let barSum = 0;
+                for (let j = start; j < end; j++) barSum += dataArray[j];
+                const barLevel = barSum / (samplesPerBar * 255);
                 bar.style.height = (10 + barLevel * 90) + 'px';
                 bar.style.opacity = 0.6 + barLevel * 0.4;
             });
