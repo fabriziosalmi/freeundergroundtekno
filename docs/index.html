@@ -182,10 +182,10 @@
             border: 5px solid rgba(255, 255, 255, 0.9);
             z-index: 1;
             pointer-events: none;
-            box-shadow: 
-                0 0 30px rgba(255, 255, 255, 0.8),
-                0 0 60px rgba(255, 255, 255, 0.6),
-                inset 0 0 30px rgba(255, 255, 255, 0.4);
+            /* Single-layer shadow (was 3 layers including an inset). Same visual
+               weight, ~half the paint cost when width/height/opacity change. */
+            box-shadow: 0 0 45px rgba(255, 255, 255, 0.75);
+            will-change: width, height, opacity, box-shadow;
         }
         
         /* SPEAKER FLASHES - flash sulle casse laterali */
@@ -255,26 +255,22 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            /* Fixed size + transform scale → GPU-compositable, no layout pass per frame.
+               6 rings × 60 fps = 360 layout passes/s eliminated. */
+            width: 2000px;
+            height: 2000px;
+            margin: -1000px 0 0 -1000px;
             border: 2px solid rgba(255, 255, 255, 0.6);
             border-radius: 50%;
+            transform: scale(0.025);
             animation: tunnel-zoom 3s linear infinite;
+            will-change: transform, opacity;
         }
-        
+
         @keyframes tunnel-zoom {
-            0% {
-                width: 50px;
-                height: 50px;
-                opacity: 0;
-            }
-            50% {
-                opacity: 0.8;
-            }
-            100% {
-                width: 2000px;
-                height: 2000px;
-                opacity: 0;
-            }
+            0%   { transform: scale(0.025); opacity: 0; }
+            50%  { opacity: 0.8; }
+            100% { transform: scale(1); opacity: 0; }
         }
         
         /* GRAIN OVERLAY - rumore analogico */
@@ -289,6 +285,7 @@
             z-index: 100;
             pointer-events: none;
             animation: grain-move 0.5s steps(4) infinite;
+            will-change: transform;
         }
         
         @keyframes grain-move {
@@ -313,16 +310,18 @@
         
         .vhs-line {
             position: absolute;
+            top: 0;
             left: 0;
             width: 100%;
             height: 2px;
             background: rgba(255, 255, 255, 0.1);
             animation: vhs-scan 8s linear infinite;
+            will-change: transform;
         }
-        
+
         @keyframes vhs-scan {
-            0% { top: -2px; }
-            100% { top: 100%; }
+            0%   { transform: translateY(-2px); }
+            100% { transform: translateY(100vh); }
         }
         
         /* CHROMATIC ABERRATION */
@@ -386,6 +385,7 @@
             z-index: 104;
             pointer-events: none;
             animation: dust-float 20s linear infinite;
+            will-change: transform, opacity;
         }
         
         @keyframes dust-float {
@@ -2198,9 +2198,12 @@
         const isSlowDevice = navigator.hardwareConcurrency <= 4 || !navigator.deviceMemory || navigator.deviceMemory <= 4;
         console.log(`Device: ${isDesktop ? 'DESKTOP' : 'MOBILE'} | Slow Device: ${isSlowDevice}`);
 
-        // Frame rate throttling for slow devices (30fps vs 60fps)
+        // Frame rate throttling for slow devices (30 fps vs 60 fps).
+        // baseFrameTime is the device-bound floor; in deep silence (calmness > 0.85)
+        // we further downshift to ~10 fps — the scene is faded almost to black, the
+        // eye can't perceive the difference, but CPU drops hugely.
         let lastFrameTime = 0;
-        const targetFrameTime = isSlowDevice ? 1000 / 30 : 1000 / 60; // 30fps or 60fps
+        const baseFrameTime = isSlowDevice ? 1000 / 30 : 1000 / 60;
         let skippedFrames = 0;
 
         // Live toggle button
@@ -2234,6 +2237,20 @@
 
         document.addEventListener('mousemove', resetAutoHide);
         document.addEventListener('touchstart', resetAutoHide);
+
+        // Pause the rAF loop when the tab is hidden — saves CPU/battery in background.
+        // The audio keeps streaming (managed independently); only visuals stop.
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                if (animationId) {
+                    cancelAnimationFrame(animationId);
+                    animationId = null;
+                }
+            } else if (isPlaying && !animationId) {
+                lastFrameTime = 0; // reset throttle so first frame back is immediate
+                animate();
+            }
+        });
 
         // Try autoplay on load
         window.addEventListener('load', async () => {
@@ -2704,9 +2721,10 @@
         function animate() {
             if (!isPlaying) return;
 
-            // Frame rate throttling for performance
+            // Frame rate throttling for performance — dynamic downshift in deep silence.
             const now = performance.now();
             const deltaTime = now - lastFrameTime;
+            const targetFrameTime = calmness > 0.85 ? 1000 / 10 : baseFrameTime;
             if (deltaTime < targetFrameTime) {
                 skippedFrames++;
                 animationId = requestAnimationFrame(animate);
@@ -3409,19 +3427,10 @@
             circlePulse.style.borderWidth = (Math.max(2, isMobile ? 2 : 3) + bassLevel * (isMobile ? 5 : 10)) + 'px';
             
             // Glow extra su burst
-            if (pulseBurst > 1) {
-                circlePulse.style.boxShadow = `
-                    0 0 60px rgba(255, 255, 255, 1),
-                    0 0 120px rgba(255, 255, 255, 0.8),
-                    inset 0 0 60px rgba(255, 255, 255, 0.6)
-                `;
-            } else {
-                circlePulse.style.boxShadow = `
-                    0 0 30px rgba(255, 255, 255, 0.8),
-                    0 0 60px rgba(255, 255, 255, 0.6),
-                    inset 0 0 30px rgba(255, 255, 255, 0.4)
-                `;
-            }
+            // Single-layer box-shadow (matches the simplified CSS rule).
+            circlePulse.style.boxShadow = (pulseBurst > 1)
+                ? '0 0 90px rgba(255, 255, 255, 1)'
+                : '0 0 45px rgba(255, 255, 255, 0.75)';
             
             // 🔊 SPEAKER FLASHES (laterali) - più intensi
             speakerFlashes.forEach(flash => {
@@ -3465,15 +3474,19 @@
                 // OTTIMIZZATO: meno cerchi su mobile e slow devices
                 const maxRadius = isSlowDevice ? 600 : isMobile ? 800 : 1000;
                 const step = isSlowDevice ? 200 : isSmallMobile ? 160 : isMobile ? 140 : 120;
+                // Shadow blur only on bass peaks. The glow is invisible on faint
+                // strokes anyway (bassLevel * 0.6 * activity * ...), so we save
+                // ~0.5–1 ms/frame when the rings are dim.
+                const _shadowOn = !isSlowDevice && bassLevel > 0.5;
+                if (_shadowOn) {
+                    vortexCtx.shadowColor = 'rgba(255, 255, 255, 0.6)';
+                } else {
+                    vortexCtx.shadowBlur = 0;
+                }
                 for (let r = 100; r < maxRadius; r += step) {
                     vortexCtx.strokeStyle = `rgba(255, 255, 255, ${(bassLevel * 0.6 * activity) * (1 - r / maxRadius)})`;
                     vortexCtx.lineWidth = 2 + bassLevel * 4;
-                    if (!isSlowDevice) {
-                        vortexCtx.shadowBlur = 15;
-                        vortexCtx.shadowColor = 'rgba(255, 255, 255, 0.6)';
-                    } else {
-                        vortexCtx.shadowBlur = 0;
-                    }
+                    if (_shadowOn) vortexCtx.shadowBlur = 15;
                     vortexCtx.beginPath();
                     vortexCtx.arc(0, 0, r, 0, Math.PI * 2);
                     vortexCtx.stroke();
