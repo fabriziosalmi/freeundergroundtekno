@@ -1397,6 +1397,10 @@
         let pupilTarget = 0;        // 0-1, raw target
         let lastBeatInterval = 0;   // ms, last interval between beats
 
+        // BPM pulse field state
+        let bpmPulsePhase = 0;
+        let bpmPulseIntensity = 0;
+
         function rebuildHexGrid() {
             const w = bgCanvas.width;
             const h = bgCanvas.height;
@@ -1533,8 +1537,11 @@
                 bpmStable = variance < 10000; // < 100ms²
                 if (bpmStable && avgInterval > 0) {
                     bpmSyncAngle = ((time % avgInterval) / avgInterval) * Math.PI * 2;
+                    bpmPulsePhase = (time % avgInterval) / avgInterval;
+                    bpmPulseIntensity = Math.pow(1 - bpmPulsePhase, 3); // cubic decay
                 }
             }
+            if (!bpmStable) bpmPulseIntensity *= 0.95;
 
             // Pupil dilation: steady beats make the pupil grow
             if (_beatH && _beatH.length >= 3) {
@@ -1572,7 +1579,8 @@
 
                 const twinkle = Math.sin(time * 0.003 + p.twinkleOffset) * 0.5 + 0.5;
                 const trebleBoost = trebleLevel * twinkle;
-                const alpha = starBrightBase + trebleBoost * 0.5;
+                const bpmBoost = bpmPulseIntensity * 0.4;
+                const alpha = starBrightBase + trebleBoost * 0.5 + bpmBoost;
 
                 if (p.warm && marathonMode) {
                     ctx.fillStyle = `rgba(255,200,100,${alpha})`;
@@ -1580,6 +1588,17 @@
                     ctx.fillStyle = `rgba(255,255,255,${alpha})`;
                 }
                 ctx.fillRect(p.x * w, p.y * h, p.size, p.size);
+            }
+
+            // ===== LAYER 0.5: Radial BPM Wave =====
+            if (bpmPulseIntensity > 0.05) {
+                const waveRadius = (1 - bpmPulseIntensity) * minDim * 0.6;
+                const waveAlpha = bpmPulseIntensity * 0.15;
+                ctx.beginPath();
+                ctx.arc(cx, cy, waveRadius, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(255,255,255,${waveAlpha})`;
+                ctx.lineWidth = 2 + bpmPulseIntensity * 3;
+                ctx.stroke();
             }
 
             // ===== LAYER 1: Pulse Rings =====
@@ -1609,35 +1628,47 @@
 
             // ===== LAYER 2: Hex Grid (pre-rendered blit) =====
             const hexMul = silenceMode ? 0.2 : 1;
-            const hexAlpha = (0.6 + bassLevel * 1.0) * hexMul;
+            const hexBpmBoost = bpmPulseIntensity * 0.3;
+            const hexAlpha = (0.6 + bassLevel * 1.0 + hexBpmBoost) * hexMul;
             ctx.globalAlpha = Math.min(hexAlpha, 1);
             ctx.drawImage(hexGridCanvas, 0, 0);
             ctx.globalAlpha = 1;
 
             // ===== LAYER 3: Spiral Vortex =====
-            spiralAngleAccum += energy * 2 * 0.016;
+            if (bpmStable) {
+                spiralAngleAccum = bpmSyncAngle * 0.5;
+            } else {
+                spiralAngleAccum += energy * 2 * 0.016;
+            }
             const armCount = 14;
             const spiralAlpha = 0.15 + bassLevel * 0.2;
             const spiralLineWidth = 1.5 + bassLevel * 2;
-            ctx.strokeStyle = `rgba(255,255,255,${spiralAlpha})`;
-            ctx.lineWidth = spiralLineWidth;
             let _slow = false;
             try { _slow = isSlowDevice; } catch(e) {}
             const spiralSteps = _slow ? 40 : 80;
 
             for (let arm = 0; arm < armCount; arm++) {
                 const armAngle = (arm / armCount) * Math.PI * 2 + spiralAngleAccum;
-                ctx.beginPath();
+                let prevX, prevY;
                 for (let s = 0; s <= spiralSteps; s++) {
                     const t = s / spiralSteps;
                     const r = t * Math.min(cx, cy) * 0.9;
                     const theta = armAngle + t * Math.PI * 3;
                     const x = cx + r * Math.cos(theta);
                     const y = cy + r * Math.sin(theta);
-                    if (s === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
+                    if (s > 0) {
+                        const segAlpha = spiralAlpha * (1 - t * t); // quadratic fade-out
+                        if (segAlpha < 0.01) break;
+                        ctx.beginPath();
+                        ctx.moveTo(prevX, prevY);
+                        ctx.lineTo(x, y);
+                        ctx.strokeStyle = `rgba(255,255,255,${segAlpha})`;
+                        ctx.lineWidth = spiralLineWidth * (1 - t * 0.6); // thinner toward edge
+                        ctx.stroke();
+                    }
+                    prevX = x;
+                    prevY = y;
                 }
-                ctx.stroke();
             }
 
 
@@ -2285,8 +2316,8 @@
 
                 // Create audio element with proper stream configuration
                 audioElement = new Audio();
-                audioElement.src = AUDIO_URL;
                 audioElement.crossOrigin = 'anonymous';
+                audioElement.src = AUDIO_URL;
                 audioElement.preload = 'metadata';
                 audioElement.loop = false; // CRITICAL: Prevent looping on stream end
                 audioElement.autoplay = false;
