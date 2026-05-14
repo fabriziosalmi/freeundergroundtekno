@@ -1547,6 +1547,54 @@
         const VIBE_WARMUP_MS          = VIBE_DEBUG_FAST ? 10 * 1000          : 3  * 60 * 1000;
         const VIBE_SATIATION_RESET_MS = VIBE_DEBUG_FAST ? 5  * 60 * 1000     : 60 * 60 * 1000;
 
+        // ===== SINGULARITY STATE MACHINE =====
+        // States: 'idle' | 'collapse' (1.5s, in) | 'hold' (0.3s, peak) | 'release' (0.7s, out)
+        // Driven by the vibe meter fire. singularityProgress is read by renderers.
+        let singularityState = 'idle';
+        let singularityStartAt = 0;
+        let singularityProgress = 0;    // 0 fully out, 1 fully collapsed
+        let singularityVariation = 'A'; // Step 2 only ships A; B/C/D/E come in Step 4
+        const SING_COLLAPSE_MS = 1500;
+        const SING_HOLD_MS     = 300;
+        const SING_RELEASE_MS  = 700;
+        const SING_TOTAL_MS    = SING_COLLAPSE_MS + SING_HOLD_MS + SING_RELEASE_MS;
+
+        function fireSingularity(variation) {
+            singularityState  = 'collapse';
+            singularityStartAt = Date.now();
+            singularityVariation = variation || 'A';
+            console.log('%c[SINGULARITY START]', 'background:#000;color:#fff;font-weight:bold;padding:2px 6px;', 'variation=' + singularityVariation);
+        }
+
+        function updateSingularity() {
+            if (singularityState === 'idle') { singularityProgress = 0; return; }
+            const elapsed = Date.now() - singularityStartAt;
+            if (elapsed < SING_COLLAPSE_MS) {
+                // easeIn (quadratic) — accelerates as the pull tightens near the pupil
+                const t = elapsed / SING_COLLAPSE_MS;
+                singularityProgress = t * t;
+                singularityState = 'collapse';
+            } else if (elapsed < SING_COLLAPSE_MS + SING_HOLD_MS) {
+                singularityProgress = 1;
+                if (singularityState !== 'hold') {
+                    singularityState = 'hold';
+                    console.log('[singularity] HOLD');
+                }
+            } else if (elapsed < SING_TOTAL_MS) {
+                // easeOut — gentle exhalation
+                const t = (elapsed - SING_COLLAPSE_MS - SING_HOLD_MS) / SING_RELEASE_MS;
+                singularityProgress = 1 - (1 - (1 - t) * (1 - t));
+                if (singularityState !== 'release') {
+                    singularityState = 'release';
+                    console.log('[singularity] RELEASE');
+                }
+            } else {
+                singularityProgress = 0;
+                singularityState = 'idle';
+                console.log('[singularity] idle');
+            }
+        }
+
         // ===== DROP IMPACT — pre-shoot phase of drop recoil =====
         let lastDropFlashIntensity = 0;
         let dropImpactX = 0, dropImpactY = 0;
@@ -3109,6 +3157,9 @@
 
             analyser.getByteFrequencyData(dataArray);
 
+            // Update singularity state machine (Step 2) — reads Date.now(), drives renderers
+            updateSingularity();
+
             // === KICK DECOMPOSITION ===
             // Tekno stacks kicks: sub (30-65 Hz) + body (85-170 Hz) + punch (300-650 Hz).
             // Compute each independently so the visuals can react to the *layering*,
@@ -3261,6 +3312,8 @@
                             vibeCharge = 0;
                             vibeArmed = false;
                             satiationOffset = Math.min(0.10, satiationOffset + 0.05);
+                            // Step 2: fire the visual. Only variation A for now.
+                            fireSingularity('A');
                         } else {
                             console.log('[vibe] gate missed (random) — charge=' + vibeCharge.toFixed(3) + ', will re-arm after dip');
                         }
@@ -3846,7 +3899,11 @@
             // Applica TUTTI i movimenti combinati — perspective(900px) attiva il 3D
             // context, rotateY/X baseline (0.3°/-0.5°) creano il pseudo-lens senza
             // costo runtime (è solo matrix). Scale baseline 1.07 nel zoomIntensity.
-            background.style.transform = `perspective(900px) scale(${zoomIntensity + depthZoom}) rotateY(0.3deg) rotateX(${swayRotateX - 0.5}deg) rotate(${rotateAmount + swayRotateZ}deg) skewX(${swaySkewX}deg) translate(${swayX + burstOffsetX}px, ${swayY + burstOffsetY}px)`;
+            // Singularity Step 2 (variation A "Suction Spirale"): multiplicative scale-down +
+            // additive rotation that ride on top of the existing pseudo-3D pose.
+            const _singScale = 1 - singularityProgress * 0.92;   // bg shrinks to ~8% at peak
+            const _singRot = singularityProgress * 540;          // 1.5 turns over collapse+hold
+            background.style.transform = `perspective(900px) scale(${(zoomIntensity + depthZoom) * _singScale}) rotateY(0.3deg) rotateX(${swayRotateX - 0.5}deg) rotate(${rotateAmount + swayRotateZ + _singRot}deg) skewX(${swaySkewX}deg) translate(${swayX + burstOffsetX}px, ${swayY + burstOffsetY}px)`;
 
             // ===== PUPIL MOTION (decoupled from #background sway) =====
             // The pupil has its own coreography. Behaviour modes layer in priority,
