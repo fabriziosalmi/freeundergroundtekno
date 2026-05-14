@@ -1140,6 +1140,21 @@
             z-index: 600;
         }
 
+        /* FREEZE OVERLAY — full-screen snapshot canvas that appears on extreme
+           wall→silence stacchi (max 1 / 5 min). Sopra TUTTO, B&W + contrast bump.
+           opacity controlled by JS (1 during hold, fade to 0 in 400 ms). */
+        #freezeOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1200;
+            opacity: 0;
+            filter: saturate(0) contrast(1.18) brightness(0.96);
+        }
+
         /* SILENCE MODE — page eases into stillness when audio drops out.
            JS already fades the audio-reactive layers; here we pause the
            purely-CSS continuous animations so nothing keeps moving on its own. */
@@ -1171,6 +1186,7 @@
     <!-- PUPIL — sits on its own high-z canvas so it stays on top of every other
          layer (vortex rings, spiral, hex, sacred geo, dreams, particles). -->
     <canvas id="pupilCanvas"></canvas>
+    <canvas id="freezeOverlay"></canvas>
 
     <!-- SVG filters used by the canvas (referenced via ctx.filter = 'url(#...)').
          Map image content is generated in JS at startup. Zero size so nothing renders. -->
@@ -1475,6 +1491,7 @@
         // BPM sync state (set inside drawProceduralBg, consumed by pupil motion in animate())
         let bpmSyncAngle = 0;
         let bpmStable = false;
+        let bpmAvgInterval = 0; // ms — written when bpmStable, consumed by pupil rotation/exhale
 
         // ===== KICK DECOMPOSITION (tekno layers kick on kick on kick) =====
         // sub (30-60 Hz) = the subwoofer body
@@ -1501,6 +1518,14 @@
         // ===== PUPIL SPIN — sphere rotates on its own axis. Highlight + rim orbit
         // together (rim is always opposite). Speed: visibile sempre, faster in silence.
         let pupilSpinPhase = -Math.PI * 0.75;
+
+        // Parallax starfield — universo periferico che converge al centro della pupilla
+        // (ovunque sia, segue pupilOffX/Y). Lazy-init alla prima frame di drawProceduralBg.
+        // Density modulata dai listener: BASE soli quando azuracastOnline=false o 1 listener,
+        // fino a MAX con community attiva (cap implicito ai ~17 listener).
+        let starfield = null;
+        const STARFIELD_BASE = 90;
+        const STARFIELD_MAX = 160;
 
         // ===== PUPIL BLINK — palpebra che si chiude verticalmente ogni ~25-40s
         // (periodico jittered) o su drop. ~160 ms totale: close fast, open back.
@@ -1540,7 +1565,7 @@
         const sessionStartAt = Date.now();
         // ⚠️ DEBUG/TEST mode — rapid fire so we can validate the trigger logic + future visual
         // in a single short session. REVERT TO false BEFORE SHIP (or remove this block entirely).
-        const VIBE_DEBUG_FAST = true;
+        const VIBE_DEBUG_FAST = false;
         const VIBE_BASE_THRESHOLD     = VIBE_DEBUG_FAST ? 0.30 : 0.85;
         const VIBE_COOLDOWN_MIN_MS    = VIBE_DEBUG_FAST ? 30 * 1000          : 15 * 60 * 1000;
         const VIBE_COOLDOWN_MAX_MS    = VIBE_DEBUG_FAST ? 60 * 1000          : 25 * 60 * 1000;
@@ -1592,6 +1617,129 @@
                 singularityProgress = 0;
                 singularityState = 'idle';
                 console.log('[singularity] idle');
+            }
+        }
+
+        // ===== STACCO FREEZE — wall→silence foto-finish =====
+        // Layer raro: cattura uno snapshot del frame corrente quando un "muro"
+        // (kickStack≥2 + bassLevel alto sostenuto) crolla in quasi-silenzio
+        // (bassCharge<0.20 dopo peak>0.85). Max 1 ogni 5 min (1 min in DEBUG).
+        // Effetto: snapshot congelato 1.5s + scanline che attraversa, B&W boost
+        // via CSS filter, fade-out 400 ms.
+        let freezeState = 'idle';            // 'idle' | 'hold' | 'fade'
+        let freezeStartAt = 0;
+        let lastStaccoFireAt = 0;
+        let wallSustainedAt = 0;             // ms — ultimo momento in cui il muro era attivo
+        let freezeOverlayCanvas = null;
+        let freezeOverlayCtx = null;
+        let freezeSnapshotCanvas = null;     // offscreen, persistent snapshot del fire
+        let freezeSnapshotCtx = null;
+        const FREEZE_HOLD_MS = 1500;
+        const FREEZE_FADE_MS = 400;
+        const FREEZE_COOLDOWN_MS = VIBE_DEBUG_FAST ? 60 * 1000 : 5 * 60 * 1000;
+
+        function fireFreeze() {
+            if (!freezeOverlayCanvas || !freezeSnapshotCanvas) return;
+            // Cattura: composito bgCanvas + pupilCanvas nello snapshot offscreen.
+            // DOM-level effects (tunnel rings, vhs lines, grain) restano live in
+            // background ma sono coperti dall'overlay opaco.
+            const w = freezeSnapshotCanvas.width;
+            const h = freezeSnapshotCanvas.height;
+            freezeSnapshotCtx.clearRect(0, 0, w, h);
+            try { freezeSnapshotCtx.drawImage(bgCanvas, 0, 0, w, h); } catch(e) {}
+            try { freezeSnapshotCtx.drawImage(pupilCanvas, 0, 0, w, h); } catch(e) {}
+            freezeState = 'hold';
+            freezeStartAt = Date.now();
+            freezeOverlayCanvas.style.opacity = '1';
+            console.log('%c[STACCO FREEZE]', 'background:#fff;color:#000;font-weight:bold;padding:2px 6px;',
+                'wall→silence captured');
+        }
+
+        function updateFreeze() {
+            if (freezeState === 'idle') return;
+            if (!freezeOverlayCanvas || !freezeSnapshotCanvas) return;
+            const w = freezeOverlayCanvas.width;
+            const h = freezeOverlayCanvas.height;
+            const elapsed = Date.now() - freezeStartAt;
+
+            // Redraw snapshot ogni frame + scanline che attraversa verticalmente.
+            freezeOverlayCtx.clearRect(0, 0, w, h);
+            freezeOverlayCtx.drawImage(freezeSnapshotCanvas, 0, 0);
+
+            // Scanline progress: 0..1 nell'intero hold, posizionata su h.
+            const _scanT = Math.min(1, elapsed / FREEZE_HOLD_MS);
+            const _scanY = _scanT * h;
+            // Bright thin band + dimmer trail above
+            freezeOverlayCtx.save();
+            freezeOverlayCtx.fillStyle = 'rgba(255,255,255,0.85)';
+            freezeOverlayCtx.fillRect(0, _scanY - 1, w, 2);
+            freezeOverlayCtx.fillStyle = 'rgba(255,255,255,0.18)';
+            freezeOverlayCtx.fillRect(0, _scanY - 24, w, 22);
+            freezeOverlayCtx.restore();
+
+            if (elapsed < FREEZE_HOLD_MS) {
+                if (freezeState !== 'hold') freezeState = 'hold';
+            } else if (elapsed < FREEZE_HOLD_MS + FREEZE_FADE_MS) {
+                const t = (elapsed - FREEZE_HOLD_MS) / FREEZE_FADE_MS;
+                freezeOverlayCanvas.style.opacity = String(1 - t);
+                if (freezeState !== 'fade') {
+                    freezeState = 'fade';
+                    console.log('[stacco] fade');
+                }
+            } else {
+                freezeState = 'idle';
+                freezeOverlayCanvas.style.opacity = '0';
+                console.log('[stacco] idle');
+            }
+        }
+
+        // ===== L3 MULTI-USER AWARENESS (Azuracast nowplaying) =====
+        // La creatura "sa" quanti la ascoltano in questo momento e lo lascia
+        // trapelare nel rendering (pulse-per-listener, iris alpha, parallax
+        // density). Polling 45 s, server cache 15 s → impatto trascurabile.
+        // Fallback silenzioso su errore/CORS/offline → la creatura non si rompe.
+        const AZURACAST_URL = 'https://radio.freeundergroundtekno.org/api/nowplaying/free_underground_tekno';
+        const LISTENER_POLL_MS = 45 * 1000;
+        let liveListeners = 0;          // listeners.current (smoothed lerp consumer-side)
+        let liveListenersUnique = 0;
+        let lastListenerFetchAt = 0;
+        let azuracastOnline = false;    // true after first successful fetch
+        let listenerFetchInFlight = null;  // AbortController
+
+        // Pulse-per-listener state — 4-bar-locked micro-glow array attorno alla pupilla.
+        let listenerPulses = [];        // [{t0, dur}, ...] ring waves attive
+        let lastListenerPulseGroup = -1; // ultimo group di 4-bar visto, per rising-edge
+        const LISTENER_PULSE_DUR_MS = 1000;
+        const LISTENER_PULSE_CAP = 12;
+
+        async function fetchListenerCount() {
+            // Abort any in-flight request to avoid pile-up if the network is slow.
+            if (listenerFetchInFlight) try { listenerFetchInFlight.abort(); } catch(e) {}
+            const ac = new AbortController();
+            listenerFetchInFlight = ac;
+            const _timeout = setTimeout(() => ac.abort(), 6000);
+            try {
+                const res = await fetch(AZURACAST_URL, { signal: ac.signal, cache: 'default' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const j = await res.json();
+                const cur = j && j.listeners && Number(j.listeners.current);
+                const uniq = j && j.listeners && Number(j.listeners.unique);
+                const online = !!(j && j.is_online);
+                if (Number.isFinite(cur)) liveListeners = Math.max(0, cur);
+                if (Number.isFinite(uniq)) liveListenersUnique = Math.max(0, uniq);
+                azuracastOnline = online;
+                lastListenerFetchAt = Date.now();
+                console.log('%c[listeners]', 'color:#888', 'current=' + liveListeners,
+                    'unique=' + liveListenersUnique, 'online=' + azuracastOnline);
+            } catch (e) {
+                // Silent: keep lastKnown values. If we never succeeded, azuracastOnline stays false
+                // and all listener-driven viz layers stay quiet.
+                if (e.name !== 'AbortError') {
+                    console.log('%c[listeners] fetch failed:', 'color:#888', e.message || e);
+                }
+            } finally {
+                clearTimeout(_timeout);
+                if (listenerFetchInFlight === ac) listenerFetchInFlight = null;
             }
         }
 
@@ -1754,6 +1902,7 @@
                     bpmSyncAngle = ((time % avgInterval) / avgInterval) * Math.PI * 2;
                     bpmPulsePhase = (time % avgInterval) / avgInterval;
                     bpmPulseIntensity = Math.pow(1 - bpmPulsePhase, 3); // cubic decay
+                    bpmAvgInterval = avgInterval; // expose to drawPupil for BPM-locked rotation + exhale
                 }
             }
             if (!bpmStable) bpmPulseIntensity *= 0.95;
@@ -1838,6 +1987,94 @@
                 ctx.stroke();
             }
 
+            // ===== LAYER 0c: Parallax Starfield (peripheral, converges on pupil) =====
+            // Piccoli traits che drift-ano radialmente dalla pupilla verso fuori. Trail
+            // pointing TO the pupil → effetto "vanishing point" sull'occhio. Mask radiale
+            // bell-curve: invisibili dentro pupillaR+margine E oltre _outerMax. "Appena
+            // visibili": peak alpha 0.28, line width 0.7.
+            if (starfield === null) {
+                starfield = new Array(STARFIELD_MAX);
+                for (let i = 0; i < STARFIELD_MAX; i++) {
+                    starfield[i] = {
+                        angle: Math.random() * Math.PI * 2,
+                        depth: Math.random(),
+                        speed: 0.0008 + Math.random() * 0.0016
+                    };
+                }
+            }
+            // Active count = BASE quando radio offline / 1 listener, scala fino a MAX
+            // con liveListeners > 1. +4 stars per listener oltre il primo.
+            const _starfieldCount = azuracastOnline
+                ? Math.min(STARFIELD_MAX, STARFIELD_BASE + Math.max(0, liveListeners - 1) * 4)
+                : STARFIELD_BASE;
+            {
+                const pcx = cx + pupilOffX;
+                const pcy = cy + pupilOffY;
+                const _innerMin = lastPupilR + minDim * 0.05;
+                const _outerMax = minDim * 0.72;
+                if (_outerMax > _innerMin) {
+                    const _band = _outerMax - _innerMin;
+                    const _midR = (_innerMin + _outerMax) * 0.5;
+                    const _bandHalf = _band * 0.5;
+                    ctx.lineWidth = 0.7;
+                    // Lieve modulazione della velocità globale al BPM (drift accelera nelle bar piene).
+                    const _starGlobalSpeed = 1 + bpmPulseIntensity * 0.4 + cassoneIntensity * 0.25;
+                    for (let i = 0; i < _starfieldCount; i++) {
+                        const s = starfield[i];
+                        s.depth -= s.speed * _starGlobalSpeed;
+                        if (s.depth <= 0) {
+                            s.depth = 1;
+                            s.angle = Math.random() * Math.PI * 2;
+                            s.speed = 0.0008 + Math.random() * 0.0016;
+                        }
+                        const radius = _innerMin + (1 - s.depth) * _band;
+                        const ca = Math.cos(s.angle);
+                        const sa = Math.sin(s.angle);
+                        const x = pcx + ca * radius;
+                        const y = pcy + sa * radius;
+                        // Bell-curve alpha: peak nel mid-ring, zero fuori dal band.
+                        const _rd = Math.abs(radius - _midR) / _bandHalf;
+                        const _alpha = Math.max(0, 1 - _rd * _rd) * 0.28 * _active;
+                        if (_alpha < 0.02) continue;
+                        // Trail length easeOut sulla profondità → più lungo quando "vicino".
+                        const trail = (1 - s.depth) * (1 - s.depth) * 14;
+                        const dx = -ca * trail;
+                        const dy = -sa * trail;
+                        ctx.strokeStyle = 'rgba(255,255,255,' + _alpha.toFixed(3) + ')';
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x + dx, y + dy);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // ===== LAYER 0d: Listener Pulses (L3 multi-user awareness) =====
+            // Micro-rings espansivi attorno alla pupilla, 1 per listener oltre il primo
+            // (capped a LISTENER_PULSE_CAP). Spawn 4-bar-locked dal main loop. Disegnati
+            // su bgCanvas così la pupilla li copre sulla parte interna → halos naturali.
+            if (listenerPulses.length > 0) {
+                const pcx = cx + pupilOffX;
+                const pcy = cy + pupilOffY;
+                const pR = lastPupilR;
+                const _nowLp = Date.now();
+                for (let i = listenerPulses.length - 1; i >= 0; i--) {
+                    const lp = listenerPulses[i];
+                    const age = _nowLp - lp.t0;
+                    if (age < 0) continue;                                  // staggered, non partito
+                    if (age > lp.dur) { listenerPulses.splice(i, 1); continue; }
+                    const _t = age / lp.dur;
+                    const _r = pR + (1 - (1 - _t) * (1 - _t)) * pR * 1.6;   // easeOut: pR → 2.6pR
+                    const _a = Math.sin(Math.PI * _t) * 0.18;                // 0 → 0.18 → 0
+                    if (_a < 0.005) continue;
+                    ctx.strokeStyle = 'rgba(255,255,255,' + _a.toFixed(3) + ')';
+                    ctx.lineWidth = (1 - _t) * 2 + 0.5;
+                    ctx.beginPath();
+                    ctx.arc(pcx, pcy, _r, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+            }
+
             // ===== LAYER 0.5: Radial BPM Wave =====
             if (bpmPulseIntensity > 0.05) {
                 const waveRadius = (1 - bpmPulseIntensity) * minDim * 0.6;
@@ -1891,10 +2128,15 @@
             } else {
                 spiralAngleAccum += energy * 2 * 0.016;
             }
+            // Step 2 (Singularity variation A — Suction Spirale): durante collapse/hold
+            // la spirale si stringe (avvitamento + outer pulled inward) e si illumina.
+            // _sing = 0 quando idle → tutto invariato, costo zero.
+            const _sing = singularityProgress;
+            if (singularityState !== 'idle') spiralAngleAccum += _sing * 0.12;
             const armCount = 14;
             // Base abbassata 0.15 → 0.10 + _rhythmFactor (quasi sparisce senza kicks)
-            const spiralAlpha = (0.10 + bassLevel * 0.2) * _active * _rhythmFactor;
-            const spiralLineWidth = 1.5 + bassLevel * 2;
+            const spiralAlpha = (0.10 + bassLevel * 0.2) * _active * _rhythmFactor * (1 + _sing * 3);
+            const spiralLineWidth = (1.5 + bassLevel * 2) * (1 + _sing * 1.5);
             let _slow = false;
             try { _slow = isSlowDevice; } catch(e) {}
             const spiralSteps = _slow ? 40 : 80;
@@ -1902,8 +2144,11 @@
             // Radial gradient: 14 stroke/frame (era 1120). Inner radius dinamico legato
             // a lastPupilR → la spirale è trasparente dentro la pupilla, fade-in subito
             // fuori dal bordo, decade nella metà esterna come prima.
-            const spiralMaxR = Math.min(cx, cy) * 0.9;
+            // Suction: outer raggio tirato verso la pupilla con singularityProgress.
+            // Clamp sopra _spiralInnerR + delta per non degenerare il gradient.
+            const _spiralMaxBase = Math.min(cx, cy) * 0.9;
             const _spiralInnerR = lastPupilR + minDim * 0.025;
+            const spiralMaxR = Math.max(_spiralInnerR + minDim * 0.05, _spiralMaxBase * (1 - _sing * 0.55));
             const spiralGradient = ctx.createRadialGradient(cx, cy, _spiralInnerR, cx, cy, spiralMaxR);
             spiralGradient.addColorStop(0,    'rgba(255,255,255,0)');                         // pulisci sopra la pupilla
             spiralGradient.addColorStop(0.10, `rgba(255,255,255,${spiralAlpha * 0.5})`);      // soft fade-in
@@ -1920,7 +2165,7 @@
                 for (let s = 0; s <= spiralSteps; s++) {
                     const t = s / spiralSteps;
                     const r = t * spiralMaxR;
-                    const theta = armAngle + t * Math.PI * 3;
+                    const theta = armAngle + t * Math.PI * (3 + _sing * 6);
                     const x = cx + r * Math.cos(theta);
                     const y = cy + r * Math.sin(theta);
                     if (s === 0) ctx.moveTo(x, y);
@@ -2243,10 +2488,39 @@
         const pupilCtx = pupilCanvas.getContext('2d');
         pupilCanvas.width = window.innerWidth;
         pupilCanvas.height = window.innerHeight;
+
+        // Freeze overlay (visible) + snapshot offscreen — wired to module-level
+        // vars dichiarate accanto al fireFreeze() state machine.
+        freezeOverlayCanvas = document.getElementById('freezeOverlay');
+        freezeOverlayCtx = freezeOverlayCanvas.getContext('2d');
+        freezeOverlayCanvas.width = window.innerWidth;
+        freezeOverlayCanvas.height = window.innerHeight;
+        freezeSnapshotCanvas = document.createElement('canvas');
+        freezeSnapshotCtx = freezeSnapshotCanvas.getContext('2d');
+        freezeSnapshotCanvas.width = window.innerWidth;
+        freezeSnapshotCanvas.height = window.innerHeight;
+
         window.addEventListener('resize', () => {
             pupilCanvas.width = window.innerWidth;
             pupilCanvas.height = window.innerHeight;
+            if (freezeOverlayCanvas) {
+                freezeOverlayCanvas.width = window.innerWidth;
+                freezeOverlayCanvas.height = window.innerHeight;
+            }
+            if (freezeSnapshotCanvas) {
+                freezeSnapshotCanvas.width = window.innerWidth;
+                freezeSnapshotCanvas.height = window.innerHeight;
+            }
         });
+
+        // Bootstrap L3 multi-user polling — first fetch immediato (non bloccante),
+        // poi cadenza LISTENER_POLL_MS. Skip silenzioso quando tab hidden (i listener
+        // contano lato server comunque, e così non spam-iamo se la pagina dorme).
+        fetchListenerCount();
+        setInterval(() => {
+            if (document.hidden) return;
+            fetchListenerCount();
+        }, LISTENER_POLL_MS);
 
         // Iris parametric ring around the pupil. Toggle in 1 sec to disable.
         const IRIS_ENABLED = true;
@@ -2307,7 +2581,12 @@
             //   long breakdown without kicks → shrinks toward ~40% (bassCharge → 0)
             //   deep silence → shrinks further via calmness
             const _act = 1 - calmness;
-            let scale = 1 + bass * 0.15 + pupilDilation * 0.7 + cassoneIntensity * 0.7 + subKick * 0.25;
+            // Tuning 2026-05-14: pupilla parcheggiava troppo grande. Trimmo i contributori
+            // "lenti" che plateau-ano (pupilDilation, cassoneIntensity) e gonfio i contributori
+            // per-frame (bass, subKick) → meno stazionamento, più pulse visibile per kick.
+            let scale = 1 + bass * 0.28 + pupilDilation * 0.40 + cassoneIntensity * 0.45 + subKick * 0.40;
+            // Singularity bloom — la sfera si gonfia mentre tutto le collassa addosso.
+            scale *= 1 + singularityProgress * 0.18;
             // FAT-BASS DILATION BOOST — su kick distorti e cassa pastosa la pupilla
             // si ingrandisce ulteriormente. Tre contributi:
             //   1) kickStack pesante (≥2 bande firing) — soglia abbassata a 1.2 + coef 0.25
@@ -2319,12 +2598,22 @@
                             + Math.pow(Math.max(0, cassoneIntensity - 0.4), 1.5) * 0.60
                             + subKick * bodyKick * punchKick * 0.65;
             scale *= 1 + _fatBass;
-            scale *= 0.4 + 0.6 * bassCharge;     // sag when the kick goes away
+            scale *= 0.18 + 0.82 * bassCharge;   // sag aggressivo: senza cassa pupilla piccola (default state = piccola)
             scale *= 1 - calmness * 0.28;        // further shrink in deep silence
             if (silenceMode) scale += Math.sin(time * 0.002) * 0.05 * calmness;
             // Always-on subtle breath: pupil never holds an exact static size between events,
             // so it never reads as a default UI button.
-            scale *= 1 + Math.sin(time * 0.0008) * 0.04;
+            scale *= 1 + Math.sin(time * 0.0014) * 0.07;
+            // Per-bar exhale — locked to bars: scale dips 12% al downbeat di ogni bar,
+            // easeOut quadratico → ricresce in 4 beats. Rompe il plateau quando ritualScore
+            // e cassoneIntensity sarebbero parcheggiati alti. Solo con bpmStable.
+            if (bpmStable && bpmAvgInterval > 0 && beatCount >= 1 && beatHistory.length >= 1) {
+                // Usa beatCount (monotonic), non beatHistory.length (capped a 10!).
+                const _within = Math.min(1, Math.max(0, (Date.now() - beatHistory[beatHistory.length - 1]) / bpmAvgInterval));
+                const _barPhase = (((beatCount - 1) % 4) + _within) / 4;
+                const _exhale = (1 - _barPhase) * (1 - _barPhase);
+                scale *= 1 - 0.12 * _exhale;
+            }
             const r = baseR * scale;
             lastPupilR = r;   // shared with drawProceduralBg so the spiral masks around it
 
@@ -2365,7 +2654,10 @@
                 const midDrive = 0.5 + Math.max(0, mid - 0.3) * 1.5;
                 const irisR = irisBaseR + r * 0.5 * (midDrive - 0.5) + bpmPulseIntensity * r * 0.18;
                 const irisThick = 1 + bass * 4;
-                const irisAlpha = Math.min(1, (0.18 + bass * 0.5 + mid * 0.25 + cassoneIntensity * 0.3) * _act);
+                // L3 multi-user: iris ring più presente quanta più gente ascolta.
+                // Cap a +25% per evitare che diventi dominante (linear su listeners, cap 6).
+                const _listenerBoost = azuracastOnline ? Math.min(0.25, Math.max(0, liveListeners - 1) * 0.04) : 0;
+                const irisAlpha = Math.min(1, (0.18 + bass * 0.5 + mid * 0.25 + cassoneIntensity * 0.3) * _act * (1 + _listenerBoost));
                 if (irisAlpha > 0.02) {
                     pupilCtx.save();
                     pupilCtx.shadowBlur = 0;
@@ -2407,10 +2699,20 @@
             _R *= 0.9; _G *= 0.9; _B *= 0.9;
             // Sphere shading: highlight diffuso, contrasto basso. Pupilla scura — il
             // gradiente accenna la sfera, non la dichiara.
-            // Sphere rotation on axis — highlight + rim orbit together. Always visible:
-            // music: ~25 s/giro (composta), silenzio: ~5 s/giro (ipnotica).
-            pupilSpinPhase += 0.0042 + (1 - _act) * 0.020;
-            if (pupilSpinPhase > Math.PI * 2) pupilSpinPhase -= Math.PI * 2;  // wrap, no float drift over time
+            // Sphere rotation on axis — highlight + rim + webcam content orbit together.
+            // BPM-locked quando stabile: 1 giro = ROT_BARS bar (4 bar = 16 beats di default)
+            // → moto coerente con la cassa, niente più drift indipendente. In silenzio o
+            // su materiale non-ritmico, fallback al free-spin lento del path originale.
+            if (bpmStable && bpmAvgInterval > 0) {
+                // Time-based, continuo: 1 giro = ROT_BARS * 4 beats = ROT_BARS bar.
+                // Indipendente da beatHistory.length (che è capped a 10) → niente saturazione.
+                const ROT_BARS = 4;
+                const _period = bpmAvgInterval * ROT_BARS * 4;
+                pupilSpinPhase = ((Date.now() % _period) / _period) * Math.PI * 2;
+            } else {
+                pupilSpinPhase += 0.0042 + (1 - _act) * 0.020;
+                if (pupilSpinPhase > Math.PI * 2) pupilSpinPhase -= Math.PI * 2;
+            }
             // Highlight più tenue (+12 invece di +18), edge più scuro (×0.22 invece di ×0.32),
             // 5 stops per dare curva alla transizione invece di lerp lineare = sfera con
             // body più scuro, terminator gradualmente discendente, rim shadow netto.
@@ -2463,6 +2765,10 @@
                 pupilCtx.clip();
                 pupilCtx.translate(cx, cy);
                 pupilCtx.scale(-1, 1); // mirror
+                // Sphere rotation: contenuto webcam + scanlines + lens vignette
+                // ruotano insieme al highlight orbit (pupilSpinPhase). Negato per
+                // allineare la direzione visiva post-mirror al moto del highlight.
+                pupilCtx.rotate(-pupilSpinPhase);
                 pupilCtx.shadowBlur = 0;
 
                 const vw = webcamVideo.videoWidth || 320;
@@ -2510,6 +2816,26 @@
                 pupilCtx.restore();
             }
 
+            // === SPHERICAL INNER-RIM SHADOW ===
+            // Vignette interna minima, concentrata negli ultimi ~28% del raggio con
+            // ease-out → accentua la sfera senza appiattire il body. Drawn dopo la
+            // webcam reflection così condividono lo stesso envelope sferico. Stroke
+            // dell'iride viene dopo, quindi resta nitido sopra l'ombra.
+            {
+                const _innerShadow = pupilCtx.createRadialGradient(cx, cy, r * 0.55, cx, cy, r);
+                _innerShadow.addColorStop(0,    'rgba(0,0,0,0)');
+                _innerShadow.addColorStop(0.72, 'rgba(0,0,0,0)');
+                _innerShadow.addColorStop(0.88, 'rgba(0,0,0,0.10)');
+                _innerShadow.addColorStop(1.00, 'rgba(0,0,0,0.28)');
+                pupilCtx.save();
+                pupilCtx.shadowBlur = 0;
+                pupilCtx.beginPath();
+                pupilCtx.arc(cx, cy, r, 0, Math.PI * 2);
+                pupilCtx.fillStyle = _innerShadow;
+                pupilCtx.fill();
+                pupilCtx.restore();
+            }
+
             // Iris-edge stroke — silvered white luminescente, sempre.
             // Niente più warm gold su raveMode: il colore "ritualistico" lo porta
             // solo il fill via ritualScore. Il contorno è argento, neutro, freddo.
@@ -2518,6 +2844,23 @@
             pupilCtx.stroke();
             pupilCtx.restore();
             pupilCtx.restore();   // chiude il blink outer wrap
+
+            // Singularity Step 2: HOLD FLASH — white burst at the pupil during the hold phase.
+            // Drawn OUTSIDE the blink wrap so the flash is always full-sized.
+            // Composite "screen" → additive feel without saturating to color.
+            const _flashI = Math.max(0, (singularityProgress - 0.85) / 0.15);
+            if (_flashI > 0.001) {
+                pupilCtx.save();
+                pupilCtx.globalCompositeOperation = 'screen';
+                const _fr = lastPupilR * (3 + _flashI * 2);
+                const _fg = pupilCtx.createRadialGradient(cx, cy, 0, cx, cy, _fr);
+                _fg.addColorStop(0,   'rgba(255,255,255,' + (0.95 * _flashI).toFixed(3) + ')');
+                _fg.addColorStop(0.4, 'rgba(255,255,255,' + (0.35 * _flashI).toFixed(3) + ')');
+                _fg.addColorStop(1,   'rgba(255,255,255,0)');
+                pupilCtx.fillStyle = _fg;
+                pupilCtx.fillRect(0, 0, w, h);
+                pupilCtx.restore();
+            }
         }
         // Initial static render of procedural background (no audio)
         drawProceduralBg(bgCtx, bgCanvas.width, bgCanvas.height, 0, 0, 0, 0, Date.now(), null);
@@ -2689,7 +3032,8 @@
         });
 
         // Beat detection
-        let beatHistory = [];
+        let beatHistory = [];                 // SLIDING WINDOW (cap 10): NON usare .length come contatore
+        let beatCount = 0;                    // contatore monotonico di battute dalla session start
         let lastBeatTime = 0;
         let bpm = 0;
         
@@ -3159,6 +3503,26 @@
 
             // Update singularity state machine (Step 2) — reads Date.now(), drives renderers
             updateSingularity();
+            updateFreeze();
+
+            // L3 listener pulses — spawn rising-edge ogni 16 beat (= 4 bar) quando
+            // bpmStable, ci sono listener > 1, radio online e non siamo in silenzio.
+            // 1 ring per listener oltre il primo (capped a LISTENER_PULSE_CAP).
+            if (bpmStable && beatCount > 0 && azuracastOnline && !silenceMode) {
+                // Usa beatCount monotonic, non beatHistory.length (capped a 10).
+                const _grp = Math.floor((beatCount - 1) / 16);
+                if (_grp !== lastListenerPulseGroup) {
+                    lastListenerPulseGroup = _grp;
+                    const _extra = Math.max(0, Math.min(LISTENER_PULSE_CAP, liveListeners - 1));
+                    if (_extra > 0) {
+                        const _now = Date.now();
+                        for (let i = 0; i < _extra; i++) {
+                            listenerPulses.push({ t0: _now + i * 70, dur: LISTENER_PULSE_DUR_MS });
+                        }
+                        console.log('%c[listeners] pulse ×' + _extra, 'color:#888', '(4-bar group ' + _grp + ')');
+                    }
+                }
+            }
 
             // === KICK DECOMPOSITION ===
             // Tekno stacks kicks: sub (30-65 Hz) + body (85-170 Hz) + punch (300-650 Hz).
@@ -3247,8 +3611,11 @@
                 ? Math.min(1.15, ((bassMA - 0.42) / 0.30) * (1 + kickStack * 0.15))
                 : 0;
             const _cassF = cassoneTarget - cassoneIntensity;
-            const _cassStiff = _cassF > 0 ? 0.07 : 0.025;
-            const _cassDamp  = _cassF > 0 ? 0.70 : 0.92;
+            // Asymmetric spring: salita veloce, fall più rapido di prima (era 0.025/0.92)
+            // così cassoneIntensity non parcheggia alto quando la cassa stacca → contribuisce
+            // a "senza cassa pupilla piccola".
+            const _cassStiff = _cassF > 0 ? 0.07 : 0.045;
+            const _cassDamp  = _cassF > 0 ? 0.70 : 0.86;
             cassoneVel = cassoneVel * _cassDamp + _cassF * _cassStiff;
             cassoneIntensity = Math.max(0, Math.min(1.15, cassoneIntensity + cassoneVel));
 
@@ -3275,6 +3642,27 @@
                     bassChargePeak = bassCharge;
                     bassChargePeakAt = _nowVibe;
                 }
+
+                // 3a) WALL SUSTAINED tracker per il Freeze layer: il muro è considerato
+                //     "attivo" se kickStack≥2 + bassLevel forte. Lo timestamp ad ogni
+                //     frame attivo → il freeze richiede che il muro fosse vivo entro 1.5s.
+                if (kickStack >= 2 && bassLevel > 0.55 && cassoneIntensity > 0.35) {
+                    wallSustainedAt = _nowVibe;
+                }
+                const _wallRecent = (_nowVibe - wallSustainedAt) < 1500;
+
+                // 3b) EXTREME STACCO → Freeze (foto-finish). Soglie più draconiche del
+                //     drop standard: peak > 0.85, crash < 0.20, AND wall recente. Cooldown
+                //     5 min (1 min in DEBUG) indipendente dal vibe meter.
+                if (_wallRecent && bassChargePeak > 0.85 && bassCharge < 0.20
+                    && _nowVibe - bassChargePeakAt < 1500
+                    && _nowVibe - lastStaccoFireAt > FREEZE_COOLDOWN_MS
+                    && freezeState === 'idle') {
+                    lastStaccoFireAt = _nowVibe;
+                    fireFreeze();
+                }
+
+                // 3c) Drop standard → vibe meter charge (immutato)
                 if (bassChargePeak > 0.8 && bassCharge < 0.3 && _nowVibe - bassChargePeakAt < 2000) {
                     vibeCharge += 0.20;
                     console.log('[vibe] +0.20 drop ' + bassChargePeak.toFixed(2) + '→' + bassCharge.toFixed(2) + ', charge=' + vibeCharge.toFixed(3));
@@ -3417,6 +3805,7 @@
             if (bassLevel > beatThreshold && Date.now() - lastBeatTime > 200) {
                 beatHistory.push(Date.now());
                 if (beatHistory.length > 10) beatHistory.shift();
+                beatCount++;                  // monotonic — usalo per qualunque counter discreto di beat
 
                 if (beatHistory.length >= 2) {
                     const intervals = [];
@@ -3555,7 +3944,7 @@
 
                 // Random VHS glitch on strong beats - SOGLIA RIDOTTA
                 const vhsThreshold = isMobile ? 0.35 : 0.8;
-                if (bassLevel > vhsThreshold && Math.random() > (isMobile ? 0.5 : 0.85) && _claimDistort()) {
+                if (bassLevel > vhsThreshold && Math.random() > (isMobile ? 0.5 : 0.85) && _claimDistort() && singularityProgress < 0.01) {
                     vhsLines.style.opacity = isMobile ? '1' : '0.8';
                     background.style.transform = `scale(${zoomIntensity}) rotate(${rotateAmount}deg) translateX(${Math.random() * 10 - 5}px)`;
                     setTimeout(() => {
@@ -3850,7 +4239,8 @@
             
             // 🎲 RANDOM MICRO MOVEMENTS - movimenti sottili costanti
             // Suppressed in silence so the scene reads as still, not twitchy.
-            if (calmness < 0.4 && Math.random() > 0.95) {
+            // Also suppressed during a singularity event so the suction transform isn't fought.
+            if (calmness < 0.4 && Math.random() > 0.95 && singularityProgress < 0.01) {
                 const microX = (Math.random() - 0.5) * 3;
                 const microY = (Math.random() - 0.5) * 3;
                 const microRotate = (Math.random() - 0.5) * 1;
@@ -3953,8 +4343,9 @@
 
                 // MODIFIER: Bass snap — every 4th beat, jump to a new random offset
                 // sized by current kickStack (3-stack → pupil flung to edge of visible).
-                if (beatHistory.length > 0 && beatHistory.length !== lastBassSnapBeat && beatHistory.length % 4 === 0) {
-                    lastBassSnapBeat = beatHistory.length;
+                // Usa beatCount monotonic, non beatHistory.length (sliding window capped 10).
+                if (beatCount > 0 && beatCount !== lastBassSnapBeat && beatCount % 4 === 0) {
+                    lastBassSnapBeat = beatCount;
                     bassSnapTargetX = (Math.random() - 0.5) * _kickAmp * 2.0;
                     bassSnapTargetY = (Math.random() - 0.5) * _kickAmp * 1.6;
                     bassSnapUntil = _now + 700;
@@ -4022,16 +4413,19 @@
 
                 // Update mask CSS vars: hole radius + center offset → rays follow the pupil.
                 // Same scale formula as drawPupil() so the mask hole matches the visible pupil.
-                let _pupilScale = 1 + bassLevel * 0.15 + pupilDilation * 0.7 + cassoneIntensity * 0.7 + subKick * 0.25;
+                // Weights in sync con drawPupil(): trimmati su contributori "lenti" e
+                // gonfiati su quelli per-frame → mask hole non parcheggia oltre il pupil.
+                let _pupilScale = 1 + bassLevel * 0.28 + pupilDilation * 0.40 + cassoneIntensity * 0.45 + subKick * 0.40;
                 // Keep mask hole in sync with drawPupil() fat-bass curve (sub*body*punch term included).
                 const _fatBassMask = Math.max(0, (kickStack - 1.2) / 1.5) * 0.25
                                    + Math.pow(Math.max(0, cassoneIntensity - 0.4), 1.5) * 0.60
                                    + subKick * bodyKick * punchKick * 0.65;
                 _pupilScale *= 1 + _fatBassMask;
-                _pupilScale *= 0.4 + 0.6 * bassCharge;
+                _pupilScale *= 0.18 + 0.82 * bassCharge;  // sag aggressivo (match drawPupil)
                 _pupilScale *= 1 - calmness * 0.28;
                 if (silenceMode) _pupilScale += Math.sin(_now * 0.002) * 0.05 * calmness;
-                const _pupilR = _minDim * 0.06 * _pupilScale;
+                // Singularity Step 2: mask hole contracts → rays close in on the pupil.
+                const _pupilR = _minDim * 0.06 * _pupilScale * (1 - singularityProgress * 0.85);
                 negativeLayer.style.setProperty('--pupil-r', _pupilR.toFixed(1) + 'px');
                 negativeLayer.style.setProperty('--pupil-x', pupilOffX.toFixed(1) + 'px');
                 negativeLayer.style.setProperty('--pupil-y', pupilOffY.toFixed(1) + 'px');
@@ -4156,11 +4550,6 @@
                     vortexCtx.stroke();
                 }
                 vortexCtx.restore();
-            }
-            
-            // Debug: Log frequency data occasionally
-            if (Math.floor(Date.now() / 1000) % 2 === 0 && Math.random() < 0.05) {
-                console.log(`Frequencies - Bass: ${Math.round(bassLevel*100)}%, Mid: ${Math.round(midLevel*100)}%, Treble: ${Math.round(trebleLevel*100)}%`);
             }
             
             animationId = requestAnimationFrame(animate);
