@@ -226,52 +226,15 @@
             mix-blend-mode: overlay;
         }
         
-        /* VORTEX ROTATION - rotazione cerchi più visibile */
-        #vortexRotation {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 4;
-            mix-blend-mode: screen;
-            opacity: 0.6;
-        }
-        
-        /* TUNNEL EFFECT - zoom 3D verso centro */
-        #tunnelEffect {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 5;
-            perspective: 1000px;
-        }
-        
-        .tunnel-ring {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            /* Fixed size + transform scale → GPU-compositable, no layout pass per frame.
-               6 rings × 60 fps = 360 layout passes/s eliminated. */
-            width: 2000px;
-            height: 2000px;
-            margin: -1000px 0 0 -1000px;
-            border: 2px solid rgba(255, 255, 255, 0.6);
-            border-radius: 50%;
-            transform: scale(0.025);
-            animation: tunnel-zoom 3s linear infinite;
-            will-change: transform, opacity;
-        }
+        /* VORTEX ROTATION - rimosso in v1.3.6: era 8 cerchi concentrici 2-6px
+           con shadowBlur 15 sui kick → terzo layer di "gabbia" attorno alla
+           pupilla, sopra tunnel-ring e LAYER 1 pulse-rings (anch'essi rimossi).
+           Bonus: -3-5 ms/frame nel worst case. Per re-enable: git log -p. */
 
-        @keyframes tunnel-zoom {
-            0%   { transform: scale(0.025); opacity: 0; }
-            50%  { opacity: 0.8; }
-            100% { transform: scale(1); opacity: 0; }
-        }
+        /* TUNNEL EFFECT - rimosso in v1.3.6: i 6 ring CSS che ruotavano
+           continuamente attorno al centro creavano una "gabbia" visiva fissa,
+           non audio-reactive. Pulizia totale del bg attorno alla pupilla.
+           Per re-enable: git log -p -- docs/index.html | grep -A 30 tunnel-ring */
         
         /* GRAIN OVERLAY - rumore analogico */
         #grainOverlay {
@@ -357,6 +320,60 @@
             opacity: 0.3;
         }
         
+        /* BASS-CLUSTER FLASH (BC FLASH) — composite-gated rare event.
+           Triggered by adaptive bass-RMS threshold + kickStack≥2 + 30s hard floor cooldown.
+           80 ms attack / 200 ms decay. Visual: bloom blu (#0ea5e9) + scanlines stretti
+           + chromatic aberration shift. Z-index sopra scanlines normali, sotto grain. */
+        #bcFlash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 95;
+            pointer-events: none;
+            opacity: 0;
+            will-change: opacity, transform;
+            background:
+                radial-gradient(ellipse at center,
+                    rgba(14, 165, 233, 0.55) 0%,
+                    rgba(14, 165, 233, 0.30) 25%,
+                    rgba(14, 165, 233, 0.12) 50%,
+                    transparent 75%);
+            mix-blend-mode: screen;
+            filter: blur(1.5px);
+        }
+        #bcFlash::before {
+            /* Scanlines orizzontali stretti, blu */
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(14, 165, 233, 0.0) 0px,
+                rgba(14, 165, 233, 0.0) 2px,
+                rgba(14, 165, 233, 0.45) 2px,
+                rgba(14, 165, 233, 0.45) 3px
+            );
+            mix-blend-mode: screen;
+            opacity: 0.9;
+        }
+        #bcFlash::after {
+            /* Chromatic aberration: ring offset cyan/magenta */
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at center,
+                transparent 35%,
+                rgba(34, 211, 238, 0.20) 45%,
+                transparent 55%);
+            transform: translate3d(3px, 0, 0);
+            mix-blend-mode: screen;
+            box-shadow:
+                inset  4px 0 0 rgba(232, 121, 249, 0.10),
+                inset -4px 0 0 rgba(34, 211, 238, 0.10);
+        }
+
         /* VIGNETTE - bordi scuri */
         #vignette {
             position: fixed;
@@ -1160,8 +1177,7 @@
            purely-CSS continuous animations so nothing keeps moving on its own. */
         body.silent .dust-particle,
         body.silent .vhs-line,
-        body.silent #grainOverlay,
-        body.silent #tunnelEffect .tunnel-ring {
+        body.silent #grainOverlay {
             animation-play-state: paused;
         }
         body.silent .dust-particle,
@@ -1201,6 +1217,9 @@
 
     <!-- STROBE FLASH -->
     <div id="strobeFlash"></div>
+
+    <!-- BASS-CLUSTER FLASH — rare event overlay (composite-gated). -->
+    <div id="bcFlash"></div>
     
     <!-- GEOMETRIC STROBES (ottimizzati, pochi elementi) -->
     <div class="geo-strobe left-wall" id="strobeLeftWall"></div>
@@ -1212,10 +1231,6 @@
     <div class="geo-strobe radial-burst" id="strobeRadial"></div>
     
     <!-- VORTEX ROTATION -->
-    <canvas id="vortexRotation"></canvas>
-    
-    <!-- TUNNEL EFFECT 3D -->
-    <div id="tunnelEffect"></div>
     
     <!-- CIRCLE PULSE (centro) -->
     <div id="circlePulse"></div>
@@ -1323,11 +1338,8 @@
         const circlePulse = document.getElementById('circlePulse');
         const speakerFlashes = document.querySelectorAll('.speaker-flash');
         const crowdStrobe = document.getElementById('crowdStrobe');
-        const vortexCanvas = document.getElementById('vortexRotation');
-        const vortexCtx = vortexCanvas.getContext('2d');
         const bgCanvas = document.getElementById('proceduralBg');
         const bgCtx = bgCanvas.getContext('2d');
-        const tunnelEffect = document.getElementById('tunnelEffect');
         const vhsLines = document.getElementById('vhsLines');
         const grainOverlay = document.getElementById('grainOverlay');
         
@@ -1385,6 +1397,11 @@
         // Offscreen canvas for pre-rendered hex grid
         let hexGridCanvas = document.createElement('canvas');
         let hexGridCtx = hexGridCanvas.getContext('2d');
+        // Offscreen scratch per applicare un radial hole soft al center del hex
+        // prima del blit sul bgCanvas. Evita di erodere altri layer (warehouse
+        // dust / listener pulses / parallax) col destination-out diretto.
+        let hexMaskedCanvas = document.createElement('canvas');
+        let hexMaskedCtx = hexMaskedCanvas.getContext('2d');
         let spiralAngleAccum = 0;
 
         // ===== V2 LAYERED ART STATE =====
@@ -1421,13 +1438,9 @@
         // Strip-color Tier 1: marathonMode non porta più tinta amber. Tutto resta bianco.
         const starSpriteWarm  = starSpriteWhite;
 
-        // Layer 1: Pulse Rings pool
-        const pulseRingMax = isMobile ? 4 : 6;
-        const pulseRings = [];
-        for (let i = 0; i < pulseRingMax; i++) {
-            pulseRings.push({ active: false, radius: 0, alpha: 0, maxRadius: 0 });
-        }
-        let pulseRingIdx = 0;
+        // Layer 1 Pulse Rings — rimosso in v1.3.6 (stessa logica del tunnel-ring
+        // CSS): 6 ring expansivi su ogni kick formavano una "gabbia" attorno alla
+        // pupilla che mascherava il centro. Per re-enable: git log -p docs/index.html.
         let lastPulseTime = 0;
 
         // Layer 6: Sacred Geometry
@@ -1596,6 +1609,75 @@
         let ritualScore = 0;
         let lastBodyKickFired = false;
         let lastBodyKickOnsetTime = 0;
+
+        // ===== 16-BAR CASSA STREAK — red iris flash trigger =====
+        // Track consecutive bars where cassoneIntensity stayed above threshold
+        // FOR THE WHOLE bar (sampling min per-bar). When the streak hits 16,
+        // the next bar's downbeat fires a red iris flash + expanding trail.
+        // Streak resets the moment one bar dips below threshold → richiede
+        // 16 bar davvero ininterrotti, evento raro per definizione.
+        let cassoneBarStreak = 0;
+        let cassoneBarMin = 1;                 // min cassoneIntensity sampled in current bar
+        let lastCassoneBarSeen = -1;           // bar index of previous frame, for transition edge
+        let redIrisFlashT0 = 0;                // ms timestamp of last fire (0 = never)
+        const RED_FLASH_DURATION = 900;        // ms — flash + scia fade
+        const CASSONE_BAR_THRESHOLD = 0.25;    // matches sacred-geo gate
+
+        // ===== BASS-CLUSTER FLASH (BC FLASH) =====
+        // Composite-gated rare event: fires when bass-RMS transient exceeds an
+        // ADAPTIVE threshold AND kickStack >= 2 AND cooldown >= 30 s elapsed.
+        // Adaptive: threshold X = BASE + density15s * SLOPE. Dense passages raise
+        // the bar (so the trigger stays scarce); sparse passages lower it (so a
+        // drop after a long silence can still earn the flash). Cooldown is the
+        // hard floor that makes this an EVENT, not a per-drop fixture.
+        // Visual: 80 ms attack / 200 ms decay envelope on #bcFlash opacity.
+        const BC_BASE_THRESHOLD   = 0.62;  // X floor (sparse passages)
+        const BC_DENSITY_SLOPE    = 0.25;  // X ceiling rise (dense → +0.25)
+        const BC_KICKSTACK_MIN    = 2;     // ≥2 bands firing in simultanea
+        const BC_COOLDOWN_MS      = 30 * 1000;
+        const BC_ATTACK_MS        = 80;
+        const BC_DECAY_MS         = 200;
+        // EMA-based density (15 s tau): α = dt/τ ≈ 1/(15*60) per frame @ 60fps.
+        // Exponential, no buffer → O(1) memory.
+        const BC_DENSITY_ALPHA    = 1 / (15 * 60);
+        let bcBassDensity = 0;
+        let bcLastFireAt = 0;
+        let bcEnvelope = 0;                // 0..1 current overlay intensity
+        let bcFireT0 = 0;                  // ms timestamp of current envelope
+        let bcFlashEl = null;              // resolved lazily after DOM ready
+        // Debug helper — flip to true via console (window.BC_DEBUG = true) to log fires
+        window.BC_DEBUG = false;
+        // Manual test helper — call window.bcFireNow() from console to force a fire
+        // (ignores cooldown/gate, just kicks the envelope) — useful for visual tuning.
+        window.bcFireNow = function () {
+            bcLastFireAt = Date.now();
+            bcFireT0 = Date.now();
+            console.log('%c[BC FLASH] manual fire', 'background:#0ea5e9;color:#000;padding:2px 6px;');
+        };
+
+        // ===== BC FLASH RENDERER PROBE =====
+        // Detect WebGPU availability up-front. Path 'css' is the always-on fallback
+        // (already wired via #bcFlash + opacity envelope). 'webgpu' marks the device
+        // capable of a future compute-pass upgrade; v1 ships CSS for both, but the
+        // flag is logged so we can confirm coverage in the field before promoting.
+        let bcRenderer = 'css';
+        (async () => {
+            if (!('gpu' in navigator) || !navigator.gpu) {
+                console.log('[BC FLASH] renderer = css (WebGPU not present)');
+                return;
+            }
+            try {
+                const _adapter = await navigator.gpu.requestAdapter();
+                if (!_adapter) {
+                    console.log('[BC FLASH] renderer = css (no GPU adapter)');
+                    return;
+                }
+                window.BC_WEBGPU_AVAILABLE = true;
+                console.log('[BC FLASH] renderer = css (WebGPU detected, kept as fallback for v1)');
+            } catch (e) {
+                console.log('[BC FLASH] renderer = css (WebGPU probe failed: ' + e.message + ')');
+            }
+        })();
 
         // ===== SINGULARITY VIBE METER =====
         // Long-form accumulator that decides when (and only when) the page
@@ -1820,6 +1902,9 @@
             const h = bgCanvas.height;
             hexGridCanvas.width = w;
             hexGridCanvas.height = h;
+            // Keep mask offscreen in sync con bgCanvas
+            hexMaskedCanvas.width = w;
+            hexMaskedCanvas.height = h;
             hexGridCtx.clearRect(0, 0, w, h);
 
             const hexRadius = 20;
@@ -1855,6 +1940,20 @@
                 }
             }
             hexGridCtx.globalAlpha = 1;
+
+            // Radial transparent mask al centro: scava un buco morbido (blur gradient)
+            // delle dimensioni del cerchio bianco più grande (Flower of Life outer ring,
+            // ≈ minDim * 0.24). Bake into pre-rendered canvas → zero costo a runtime.
+            const _maskR = Math.min(w, h) * 0.24;
+            const _maskGrad = hexGridCtx.createRadialGradient(cx, cy, 0, cx, cy, _maskR);
+            _maskGrad.addColorStop(0,    'rgba(0,0,0,1)');     // pieno hole al centro
+            _maskGrad.addColorStop(0.55, 'rgba(0,0,0,0.7)');   // blur falloff
+            _maskGrad.addColorStop(0.85, 'rgba(0,0,0,0.2)');
+            _maskGrad.addColorStop(1,    'rgba(0,0,0,0)');     // bordo: hex intatto
+            hexGridCtx.globalCompositeOperation = 'destination-out';
+            hexGridCtx.fillStyle = _maskGrad;
+            hexGridCtx.fillRect(cx - _maskR, cy - _maskR, _maskR * 2, _maskR * 2);
+            hexGridCtx.globalCompositeOperation = 'source-over';
         }
         // Build initial hex grid
         rebuildHexGrid();
@@ -1885,15 +1984,7 @@
             if (isDropCandidate && bassLevel > 0.7 && time > dropCooldownUntil) {
                 dropFlashIntensity = 1.0;
                 dropCooldownUntil = time + 5000;
-                // Spawn 3 pulse rings simultaneously
-                for (let d = 0; d < 3; d++) {
-                    const ring = pulseRings[pulseRingIdx % pulseRingMax];
-                    ring.active = true;
-                    ring.radius = minDim * 0.06;
-                    ring.alpha = 0.8 - d * 0.15;
-                    ring.maxRadius = minDim * (0.4 + d * 0.1);
-                    pulseRingIdx++;
-                }
+                // Pulse rings spawn rimosso in v1.3.6 (LAYER 1 dismesso).
                 sacredGeoBoost = 1.0;
                 lastPulseTime = time;
             }
@@ -2146,30 +2237,10 @@
                 ctx.stroke();
             }
 
-            // ===== LAYER 1: Pulse Rings =====
-            // Spawn on bass peaks (non-drop)
-            if (bassLevel > 0.5 && time - lastPulseTime > 300 && time > dropCooldownUntil - 4700) {
-                const ring = pulseRings[pulseRingIdx % pulseRingMax];
-                ring.active = true;
-                ring.radius = minDim * 0.06;
-                ring.alpha = 0.6;
-                ring.maxRadius = minDim * 0.35;
-                pulseRingIdx++;
-                lastPulseTime = time;
-            }
-
-            for (let i = 0; i < pulseRingMax; i++) {
-                const ring = pulseRings[i];
-                if (!ring.active) continue;
-                ring.radius += (ring.maxRadius - ring.radius) * 0.04;
-                ring.alpha *= 0.96;
-                if (ring.alpha < 0.01) { ring.active = false; continue; }
-                ctx.beginPath();
-                ctx.arc(cx, cy, ring.radius, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(255,255,255,${ring.alpha})`;
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
-            }
+            // ===== LAYER 1: Pulse Rings — RIMOSSO in v1.3.6 =====
+            // Era 6 ring concentrici expansivi su ogni bass>0.5: visivamente
+            // formavano una "gabbia" attorno alla pupilla. lastPulseTime variabile
+            // mantenuta per altri layer (es. sacredGeoBoost timing).
 
             // ===== LAYER 2: Hex Grid (pre-rendered blit) =====
             // _rhythmFactor: 1 quando il kick spara, 0.25 quando assente. Hex e spirale
@@ -2181,8 +2252,29 @@
             // Early-exit: in silenzio profondo / no-rhythm il blit hex è invisibile
             // ma comunque costa ~0.2 ms. Skip pulito.
             if (hexAlpha > 0.005) {
+                // Compose hex su offscreen + radial hole soft al centro,
+                // sized sul iris ring (= cerchio bianco più grande, ~2.4 × pupilR).
+                // Fade gradiente tra 2.4r (fully transparent) e 3.2r (no mask) → bordo
+                // soft no hard-edge. Foro segue la pupilla via pupilOffX/Y.
+                hexMaskedCtx.clearRect(0, 0, w, h);
+                hexMaskedCtx.drawImage(hexGridCanvas, 0, 0);
+                hexMaskedCtx.save();
+                hexMaskedCtx.globalCompositeOperation = 'destination-out';
+                const _hexHoleCx = cx + pupilOffX;
+                const _hexHoleCy = cy + pupilOffY;
+                const _hexHoleInner = lastPupilR * 2.4;
+                const _hexHoleOuter = lastPupilR * 3.2;
+                const _hexMask = hexMaskedCtx.createRadialGradient(
+                    _hexHoleCx, _hexHoleCy, _hexHoleInner,
+                    _hexHoleCx, _hexHoleCy, _hexHoleOuter
+                );
+                _hexMask.addColorStop(0, 'rgba(0,0,0,1)');   // full erase fino al iris
+                _hexMask.addColorStop(1, 'rgba(0,0,0,0)');   // fade-out smooth
+                hexMaskedCtx.fillStyle = _hexMask;
+                hexMaskedCtx.fillRect(0, 0, w, h);
+                hexMaskedCtx.restore();
                 ctx.globalAlpha = Math.min(hexAlpha, 1);
-                ctx.drawImage(hexGridCanvas, 0, 0);
+                ctx.drawImage(hexMaskedCanvas, 0, 0);
                 ctx.globalAlpha = 1;
             }
 
@@ -2549,8 +2641,6 @@
         window.addEventListener('resize', adaptToViewport);
 
         // Setup canvas
-        vortexCanvas.width = window.innerWidth;
-        vortexCanvas.height = window.innerHeight;
         bgCanvas.width = window.innerWidth;
         bgCanvas.height = window.innerHeight;
         const pupilCanvas = document.getElementById('pupilCanvas');
@@ -2680,7 +2770,10 @@
                             + Math.pow(Math.max(0, cassoneIntensity - 0.4), 1.5) * 0.60
                             + subKick * bodyKick * punchKick * 0.65;
             scale *= 1 + _fatBass;
-            scale *= 0.18 + 0.82 * bassCharge;   // sag aggressivo: senza cassa pupilla piccola (default state = piccola)
+            // Curva quadratica su bassCharge: shrink aggressivo nel breakdown
+            // (bC=0.7 → mult 0.54 vs 0.75 lineare). Full-kick invariato (bC=1 → 1.0).
+            // → "no cassa = vedi la meraviglia del centro" (spirale, hex, mandala).
+            scale *= 0.10 + 0.90 * bassCharge * bassCharge;
             scale *= 1 - calmness * 0.28;        // further shrink in deep silence
             scale *= 1 - bdSnapAmount * BD_SNAP_MAGNITUDE;   // bass-drop snap: collasso transiente al gap della cassa
             if (silenceMode) scale += Math.sin(time * 0.002) * 0.05 * calmness;
@@ -2760,6 +2853,40 @@
                         pupilCtx.globalAlpha = 1;
                     }
                     pupilCtx.restore();
+                }
+
+                // Red iris flash + scia: armato dalla 16-bar cassa streak. Disegnato
+                // sopra l'iride normale, indipendente da irisAlpha (sempre visibile
+                // se nei RED_FLASH_DURATION ms post-fire). 3 ghost rings sfalsati che
+                // si espandono verso fuori → effetto "motion blur" / scia.
+                if (redIrisFlashT0 > 0) {
+                    const _redAge = Date.now() - redIrisFlashT0;
+                    if (_redAge >= 0 && _redAge < RED_FLASH_DURATION) {
+                        const _t = _redAge / RED_FLASH_DURATION;
+                        const _fade = 1 - _t;
+                        const _ease = _fade * _fade;
+                        pupilCtx.save();
+                        pupilCtx.shadowColor = `rgba(255,30,30,${_fade})`;
+                        pupilCtx.shadowBlur = 40 * _fade;
+                        pupilCtx.strokeStyle = `rgba(255,40,40,${_ease})`;
+                        pupilCtx.lineWidth = 2 + irisThick * 3 * _fade;
+                        pupilCtx.beginPath();
+                        pupilCtx.arc(cx, cy, irisR, 0, Math.PI * 2);
+                        pupilCtx.stroke();
+                        pupilCtx.shadowBlur = 0;
+                        for (let _i = 0; _i < 3; _i++) {
+                            const _tt = _t - _i * 0.10;
+                            if (_tt <= 0 || _tt >= 1) continue;
+                            const _gR = irisR * (1 + _tt * 0.55);
+                            const _ga = (1 - _tt) * 0.45 / (1 + _i * 0.6);
+                            pupilCtx.strokeStyle = `rgba(255,80,80,${_ga.toFixed(3)})`;
+                            pupilCtx.lineWidth = Math.max(0.5, irisThick * 1.8 * (1 - _tt));
+                            pupilCtx.beginPath();
+                            pupilCtx.arc(cx, cy, _gR, 0, Math.PI * 2);
+                            pupilCtx.stroke();
+                        }
+                        pupilCtx.restore();
+                    }
                 }
             }
 
@@ -2949,15 +3076,6 @@
         // Initial static render of procedural background (no audio)
         drawProceduralBg(bgCtx, bgCanvas.width, bgCanvas.height, 0, 0, 0, 0, Date.now(), null);
 
-        // Create tunnel rings (OTTIMIZZATO: ancora meno su mobile)
-        const tunnelRingCount = isSmallMobile ? 3 : isMobile ? 4 : 6;
-        for (let i = 0; i < tunnelRingCount; i++) {
-            const ring = document.createElement('div');
-            ring.className = 'tunnel-ring';
-            ring.style.animationDelay = `${i * 0.5}s`;
-            tunnelEffect.appendChild(ring);
-        }
-        
         // Create VHS scan lines
         for (let i = 0; i < 5; i++) {
             const line = document.createElement('div');
@@ -3560,7 +3678,6 @@
         }
         
         let dataArray = null;
-        let vortexRotation = 0;
         let bgFrameCount = 0;
         let zoomIntensity = 1;
 
@@ -3588,6 +3705,36 @@
             // Update singularity state machine (Step 2) — reads Date.now(), drives renderers
             updateSingularity();
             updateFreeze();
+
+            // 16-bar cassa streak → red iris flash al downbeat successivo.
+            // Sampling min-per-bar di cassoneIntensity: se cala sotto soglia
+            // durante un bar, lo streak si azzera. 16 bar consecutivi puliti
+            // → fire al prossimo bar boundary (= prima del gruppo successivo).
+            if (bpmStable && beatCount > 0) {
+                const _cbBar = Math.floor((beatCount - 1) / 4);
+                if (_cbBar !== lastCassoneBarSeen) {
+                    if (lastCassoneBarSeen >= 0) {
+                        if (cassoneBarMin >= CASSONE_BAR_THRESHOLD) {
+                            cassoneBarStreak++;
+                            if (cassoneBarStreak >= 16) {
+                                redIrisFlashT0 = Date.now();
+                                cassoneBarStreak = 0;
+                                console.log('%c[iris] red flash — 16 bar cassa streak', 'color:#f33');
+                            }
+                        } else {
+                            cassoneBarStreak = 0;
+                        }
+                    }
+                    lastCassoneBarSeen = _cbBar;
+                    cassoneBarMin = cassoneIntensity;
+                } else if (cassoneIntensity < cassoneBarMin) {
+                    cassoneBarMin = cassoneIntensity;
+                }
+            } else {
+                cassoneBarStreak = 0;
+                cassoneBarMin = 1;
+                lastCassoneBarSeen = -1;
+            }
 
             // L3 listener pulses — spawn rising-edge ogni 16 beat (= 4 bar) quando
             // bpmStable, ci sono listener > 1, radio online e non siamo in silenzio.
@@ -3684,6 +3831,63 @@
 
             // Composite bassLevel — weighted toward sub+body since those carry the kick body
             const bassLevel = subKick * 0.40 + bodyKick * 0.45 + punchKick * 0.30;
+
+            // ===== BC FLASH — composite gate + adaptive threshold + envelope =====
+            // 1) Update 15s EMA of bassLevel → density estimate.
+            // 2) Compute adaptive threshold X = BASE + density * SLOPE.
+            // 3) If bassLevel > X AND kickStack ≥ N AND cooldown elapsed → fire.
+            // 4) Drive 80/200 ms attack-decay envelope on #bcFlash opacity.
+            // Skipped entirely in silenceMode (no audio → no events).
+            {
+                bcBassDensity = bcBassDensity * (1 - BC_DENSITY_ALPHA)
+                              + bassLevel * BC_DENSITY_ALPHA;
+                if (!isFinite(bcBassDensity)) bcBassDensity = 0;
+
+                const _bcNow = Date.now();
+                const _bcThreshold = BC_BASE_THRESHOLD + bcBassDensity * BC_DENSITY_SLOPE;
+                const _bcGateOpen = !silenceMode
+                                 && bassLevel > _bcThreshold
+                                 && kickStack >= BC_KICKSTACK_MIN
+                                 && (_bcNow - bcLastFireAt) >= BC_COOLDOWN_MS;
+
+                if (_bcGateOpen) {
+                    bcLastFireAt = _bcNow;
+                    bcFireT0 = _bcNow;
+                    if (window.BC_DEBUG) {
+                        console.log(
+                            '%c[BC FLASH]', 'background:#0ea5e9;color:#000;font-weight:bold;padding:2px 6px;',
+                            'bass=' + bassLevel.toFixed(2),
+                            'X=' + _bcThreshold.toFixed(2),
+                            'density=' + bcBassDensity.toFixed(2),
+                            'kickStack=' + kickStack
+                        );
+                    }
+                }
+
+                // Envelope: 80ms linear attack, 200ms ease-out decay (1-t)^2.
+                if (bcFireT0 > 0) {
+                    const _age = _bcNow - bcFireT0;
+                    if (_age < BC_ATTACK_MS) {
+                        bcEnvelope = _age / BC_ATTACK_MS;
+                    } else if (_age < BC_ATTACK_MS + BC_DECAY_MS) {
+                        const _t = (_age - BC_ATTACK_MS) / BC_DECAY_MS;
+                        const _inv = 1 - _t;
+                        bcEnvelope = _inv * _inv;
+                    } else {
+                        bcEnvelope = 0;
+                        bcFireT0 = 0;
+                    }
+                } else {
+                    bcEnvelope = 0;
+                }
+
+                // Apply to DOM (lazy resolve, cap visible opacity at 0.85 to
+                // never fully whiteout the scene).
+                if (!bcFlashEl) bcFlashEl = document.getElementById('bcFlash');
+                if (bcFlashEl) {
+                    bcFlashEl.style.opacity = (bcEnvelope * 0.85).toFixed(3);
+                }
+            }
 
             let midSum = 0;
             for (let i = 40; i < 120; i++) midSum += dataArray[i];
@@ -4600,7 +4804,7 @@
                                    + Math.pow(Math.max(0, cassoneIntensity - 0.4), 1.5) * 0.60
                                    + subKick * bodyKick * punchKick * 0.65;
                 _pupilScale *= 1 + _fatBassMask;
-                _pupilScale *= 0.18 + 0.82 * bassCharge;  // sag aggressivo (match drawPupil)
+                _pupilScale *= 0.10 + 0.90 * bassCharge * bassCharge;  // quadratic match drawPupil
                 _pupilScale *= 1 - calmness * 0.28;
                 _pupilScale *= 1 - bdSnapAmount * BD_SNAP_MAGNITUDE;  // bass-drop snap (match drawPupil)
                 if (silenceMode) _pupilScale += Math.sin(_now * 0.002) * 0.05 * calmness;
@@ -4676,8 +4880,6 @@
                 flash.style.filter = `blur(${30 + midLevel * 50}px)`;
             });
 
-            // Continuous ambient FX dim with calmness so silence reads "almost black"
-            tunnelEffect.style.opacity = activity;
             // body.silent pauses purely-CSS animations (dust, vhs, grain). Hysteresis
             // around the 0.85 threshold to avoid flicker on the edge of breakdowns.
             const wantSilent = calmness > 0.85;
@@ -4693,45 +4895,10 @@
                 drawProceduralBg(bgCtx, bgCanvas.width, bgCanvas.height, bassLevel, midLevel, trebleLevel, energy, Date.now(), dataArray);
             }
 
-            // 🎨 VORTEX ROTATION - ruota e pulsa (OTTIMIZZATO: meno cerchi su mobile)
-            vortexRotation += energy * 3 * activity; // rotation halts in silence
+            // 🎨 VORTEX ROTATION — RIMOSSO in v1.3.6 (3° layer di "gabbia" attorno
+            // al centro, dopo tunnel-ring CSS e LAYER 1 pulse-rings). Saving netto
+            // ~3-5 ms/frame nel worst case (8 stroke + shadowBlur 15 quando bassLevel>0.5).
 
-            // Render con frequenza ridotta su mobile per performance
-            let renderFrequency = isSmallMobile ? 4 : isMobile ? 2 : 1;
-            if (isSlowDevice) renderFrequency += 2;
-            // Always clear at deep calm so no stale rings linger when bassLevel=0
-            // but the modulo gate happens to skip the render branch.
-            if (calmness > 0.85) {
-                vortexCtx.clearRect(0, 0, vortexCanvas.width, vortexCanvas.height);
-            } else if (Math.floor(vortexRotation) % renderFrequency === 0) {
-                vortexCtx.clearRect(0, 0, vortexCanvas.width, vortexCanvas.height);
-                vortexCtx.save();
-                vortexCtx.translate(vortexCanvas.width / 2, vortexCanvas.height / 2);
-                vortexCtx.rotate(vortexRotation * Math.PI / 180);
-
-                // OTTIMIZZATO: meno cerchi su mobile e slow devices
-                const maxRadius = isSlowDevice ? 600 : isMobile ? 800 : 1000;
-                const step = isSlowDevice ? 200 : isSmallMobile ? 160 : isMobile ? 140 : 120;
-                // Shadow blur only on bass peaks. The glow is invisible on faint
-                // strokes anyway (bassLevel * 0.6 * activity * ...), so we save
-                // ~0.5–1 ms/frame when the rings are dim.
-                const _shadowOn = !isSlowDevice && bassLevel > 0.5;
-                if (_shadowOn) {
-                    vortexCtx.shadowColor = 'rgba(255, 255, 255, 0.6)';
-                } else {
-                    vortexCtx.shadowBlur = 0;
-                }
-                for (let r = 100; r < maxRadius; r += step) {
-                    vortexCtx.strokeStyle = `rgba(255, 255, 255, ${(bassLevel * 0.6 * activity) * (1 - r / maxRadius)})`;
-                    vortexCtx.lineWidth = 2 + bassLevel * 4;
-                    if (_shadowOn) vortexCtx.shadowBlur = 15;
-                    vortexCtx.beginPath();
-                    vortexCtx.arc(0, 0, r, 0, Math.PI * 2);
-                    vortexCtx.stroke();
-                }
-                vortexCtx.restore();
-            }
-            
             animationId = requestAnimationFrame(animate);
         }
         
