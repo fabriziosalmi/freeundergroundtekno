@@ -2607,11 +2607,11 @@
             // Per-bar exhale — locked to bars: scale dips 12% al downbeat di ogni bar,
             // easeOut quadratico → ricresce in 4 beats. Rompe il plateau quando ritualScore
             // e cassoneIntensity sarebbero parcheggiati alti. Solo con bpmStable.
-            if (bpmStable && bpmAvgInterval > 0 && beatHistory.length >= 1) {
-                const _bc = beatHistory.length;
-                const _within = Math.min(1, Math.max(0, (Date.now() - beatHistory[_bc - 1]) / bpmAvgInterval));
-                const _barPhase = (((_bc - 1) % 4) + _within) / 4;  // 0..1 sul bar
-                const _exhale = (1 - _barPhase) * (1 - _barPhase);   // easeOut
+            if (bpmStable && bpmAvgInterval > 0 && beatCount >= 1 && beatHistory.length >= 1) {
+                // Usa beatCount (monotonic), non beatHistory.length (capped a 10!).
+                const _within = Math.min(1, Math.max(0, (Date.now() - beatHistory[beatHistory.length - 1]) / bpmAvgInterval));
+                const _barPhase = (((beatCount - 1) % 4) + _within) / 4;
+                const _exhale = (1 - _barPhase) * (1 - _barPhase);
                 scale *= 1 - 0.12 * _exhale;
             }
             const r = baseR * scale;
@@ -2703,12 +2703,12 @@
             // BPM-locked quando stabile: 1 giro = ROT_BARS bar (4 bar = 16 beats di default)
             // → moto coerente con la cassa, niente più drift indipendente. In silenzio o
             // su materiale non-ritmico, fallback al free-spin lento del path originale.
-            if (bpmStable && bpmAvgInterval > 0 && beatHistory.length >= 1) {
-                const ROT_BARS = 4;                 // periodo rotazione in bar
-                const _bc = beatHistory.length;
-                const _within = Math.min(1, Math.max(0, (Date.now() - beatHistory[_bc - 1]) / bpmAvgInterval));
-                const _phase = ((_bc - 1) + _within) / (ROT_BARS * 4);  // 0..1 sul ciclo
-                pupilSpinPhase = (_phase % 1) * Math.PI * 2;
+            if (bpmStable && bpmAvgInterval > 0) {
+                // Time-based, continuo: 1 giro = ROT_BARS * 4 beats = ROT_BARS bar.
+                // Indipendente da beatHistory.length (che è capped a 10) → niente saturazione.
+                const ROT_BARS = 4;
+                const _period = bpmAvgInterval * ROT_BARS * 4;
+                pupilSpinPhase = ((Date.now() % _period) / _period) * Math.PI * 2;
             } else {
                 pupilSpinPhase += 0.0042 + (1 - _act) * 0.020;
                 if (pupilSpinPhase > Math.PI * 2) pupilSpinPhase -= Math.PI * 2;
@@ -3032,7 +3032,8 @@
         });
 
         // Beat detection
-        let beatHistory = [];
+        let beatHistory = [];                 // SLIDING WINDOW (cap 10): NON usare .length come contatore
+        let beatCount = 0;                    // contatore monotonico di battute dalla session start
         let lastBeatTime = 0;
         let bpm = 0;
         
@@ -3507,8 +3508,9 @@
             // L3 listener pulses — spawn rising-edge ogni 16 beat (= 4 bar) quando
             // bpmStable, ci sono listener > 1, radio online e non siamo in silenzio.
             // 1 ring per listener oltre il primo (capped a LISTENER_PULSE_CAP).
-            if (bpmStable && beatHistory.length > 0 && azuracastOnline && !silenceMode) {
-                const _grp = Math.floor((beatHistory.length - 1) / 16);
+            if (bpmStable && beatCount > 0 && azuracastOnline && !silenceMode) {
+                // Usa beatCount monotonic, non beatHistory.length (capped a 10).
+                const _grp = Math.floor((beatCount - 1) / 16);
                 if (_grp !== lastListenerPulseGroup) {
                     lastListenerPulseGroup = _grp;
                     const _extra = Math.max(0, Math.min(LISTENER_PULSE_CAP, liveListeners - 1));
@@ -3803,6 +3805,7 @@
             if (bassLevel > beatThreshold && Date.now() - lastBeatTime > 200) {
                 beatHistory.push(Date.now());
                 if (beatHistory.length > 10) beatHistory.shift();
+                beatCount++;                  // monotonic — usalo per qualunque counter discreto di beat
 
                 if (beatHistory.length >= 2) {
                     const intervals = [];
@@ -4340,8 +4343,9 @@
 
                 // MODIFIER: Bass snap — every 4th beat, jump to a new random offset
                 // sized by current kickStack (3-stack → pupil flung to edge of visible).
-                if (beatHistory.length > 0 && beatHistory.length !== lastBassSnapBeat && beatHistory.length % 4 === 0) {
-                    lastBassSnapBeat = beatHistory.length;
+                // Usa beatCount monotonic, non beatHistory.length (sliding window capped 10).
+                if (beatCount > 0 && beatCount !== lastBassSnapBeat && beatCount % 4 === 0) {
+                    lastBassSnapBeat = beatCount;
                     bassSnapTargetX = (Math.random() - 0.5) * _kickAmp * 2.0;
                     bassSnapTargetY = (Math.random() - 0.5) * _kickAmp * 1.6;
                     bassSnapUntil = _now + 700;
