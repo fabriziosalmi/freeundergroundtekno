@@ -1140,6 +1140,21 @@
             z-index: 600;
         }
 
+        /* FREEZE OVERLAY — full-screen snapshot canvas that appears on extreme
+           wall→silence stacchi (max 1 / 5 min). Sopra TUTTO, B&W + contrast bump.
+           opacity controlled by JS (1 during hold, fade to 0 in 400 ms). */
+        #freezeOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 1200;
+            opacity: 0;
+            filter: saturate(0) contrast(1.18) brightness(0.96);
+        }
+
         /* SILENCE MODE — page eases into stillness when audio drops out.
            JS already fades the audio-reactive layers; here we pause the
            purely-CSS continuous animations so nothing keeps moving on its own. */
@@ -1171,6 +1186,7 @@
     <!-- PUPIL — sits on its own high-z canvas so it stays on top of every other
          layer (vortex rings, spiral, hex, sacred geo, dreams, particles). -->
     <canvas id="pupilCanvas"></canvas>
+    <canvas id="freezeOverlay"></canvas>
 
     <!-- SVG filters used by the canvas (referenced via ctx.filter = 'url(#...)').
          Map image content is generated in JS at startup. Zero size so nothing renders. -->
@@ -1593,6 +1609,79 @@
                 singularityProgress = 0;
                 singularityState = 'idle';
                 console.log('[singularity] idle');
+            }
+        }
+
+        // ===== STACCO FREEZE — wall→silence foto-finish =====
+        // Layer raro: cattura uno snapshot del frame corrente quando un "muro"
+        // (kickStack≥2 + bassLevel alto sostenuto) crolla in quasi-silenzio
+        // (bassCharge<0.20 dopo peak>0.85). Max 1 ogni 5 min (1 min in DEBUG).
+        // Effetto: snapshot congelato 1.5s + scanline che attraversa, B&W boost
+        // via CSS filter, fade-out 400 ms.
+        let freezeState = 'idle';            // 'idle' | 'hold' | 'fade'
+        let freezeStartAt = 0;
+        let lastStaccoFireAt = 0;
+        let wallSustainedAt = 0;             // ms — ultimo momento in cui il muro era attivo
+        let freezeOverlayCanvas = null;
+        let freezeOverlayCtx = null;
+        let freezeSnapshotCanvas = null;     // offscreen, persistent snapshot del fire
+        let freezeSnapshotCtx = null;
+        const FREEZE_HOLD_MS = 1500;
+        const FREEZE_FADE_MS = 400;
+        const FREEZE_COOLDOWN_MS = VIBE_DEBUG_FAST ? 60 * 1000 : 5 * 60 * 1000;
+
+        function fireFreeze() {
+            if (!freezeOverlayCanvas || !freezeSnapshotCanvas) return;
+            // Cattura: composito bgCanvas + pupilCanvas nello snapshot offscreen.
+            // DOM-level effects (tunnel rings, vhs lines, grain) restano live in
+            // background ma sono coperti dall'overlay opaco.
+            const w = freezeSnapshotCanvas.width;
+            const h = freezeSnapshotCanvas.height;
+            freezeSnapshotCtx.clearRect(0, 0, w, h);
+            try { freezeSnapshotCtx.drawImage(bgCanvas, 0, 0, w, h); } catch(e) {}
+            try { freezeSnapshotCtx.drawImage(pupilCanvas, 0, 0, w, h); } catch(e) {}
+            freezeState = 'hold';
+            freezeStartAt = Date.now();
+            freezeOverlayCanvas.style.opacity = '1';
+            console.log('%c[STACCO FREEZE]', 'background:#fff;color:#000;font-weight:bold;padding:2px 6px;',
+                'wall→silence captured');
+        }
+
+        function updateFreeze() {
+            if (freezeState === 'idle') return;
+            if (!freezeOverlayCanvas || !freezeSnapshotCanvas) return;
+            const w = freezeOverlayCanvas.width;
+            const h = freezeOverlayCanvas.height;
+            const elapsed = Date.now() - freezeStartAt;
+
+            // Redraw snapshot ogni frame + scanline che attraversa verticalmente.
+            freezeOverlayCtx.clearRect(0, 0, w, h);
+            freezeOverlayCtx.drawImage(freezeSnapshotCanvas, 0, 0);
+
+            // Scanline progress: 0..1 nell'intero hold, posizionata su h.
+            const _scanT = Math.min(1, elapsed / FREEZE_HOLD_MS);
+            const _scanY = _scanT * h;
+            // Bright thin band + dimmer trail above
+            freezeOverlayCtx.save();
+            freezeOverlayCtx.fillStyle = 'rgba(255,255,255,0.85)';
+            freezeOverlayCtx.fillRect(0, _scanY - 1, w, 2);
+            freezeOverlayCtx.fillStyle = 'rgba(255,255,255,0.18)';
+            freezeOverlayCtx.fillRect(0, _scanY - 24, w, 22);
+            freezeOverlayCtx.restore();
+
+            if (elapsed < FREEZE_HOLD_MS) {
+                if (freezeState !== 'hold') freezeState = 'hold';
+            } else if (elapsed < FREEZE_HOLD_MS + FREEZE_FADE_MS) {
+                const t = (elapsed - FREEZE_HOLD_MS) / FREEZE_FADE_MS;
+                freezeOverlayCanvas.style.opacity = String(1 - t);
+                if (freezeState !== 'fade') {
+                    freezeState = 'fade';
+                    console.log('[stacco] fade');
+                }
+            } else {
+                freezeState = 'idle';
+                freezeOverlayCanvas.style.opacity = '0';
+                console.log('[stacco] idle');
             }
         }
 
@@ -2253,9 +2342,29 @@
         const pupilCtx = pupilCanvas.getContext('2d');
         pupilCanvas.width = window.innerWidth;
         pupilCanvas.height = window.innerHeight;
+
+        // Freeze overlay (visible) + snapshot offscreen — wired to module-level
+        // vars dichiarate accanto al fireFreeze() state machine.
+        freezeOverlayCanvas = document.getElementById('freezeOverlay');
+        freezeOverlayCtx = freezeOverlayCanvas.getContext('2d');
+        freezeOverlayCanvas.width = window.innerWidth;
+        freezeOverlayCanvas.height = window.innerHeight;
+        freezeSnapshotCanvas = document.createElement('canvas');
+        freezeSnapshotCtx = freezeSnapshotCanvas.getContext('2d');
+        freezeSnapshotCanvas.width = window.innerWidth;
+        freezeSnapshotCanvas.height = window.innerHeight;
+
         window.addEventListener('resize', () => {
             pupilCanvas.width = window.innerWidth;
             pupilCanvas.height = window.innerHeight;
+            if (freezeOverlayCanvas) {
+                freezeOverlayCanvas.width = window.innerWidth;
+                freezeOverlayCanvas.height = window.innerHeight;
+            }
+            if (freezeSnapshotCanvas) {
+                freezeSnapshotCanvas.width = window.innerWidth;
+                freezeSnapshotCanvas.height = window.innerHeight;
+            }
         });
 
         // Iris parametric ring around the pupil. Toggle in 1 sec to disable.
@@ -3235,6 +3344,7 @@
 
             // Update singularity state machine (Step 2) — reads Date.now(), drives renderers
             updateSingularity();
+            updateFreeze();
 
             // === KICK DECOMPOSITION ===
             // Tekno stacks kicks: sub (30-65 Hz) + body (85-170 Hz) + punch (300-650 Hz).
@@ -3351,6 +3461,27 @@
                     bassChargePeak = bassCharge;
                     bassChargePeakAt = _nowVibe;
                 }
+
+                // 3a) WALL SUSTAINED tracker per il Freeze layer: il muro è considerato
+                //     "attivo" se kickStack≥2 + bassLevel forte. Lo timestamp ad ogni
+                //     frame attivo → il freeze richiede che il muro fosse vivo entro 1.5s.
+                if (kickStack >= 2 && bassLevel > 0.55 && cassoneIntensity > 0.35) {
+                    wallSustainedAt = _nowVibe;
+                }
+                const _wallRecent = (_nowVibe - wallSustainedAt) < 1500;
+
+                // 3b) EXTREME STACCO → Freeze (foto-finish). Soglie più draconiche del
+                //     drop standard: peak > 0.85, crash < 0.20, AND wall recente. Cooldown
+                //     5 min (1 min in DEBUG) indipendente dal vibe meter.
+                if (_wallRecent && bassChargePeak > 0.85 && bassCharge < 0.20
+                    && _nowVibe - bassChargePeakAt < 1500
+                    && _nowVibe - lastStaccoFireAt > FREEZE_COOLDOWN_MS
+                    && freezeState === 'idle') {
+                    lastStaccoFireAt = _nowVibe;
+                    fireFreeze();
+                }
+
+                // 3c) Drop standard → vibe meter charge (immutato)
                 if (bassChargePeak > 0.8 && bassCharge < 0.3 && _nowVibe - bassChargePeakAt < 2000) {
                     vibeCharge += 0.20;
                     console.log('[vibe] +0.20 drop ' + bassChargePeak.toFixed(2) + '→' + bassCharge.toFixed(2) + ', charge=' + vibeCharge.toFixed(3));
