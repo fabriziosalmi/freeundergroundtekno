@@ -1475,6 +1475,7 @@
         // BPM sync state (set inside drawProceduralBg, consumed by pupil motion in animate())
         let bpmSyncAngle = 0;
         let bpmStable = false;
+        let bpmAvgInterval = 0; // ms — written when bpmStable, consumed by pupil rotation/exhale
 
         // ===== KICK DECOMPOSITION (tekno layers kick on kick on kick) =====
         // sub (30-60 Hz) = the subwoofer body
@@ -1754,6 +1755,7 @@
                     bpmSyncAngle = ((time % avgInterval) / avgInterval) * Math.PI * 2;
                     bpmPulsePhase = (time % avgInterval) / avgInterval;
                     bpmPulseIntensity = Math.pow(1 - bpmPulsePhase, 3); // cubic decay
+                    bpmAvgInterval = avgInterval; // expose to drawPupil for BPM-locked rotation + exhale
                 }
             }
             if (!bpmStable) bpmPulseIntensity *= 0.95;
@@ -2315,7 +2317,10 @@
             //   long breakdown without kicks → shrinks toward ~40% (bassCharge → 0)
             //   deep silence → shrinks further via calmness
             const _act = 1 - calmness;
-            let scale = 1 + bass * 0.15 + pupilDilation * 0.7 + cassoneIntensity * 0.7 + subKick * 0.25;
+            // Tuning 2026-05-14: pupilla parcheggiava troppo grande. Trimmo i contributori
+            // "lenti" che plateau-ano (pupilDilation, cassoneIntensity) e gonfio i contributori
+            // per-frame (bass, subKick) → meno stazionamento, più pulse visibile per kick.
+            let scale = 1 + bass * 0.28 + pupilDilation * 0.40 + cassoneIntensity * 0.45 + subKick * 0.40;
             // Singularity bloom — la sfera si gonfia mentre tutto le collassa addosso.
             scale *= 1 + singularityProgress * 0.18;
             // FAT-BASS DILATION BOOST — su kick distorti e cassa pastosa la pupilla
@@ -2334,7 +2339,17 @@
             if (silenceMode) scale += Math.sin(time * 0.002) * 0.05 * calmness;
             // Always-on subtle breath: pupil never holds an exact static size between events,
             // so it never reads as a default UI button.
-            scale *= 1 + Math.sin(time * 0.0008) * 0.04;
+            scale *= 1 + Math.sin(time * 0.0014) * 0.07;
+            // Per-bar exhale — locked to bars: scale dips 12% al downbeat di ogni bar,
+            // easeOut quadratico → ricresce in 4 beats. Rompe il plateau quando ritualScore
+            // e cassoneIntensity sarebbero parcheggiati alti. Solo con bpmStable.
+            if (bpmStable && bpmAvgInterval > 0 && beatHistory.length >= 1) {
+                const _bc = beatHistory.length;
+                const _within = Math.min(1, Math.max(0, (Date.now() - beatHistory[_bc - 1]) / bpmAvgInterval));
+                const _barPhase = (((_bc - 1) % 4) + _within) / 4;  // 0..1 sul bar
+                const _exhale = (1 - _barPhase) * (1 - _barPhase);   // easeOut
+                scale *= 1 - 0.12 * _exhale;
+            }
             const r = baseR * scale;
             lastPupilR = r;   // shared with drawProceduralBg so the spiral masks around it
 
@@ -2417,10 +2432,20 @@
             _R *= 0.9; _G *= 0.9; _B *= 0.9;
             // Sphere shading: highlight diffuso, contrasto basso. Pupilla scura — il
             // gradiente accenna la sfera, non la dichiara.
-            // Sphere rotation on axis — highlight + rim orbit together. Always visible:
-            // music: ~25 s/giro (composta), silenzio: ~5 s/giro (ipnotica).
-            pupilSpinPhase += 0.0042 + (1 - _act) * 0.020;
-            if (pupilSpinPhase > Math.PI * 2) pupilSpinPhase -= Math.PI * 2;  // wrap, no float drift over time
+            // Sphere rotation on axis — highlight + rim + webcam content orbit together.
+            // BPM-locked quando stabile: 1 giro = ROT_BARS bar (4 bar = 16 beats di default)
+            // → moto coerente con la cassa, niente più drift indipendente. In silenzio o
+            // su materiale non-ritmico, fallback al free-spin lento del path originale.
+            if (bpmStable && bpmAvgInterval > 0 && beatHistory.length >= 1) {
+                const ROT_BARS = 4;                 // periodo rotazione in bar
+                const _bc = beatHistory.length;
+                const _within = Math.min(1, Math.max(0, (Date.now() - beatHistory[_bc - 1]) / bpmAvgInterval));
+                const _phase = ((_bc - 1) + _within) / (ROT_BARS * 4);  // 0..1 sul ciclo
+                pupilSpinPhase = (_phase % 1) * Math.PI * 2;
+            } else {
+                pupilSpinPhase += 0.0042 + (1 - _act) * 0.020;
+                if (pupilSpinPhase > Math.PI * 2) pupilSpinPhase -= Math.PI * 2;
+            }
             // Highlight più tenue (+12 invece di +18), edge più scuro (×0.22 invece di ×0.32),
             // 5 stops per dare curva alla transizione invece di lerp lineare = sfera con
             // body più scuro, terminator gradualmente discendente, rim shadow netto.
