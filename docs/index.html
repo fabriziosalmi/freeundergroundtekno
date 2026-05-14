@@ -1623,6 +1623,20 @@
         const RED_FLASH_DURATION = 900;        // ms — flash + scia fade
         const CASSONE_BAR_THRESHOLD = 0.25;    // matches sacred-geo gate
 
+        // ===== EASING — pure stateless helpers, hoisted out of animate() =====
+        // Used by camera-zoom/depth/rotate/skew interpolations. Pure functions,
+        // no captured state — must live at module scope so they aren't reallocated
+        // per frame (was: 1 object + 4 closures × 60 fps = ~21.6 k alloc/min GC).
+        const EASING = {
+            easeInOut: (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
+            easeOut:   (t) => t * (2 - t),
+            easeIn:    (t) => t * t,
+            bounce:    (t) => {
+                if (t < 0.5) return 8 * t * t * t * t;
+                return 1 - 8 * (--t) * t * t * t;
+            }
+        };
+
         // ===== BASS-CLUSTER FLASH (BC FLASH) =====
         // Composite-gated rare event: fires when bass-RMS transient exceeds an
         // ADAPTIVE threshold AND kickStack >= 2 AND cooldown >= 30 s elapsed.
@@ -4169,19 +4183,8 @@
                 window.currentEasing = easingTypes[Math.floor(Math.random() * easingTypes.length)];
             }
             
-            // 🎨 FUNZIONI DI EASING per movimento fluido e ritmato
-            const easing = {
-                easeInOut: (t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t,
-                easeOut: (t) => t * (2 - t), // decelerazione
-                easeIn: (t) => t * t, // accelerazione
-                bounce: (t) => {
-                    if (t < 0.5) return 8 * t * t * t * t;
-                    return 1 - 8 * (--t) * t * t * t;
-                }
-            };
-            
-            // Applica easing corrente
-            const currentEasingFunc = easing[window.currentEasing || 'easeInOut'];
+            // Easing functions hoisted to module scope as EASING — see top.
+            const currentEasingFunc = EASING[window.currentEasing || 'easeInOut'];
             
             // Beat detection - SOGLIA RIDOTTA per mobile
             const beatThreshold = isMobile ? 0.3 : 0.7;
@@ -4641,13 +4644,13 @@
             
             // Avanti/Indietro (medi): movimento verticale + zoom con easing alternato
             const depthCycle = (Date.now() % 3000) / 3000; // ciclo 3 secondi
-            const depthEased = easing.easeInOut(depthCycle); // sempre smooth per profondità
+            const depthEased = EASING.easeInOut(depthCycle); // sempre smooth per profondità
             const swayY = (Math.sin(depthEased * Math.PI * 2) * midLevel * 35) + (window.targetPoint.y * midLevel * 0.5);
             const depthZoom = Math.sin(depthEased * Math.PI * 2) * midLevel * 0.15; // oscillazione zoom per "avanti/indietro"
             
             // Rotazione testa (alti): piccole rotazioni su tutti gli assi con bounce
             const rotateCycle = (Date.now() % 2500) / 2500;
-            const rotateEased = easing.bounce(rotateCycle);
+            const rotateEased = EASING.bounce(rotateCycle);
             const swayRotateZ = Math.sin(rotateEased * Math.PI * 2) * trebleLevel * 4; // rotazione Z (principale)
             const swayRotateX = Math.sin(rotateEased * Math.PI * 2) * trebleLevel * 2; // tilt testa su/giù
             
@@ -4655,7 +4658,7 @@
             let burstOffsetX = 0, burstOffsetY = 0, burstBlur = 0;
             if (Date.now() - lastZoomBurst < 300) {
                 const burstProgress = (Date.now() - lastZoomBurst) / 300; // 0 a 1
-                const burstEased = easing.easeOut(burstProgress); // decelerazione rapida
+                const burstEased = EASING.easeOut(burstProgress); // decelerazione rapida
                 burstOffsetX = window.targetPoint.x * (1 - burstEased) * 0.5;
                 burstOffsetY = window.targetPoint.y * (1 - burstEased) * 0.5;
                 // Blur con easing sinusoidale per effetto più organico
@@ -4666,7 +4669,7 @@
             // la pupilla resta dritta sul suo canvas → senso di "mondo tilted".
             // Ampiezza: ±0.3° in silenzio, fino a ±2.1° su mid sostenuto.
             const skewCycle = (Date.now() % 4000) / 4000;
-            const skewEased = easing.easeInOut(skewCycle);
+            const skewEased = EASING.easeInOut(skewCycle);
             const swaySkewX = Math.sin(skewEased * Math.PI * 2) * (midLevel * 1.8 + 0.3);
 
             // Applica TUTTI i movimenti combinati — perspective(900px) attiva il 3D
