@@ -4552,11 +4552,6 @@
                 vortexCtx.restore();
             }
             
-            // Debug: Log frequency data occasionally
-            if (Math.floor(Date.now() / 1000) % 2 === 0 && Math.random() < 0.05) {
-                console.log(`Frequencies - Bass: ${Math.round(bassLevel*100)}%, Mid: ${Math.round(midLevel*100)}%, Treble: ${Math.round(trebleLevel*100)}%`);
-            }
-            
             animationId = requestAnimationFrame(animate);
         }
         
