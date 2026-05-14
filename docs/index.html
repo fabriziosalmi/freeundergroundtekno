@@ -1524,7 +1524,7 @@
         // Density modulata dai listener: BASE soli quando azuracastOnline=false o 1 listener,
         // fino a MAX con community attiva (cap implicito ai ~17 listener).
         let starfield = null;
-        const STARFIELD_BASE = 90;
+        const STARFIELD_BASE = 70;
         const STARFIELD_MAX = 160;
 
         // ===== PUPIL BLINK — palpebra che si chiude verticalmente ogni ~25-40s
@@ -1943,6 +1943,12 @@
             const STARS_ENABLED = true;
             if (STARS_ENABLED) {
                 const starBrightBase = 0.25 * _active + 0.06 * calmness;
+                // Outer-check: max alpha possibile = starBrightBase + (treble*0.5 + bpmPulse*0.4) * _active.
+                // Se sotto soglia → ogni particle skip individualmente ma il loop gira lo stesso.
+                // In silenzio profondo: _active=0 → max ≈ 0.06*calmness ≈ 0.06 quando full silence
+                // (sopra soglia), ma con calmness < 0.17 max < 0.01 → skip outright.
+                const _maxStarAlpha = starBrightBase + (trebleLevel * 0.5 + bpmPulseIntensity * 0.4) * _active;
+                if (_maxStarAlpha >= 0.01)
                 for (let i = 0; i < bgParticles.length; i++) {
                     const p = bgParticles[i];
                     // Drift upward (halts in silence)
@@ -2011,7 +2017,9 @@
             const _starfieldCount = azuracastOnline
                 ? Math.min(STARFIELD_MAX, STARFIELD_BASE + Math.max(0, liveListeners - 1) * 4)
                 : STARFIELD_BASE;
-            {
+            // Early-exit: peak alpha = 0.28 * _active. Se _active < 0.07 ogni star
+            // skip individualmente ma il loop gira lo stesso → outer skip.
+            if (_active >= 0.07) {
                 const pcx = cx + pupilOffX;
                 const pcy = cy + pupilOffY;
                 const _innerMin = lastPupilR + minDim * 0.05;
@@ -2122,9 +2130,13 @@
             const hexBpmBoost = bpmPulseIntensity * 0.3;
             // Base abbassata 0.6 → 0.4 — meno presente di default.
             const hexAlpha = (0.4 + bassLevel * 1.0 + hexBpmBoost) * _active * _rhythmFactor;
-            ctx.globalAlpha = Math.min(hexAlpha, 1);
-            ctx.drawImage(hexGridCanvas, 0, 0);
-            ctx.globalAlpha = 1;
+            // Early-exit: in silenzio profondo / no-rhythm il blit hex è invisibile
+            // ma comunque costa ~0.2 ms. Skip pulito.
+            if (hexAlpha > 0.005) {
+                ctx.globalAlpha = Math.min(hexAlpha, 1);
+                ctx.drawImage(hexGridCanvas, 0, 0);
+                ctx.globalAlpha = 1;
+            }
 
             // ===== LAYER 3: Spiral Vortex =====
             if (bpmStable) {
@@ -2145,6 +2157,10 @@
             try { _slow = isSlowDevice; } catch(e) {}
             const spiralSteps = _slow ? 40 : 80;
 
+            // Early-exit perf: in silenzio profondo (_active≈0) o senza rhythm
+            // (_rhythmFactor minimo + bassLevel basso) lo spiralAlpha è praticamente
+            // 0 → saltiamo gradient + 14 stroke. Saving 1.5-2.5 ms/frame.
+            if (spiralAlpha >= 0.005) {
             // Radial gradient: 14 stroke/frame (era 1120). Inner radius dinamico legato
             // a lastPupilR → la spirale è trasparente dentro la pupilla, fade-in subito
             // fuori dal bordo, decade nella metà esterna come prima.
@@ -2177,6 +2193,7 @@
                 }
                 ctx.stroke();
             }
+            }  // end early-exit on spiralAlpha
 
 
             // ===== LAYER 5: Central Circle + Broadcast Icon (enhanced) =====
@@ -2504,6 +2521,19 @@
         freezeSnapshotCanvas.width = window.innerWidth;
         freezeSnapshotCanvas.height = window.innerHeight;
 
+        // Scanline pattern (2×2): 1 black row at y=0, 1 transparent row at y=1.
+        // Consumato in drawPupil sostituendo il loop fillRect → 1 fillRect/frame.
+        const scanlinePatternCanvas = document.createElement('canvas');
+        scanlinePatternCanvas.width = 2;
+        scanlinePatternCanvas.height = 2;
+        {
+            const _spc = scanlinePatternCanvas.getContext('2d');
+            _spc.fillStyle = 'rgba(0,0,0,0.32)';
+            _spc.fillRect(0, 0, 2, 1);   // dark row
+            // y=1 stays transparent
+        }
+        let scanlinePattern = null;   // lazy createPattern dentro pupilCtx al primo uso
+
         window.addEventListener('resize', () => {
             pupilCanvas.width = window.innerWidth;
             pupilCanvas.height = window.innerHeight;
@@ -2804,11 +2834,12 @@
                 pupilCtx.filter = 'none';
                 pupilCtx.globalCompositeOperation = 'source-over';
 
-                // Scanlines — 2 px spacing, dark line every 2 rows
-                pupilCtx.fillStyle = 'rgba(0,0,0,0.32)';
-                for (let y = -r; y < r; y += 2) {
-                    pupilCtx.fillRect(-r, y, r * 2, 1);
-                }
+                // Scanlines — 2 px spacing, dark line every 2 rows.
+                // Pre-rendered 2×2 pattern → 1 fillRect invece di 150-300 fillRect/frame
+                // (saving ~0.8-1.0 ms quando webcam ON). Pattern lazy-init dentro pupilCtx.
+                if (!scanlinePattern) scanlinePattern = pupilCtx.createPattern(scanlinePatternCanvas, 'repeat');
+                pupilCtx.fillStyle = scanlinePattern;
+                pupilCtx.fillRect(-r, -r, r * 2, r * 2);
 
                 // Lens vignette inside the pupil — darken periphery, central area kept bright
                 const innerGrad = pupilCtx.createRadialGradient(0, 0, r * 0.35, 0, 0, r);
