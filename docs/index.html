@@ -1565,7 +1565,7 @@
         const sessionStartAt = Date.now();
         // ⚠️ DEBUG/TEST mode — rapid fire so we can validate the trigger logic + future visual
         // in a single short session. REVERT TO false BEFORE SHIP (or remove this block entirely).
-        const VIBE_DEBUG_FAST = true;
+        const VIBE_DEBUG_FAST = false;
         const VIBE_BASE_THRESHOLD     = VIBE_DEBUG_FAST ? 0.30 : 0.85;
         const VIBE_COOLDOWN_MIN_MS    = VIBE_DEBUG_FAST ? 30 * 1000          : 15 * 60 * 1000;
         const VIBE_COOLDOWN_MAX_MS    = VIBE_DEBUG_FAST ? 60 * 1000          : 25 * 60 * 1000;
