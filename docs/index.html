@@ -1178,7 +1178,7 @@
         <defs>
             <filter id="fxFisheye" x="-20%" y="-20%" width="140%" height="140%">
                 <feImage id="fxFisheyeMap" preserveAspectRatio="none" result="map"/>
-                <feDisplacementMap in="SourceGraphic" in2="map" scale="70" xChannelSelector="R" yChannelSelector="G"/>
+                <feDisplacementMap in="SourceGraphic" in2="map" scale="82" xChannelSelector="R" yChannelSelector="G"/>
             </filter>
         </defs>
     </svg>
@@ -1501,6 +1501,13 @@
         // ===== PUPIL SPIN — sphere rotates on its own axis. Highlight + rim orbit
         // together (rim is always opposite). Speed: visibile sempre, faster in silence.
         let pupilSpinPhase = -Math.PI * 0.75;
+
+        // ===== PUPIL BLINK — palpebra che si chiude verticalmente ogni ~25-40s
+        // (periodico jittered) o su drop. ~160 ms totale: close fast, open back.
+        const BLINK_DURATION = 160;  // ms
+        let blinkActive = false;
+        let blinkStart = 0;
+        let nextBlinkAt = Date.now() + 12000 + Math.random() * 18000;  // first blink 12-30s
         // Last computed pupil radius (set inside drawPupil, read by drawProceduralBg
         // to mask the spiral / bg layers away from the pupil area).
         let lastPupilR = 30;
@@ -2230,6 +2237,17 @@
             //   deep silence → shrinks further via calmness
             const _act = 1 - calmness;
             let scale = 1 + bass * 0.15 + pupilDilation * 0.7 + cassoneIntensity * 0.7 + subKick * 0.25;
+            // FAT-BASS DILATION BOOST — su kick distorti e cassa pastosa la pupilla
+            // si ingrandisce ulteriormente. Tre contributi:
+            //   1) kickStack pesante (≥2 bande firing) — soglia abbassata a 1.2 + coef 0.25
+            //   2) cassone saturo (sustained 4/4) — coef 0.60
+            //   3) HARMONIC SATURATION — prodotto sub*body*punch: scatta solo quando il
+            //      kick è "pieno" su tutte e 3 le bande contemporaneamente (= distorto/cicciotto).
+            //      Termine prodotto = zero appena una banda manca → detector ortogonale.
+            const _fatBass = Math.max(0, (kickStack - 1.2) / 1.5) * 0.25
+                            + Math.pow(Math.max(0, cassoneIntensity - 0.4), 1.5) * 0.60
+                            + subKick * bodyKick * punchKick * 0.65;
+            scale *= 1 + _fatBass;
             scale *= 0.4 + 0.6 * bassCharge;     // sag when the kick goes away
             scale *= 1 - calmness * 0.28;        // further shrink in deep silence
             if (silenceMode) scale += Math.sin(time * 0.002) * 0.05 * calmness;
@@ -2238,6 +2256,30 @@
             scale *= 1 + Math.sin(time * 0.0008) * 0.04;
             const r = baseR * scale;
             lastPupilR = r;   // shared with drawProceduralBg so the spiral masks around it
+
+            // Compute blinkY (Y-scale fattore) — 1 quando occhio aperto, 0.05 al picco di chiusura
+            let blinkY = 1;
+            if (blinkActive) {
+                const _bp = (time - blinkStart) / BLINK_DURATION;
+                if (_bp < 0.3) {
+                    // closing fast (easeIn quadratic)
+                    const t = _bp / 0.3;
+                    blinkY = 1 - t * t * 0.95;
+                } else if (_bp < 1) {
+                    // opening (easeOut quadratic)
+                    const t = (_bp - 0.3) / 0.7;
+                    blinkY = 0.05 + (1 - (1 - t) * (1 - t)) * 0.95;
+                }
+            }
+
+            // Outer wrap: scala Y di tutto il pupil rendering attorno a (cx,cy)
+            // → iris + sfera + reflection + stroke si chiudono come palpebra.
+            pupilCtx.save();
+            if (blinkY < 0.99) {
+                pupilCtx.translate(cx, cy);
+                pupilCtx.scale(1, blinkY);
+                pupilCtx.translate(-cx, -cy);
+            }
 
             // === IRIS (parametric ring) ===
             // Drawn FIRST so the pupil dark fill that comes next covers the center —
@@ -2401,9 +2443,10 @@
             // Niente più warm gold su raveMode: il colore "ritualistico" lo porta
             // solo il fill via ritualScore. Il contorno è argento, neutro, freddo.
             pupilCtx.strokeStyle = `rgba(245,248,252,${0.7 + bass * 0.3})`;
-            pupilCtx.lineWidth = 1;
+            pupilCtx.lineWidth = 2;
             pupilCtx.stroke();
             pupilCtx.restore();
+            pupilCtx.restore();   // chiude il blink outer wrap
         }
         // Initial static render of procedural background (no audio)
         drawProceduralBg(bgCtx, bgCanvas.width, bgCanvas.height, 0, 0, 0, 0, Date.now(), null);
@@ -3812,6 +3855,11 @@
                 // Update mask CSS vars: hole radius + center offset → rays follow the pupil.
                 // Same scale formula as drawPupil() so the mask hole matches the visible pupil.
                 let _pupilScale = 1 + bassLevel * 0.15 + pupilDilation * 0.7 + cassoneIntensity * 0.7 + subKick * 0.25;
+                // Keep mask hole in sync with drawPupil() fat-bass curve (sub*body*punch term included).
+                const _fatBassMask = Math.max(0, (kickStack - 1.2) / 1.5) * 0.25
+                                   + Math.pow(Math.max(0, cassoneIntensity - 0.4), 1.5) * 0.60
+                                   + subKick * bodyKick * punchKick * 0.65;
+                _pupilScale *= 1 + _fatBassMask;
                 _pupilScale *= 0.4 + 0.6 * bassCharge;
                 _pupilScale *= 1 - calmness * 0.28;
                 if (silenceMode) _pupilScale += Math.sin(_now * 0.002) * 0.05 * calmness;
@@ -3819,6 +3867,24 @@
                 negativeLayer.style.setProperty('--pupil-r', _pupilR.toFixed(1) + 'px');
                 negativeLayer.style.setProperty('--pupil-x', pupilOffX.toFixed(1) + 'px');
                 negativeLayer.style.setProperty('--pupil-y', pupilOffY.toFixed(1) + 'px');
+            }
+            // BLINK trigger + state machine. Two paths:
+            //   1) periodic: ogni 18-38s con jitter random
+            //   2) reactive: rising edge di dropFlashIntensity (drop = blink involontario)
+            {
+                const _nowB = Date.now();
+                if (!blinkActive && _nowB > nextBlinkAt) {
+                    blinkActive = true;
+                    blinkStart = _nowB;
+                }
+                if (dropFlashIntensity > lastDropFlashIntensity + 0.3 && !blinkActive) {
+                    blinkActive = true;
+                    blinkStart = _nowB;
+                }
+                if (blinkActive && _nowB - blinkStart > BLINK_DURATION) {
+                    blinkActive = false;
+                    nextBlinkAt = _nowB + 18000 + Math.random() * 20000;
+                }
             }
             // Draw the pupil on its dedicated top canvas (always on top of everything).
             drawPupil(Date.now(), bassLevel, midLevel, trebleLevel, pupilOffX, pupilOffY);
