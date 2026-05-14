@@ -1515,6 +1515,39 @@
         // Multiplied into the pupil scale → "no cassa = pupilla si rimpicciolisce sempre di più".
         let bassCharge = 1;
 
+        // ===== VOICES MODEL (kick / hat / lead) — unified rhythm vocabulary =====
+        // Three "voices" with the SAME anatomy:
+        //   • instantaneous level     — already raw (subKick/bodyKick/punchKick, trebleLevel, midLevel)
+        //   • onset event             — rising-edge of the band's primary metric
+        //   • ride (sustained)        — 1s MA + asymmetric spring damping (like cassoneIntensity)
+        //   • score (bar counter)     — +1/64 per onset while bpmStable (like ritualScore)
+        // Downstream visuals consume the active flags + voicesActive count rather than
+        // re-thresholding raw bands. Centralized thresholds, simmetria garantita.
+        //
+        // HAT voice (treble band, ~3.2-6.5 kHz)
+        const trebleHistoryRide = new Float32Array(60); // ~1 s @ 60 fps
+        let trebleHistoryRideIdx = 0;
+        let trebleHistoryRideFilled = false;
+        let hatRide = 0;             // 0..1, spring-damped
+        let hatRideVel = 0;
+        let hatScore = 0;            // 0..16, bar accumulator
+        let lastHatFired = false;    // rising-edge gate
+        let lastHatOnsetTime = 0;    // ms — for decay logic
+        // LEAD voice (mid band, ~860 Hz - 2.6 kHz)
+        const midHistoryRide = new Float32Array(60);
+        let midHistoryRideIdx = 0;
+        let midHistoryRideFilled = false;
+        let leadRide = 0;
+        let leadRideVel = 0;
+        let leadScore = 0;
+        let lastLeadFired = false;
+        let lastLeadOnsetTime = 0;
+        // Voices summary (computed each frame after all three are updated)
+        let kickActive = false;
+        let hatActive = false;
+        let leadActive = false;
+        let voicesActive = 0;        // 0..3
+
         // ===== PUPIL SPIN — sphere rotates on its own axis. Highlight + rim orbit
         // together (rim is always opposite). Speed: visibile sempre, faster in silence.
         let pupilSpinPhase = -Math.PI * 0.75;
@@ -3653,6 +3686,75 @@
             const _cassDamp  = _cassF > 0 ? 0.70 : 0.86;
             cassoneVel = cassoneVel * _cassDamp + _cassF * _cassStiff;
             cassoneIntensity = Math.max(0, Math.min(1.15, cassoneIntensity + cassoneVel));
+
+            // ===== HAT VOICE — sustained hi-hat ride (treble band MA + spring) =====
+            // Stessa anatomia di cassoneIntensity: 1s MA + asymmetric spring. Soglia
+            // più bassa (0.18) perché trebleLevel ha meno energia di bassLevel a parità
+            // di "presenza percepita". Onset = rising-edge su trebleLevel > 0.28.
+            trebleHistoryRide[trebleHistoryRideIdx] = trebleLevel;
+            trebleHistoryRideIdx = (trebleHistoryRideIdx + 1) % trebleHistoryRide.length;
+            if (trebleHistoryRideIdx === 0) trebleHistoryRideFilled = true;
+            let trebleMA = 0;
+            const _tn = trebleHistoryRideFilled ? trebleHistoryRide.length : trebleHistoryRideIdx;
+            if (_tn > 0) {
+                for (let i = 0; i < _tn; i++) trebleMA += trebleHistoryRide[i];
+                trebleMA /= _tn;
+            }
+            const hatTarget = trebleMA > 0.18
+                ? Math.min(1, (trebleMA - 0.18) / 0.25)
+                : 0;
+            const _hatF = hatTarget - hatRide;
+            const _hatStiff = _hatF > 0 ? 0.08 : 0.05;
+            const _hatDamp  = _hatF > 0 ? 0.70 : 0.86;
+            hatRideVel = hatRideVel * _hatDamp + _hatF * _hatStiff;
+            hatRide = Math.max(0, Math.min(1, hatRide + hatRideVel));
+            // Hat onset: rising-edge su trebleLevel > 0.28 (più strict di hatRide).
+            // hatScore: +1/64 mentre bpmStable, decay rapido se nessun onset per >800 ms.
+            const _hatFiring = trebleLevel > 0.28;
+            if (_hatFiring && !lastHatFired) {
+                lastHatOnsetTime = _now2;
+                if (bpmStable) hatScore = Math.min(16, hatScore + 1 / 64);
+            }
+            lastHatFired = _hatFiring;
+            if (_now2 - lastHatOnsetTime > 800) hatScore *= 0.88;
+            if (!isFinite(hatScore)) hatScore = 0;
+
+            // ===== LEAD VOICE — sustained mid-band ride (synth/melodic content) =====
+            // Stessa anatomia. Soglia 0.22 (mid medio-alto, esclude pad leggeri ma
+            // include lead/synth attivi). Onset = rising-edge midLevel > 0.32.
+            midHistoryRide[midHistoryRideIdx] = midLevel;
+            midHistoryRideIdx = (midHistoryRideIdx + 1) % midHistoryRide.length;
+            if (midHistoryRideIdx === 0) midHistoryRideFilled = true;
+            let midMA = 0;
+            const _mn = midHistoryRideFilled ? midHistoryRide.length : midHistoryRideIdx;
+            if (_mn > 0) {
+                for (let i = 0; i < _mn; i++) midMA += midHistoryRide[i];
+                midMA /= _mn;
+            }
+            const leadTarget = midMA > 0.22
+                ? Math.min(1, (midMA - 0.22) / 0.25)
+                : 0;
+            const _leadF = leadTarget - leadRide;
+            const _leadStiff = _leadF > 0 ? 0.08 : 0.05;
+            const _leadDamp  = _leadF > 0 ? 0.70 : 0.86;
+            leadRideVel = leadRideVel * _leadDamp + _leadF * _leadStiff;
+            leadRide = Math.max(0, Math.min(1, leadRide + leadRideVel));
+            const _leadFiring = midLevel > 0.32;
+            if (_leadFiring && !lastLeadFired) {
+                lastLeadOnsetTime = _now2;
+                if (bpmStable) leadScore = Math.min(16, leadScore + 1 / 64);
+            }
+            lastLeadFired = _leadFiring;
+            if (_now2 - lastLeadOnsetTime > 800) leadScore *= 0.88;
+            if (!isFinite(leadScore)) leadScore = 0;
+
+            // ===== VOICES SUMMARY — unified rhythm vocabulary for downstream visuals =====
+            // kickActive: cassoneIntensity sostenuta OR kick istantaneo (≥1 banda firing).
+            // Coverte sia "cassa che dura" sia "primo kick di un drop" appena partito.
+            kickActive = cassoneIntensity > 0.15 || kickStack >= 1;
+            hatActive  = hatRide > 0.15;
+            leadActive = leadRide > 0.15;
+            voicesActive = (kickActive ? 1 : 0) + (hatActive ? 1 : 0) + (leadActive ? 1 : 0);
 
             // ===== VIBE METER UPDATE (Singularity trigger logic) =====
             // Hybrid model: musical accumulator + cooldown + random gate.
