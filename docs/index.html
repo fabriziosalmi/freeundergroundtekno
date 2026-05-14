@@ -2505,7 +2505,7 @@
                             + Math.pow(Math.max(0, cassoneIntensity - 0.4), 1.5) * 0.60
                             + subKick * bodyKick * punchKick * 0.65;
             scale *= 1 + _fatBass;
-            scale *= 0.4 + 0.6 * bassCharge;     // sag when the kick goes away
+            scale *= 0.18 + 0.82 * bassCharge;   // sag aggressivo: senza cassa pupilla piccola (default state = piccola)
             scale *= 1 - calmness * 0.28;        // further shrink in deep silence
             if (silenceMode) scale += Math.sin(time * 0.002) * 0.05 * calmness;
             // Always-on subtle breath: pupil never holds an exact static size between events,
@@ -3495,8 +3495,11 @@
                 ? Math.min(1.15, ((bassMA - 0.42) / 0.30) * (1 + kickStack * 0.15))
                 : 0;
             const _cassF = cassoneTarget - cassoneIntensity;
-            const _cassStiff = _cassF > 0 ? 0.07 : 0.025;
-            const _cassDamp  = _cassF > 0 ? 0.70 : 0.92;
+            // Asymmetric spring: salita veloce, fall più rapido di prima (era 0.025/0.92)
+            // così cassoneIntensity non parcheggia alto quando la cassa stacca → contribuisce
+            // a "senza cassa pupilla piccola".
+            const _cassStiff = _cassF > 0 ? 0.07 : 0.045;
+            const _cassDamp  = _cassF > 0 ? 0.70 : 0.86;
             cassoneVel = cassoneVel * _cassDamp + _cassF * _cassStiff;
             cassoneIntensity = Math.max(0, Math.min(1.15, cassoneIntensity + cassoneVel));
 
@@ -4292,13 +4295,15 @@
 
                 // Update mask CSS vars: hole radius + center offset → rays follow the pupil.
                 // Same scale formula as drawPupil() so the mask hole matches the visible pupil.
-                let _pupilScale = 1 + bassLevel * 0.15 + pupilDilation * 0.7 + cassoneIntensity * 0.7 + subKick * 0.25;
+                // Weights in sync con drawPupil(): trimmati su contributori "lenti" e
+                // gonfiati su quelli per-frame → mask hole non parcheggia oltre il pupil.
+                let _pupilScale = 1 + bassLevel * 0.28 + pupilDilation * 0.40 + cassoneIntensity * 0.45 + subKick * 0.40;
                 // Keep mask hole in sync with drawPupil() fat-bass curve (sub*body*punch term included).
                 const _fatBassMask = Math.max(0, (kickStack - 1.2) / 1.5) * 0.25
                                    + Math.pow(Math.max(0, cassoneIntensity - 0.4), 1.5) * 0.60
                                    + subKick * bodyKick * punchKick * 0.65;
                 _pupilScale *= 1 + _fatBassMask;
-                _pupilScale *= 0.4 + 0.6 * bassCharge;
+                _pupilScale *= 0.18 + 0.82 * bassCharge;  // sag aggressivo (match drawPupil)
                 _pupilScale *= 1 - calmness * 0.28;
                 if (silenceMode) _pupilScale += Math.sin(_now * 0.002) * 0.05 * calmness;
                 // Singularity Step 2: mask hole contracts → rays close in on the pupil.
