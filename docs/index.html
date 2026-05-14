@@ -1513,7 +1513,22 @@
         // ===== BASS CHARGE — pupil deflation when the kick goes away =====
         // Recharges fast on any kick band firing; decays slowly when none of them fire.
         // Multiplied into the pupil scale → "no cassa = pupilla si rimpicciolisce sempre di più".
+        // Decay rate is bi-modal: 0.997/frame sopra 0.30, 0.99/frame sotto → la sag accelera
+        // entrando nel breakdown profondo invece di asintotizzare piatta verso il floor.
         let bassCharge = 1;
+
+        // ===== BASS-DROP SNAP — transient extra-shrink quando il kick collassa =====
+        // Mirror negativo del cassone overshoot: la cassa che si stacca → pupilla snap-in
+        // di colpo poi easeOut 500ms al recupero. Fire-once-per-breakdown via armed flag
+        // → si re-arma solo quando il kick torna. Indipendente dal drop detector del
+        // singularity meter (qui freq alta, no warmup, no cooldown 15-25min).
+        let lastKickFiringAt = 0;
+        let bdSnapFireAt = 0;
+        let bdSnapArmed = false;
+        let bdSnapAmount = 0;             // 0..1, easeOut quadratico dal fire
+        const BD_SNAP_DURATION = 500;     // ms — finestra di recupero
+        const BD_SNAP_MAGNITUDE = 0.25;   // coef extra-shrink al peak (1 - 0.25 = 0.75×)
+        const BD_SNAP_COOLDOWN = 1500;    // ms — anti chain-fire se il kick balbetta
 
         // ===== VOICES MODEL (kick / hat / lead) — unified rhythm vocabulary =====
         // Three "voices" with the SAME anatomy:
@@ -2667,6 +2682,7 @@
             scale *= 1 + _fatBass;
             scale *= 0.18 + 0.82 * bassCharge;   // sag aggressivo: senza cassa pupilla piccola (default state = piccola)
             scale *= 1 - calmness * 0.28;        // further shrink in deep silence
+            scale *= 1 - bdSnapAmount * BD_SNAP_MAGNITUDE;   // bass-drop snap: collasso transiente al gap della cassa
             if (silenceMode) scale += Math.sin(time * 0.002) * 0.05 * calmness;
             // Always-on subtle breath: pupil never holds an exact static size between events,
             // so it never reads as a default UI button.
@@ -3621,9 +3637,35 @@
             if (_kickFiring) {
                 bassCharge = Math.min(1, bassCharge + 0.35);
             } else {
-                bassCharge *= 0.997; // ~2.3 s half-life
+                // Bi-modal decay: lento sopra 0.30 (sustain del groove), accelerato sotto
+                // (3.3× più veloce) → breakdown profondo si svuota invece di plateau-are.
+                bassCharge *= bassCharge < 0.30 ? 0.99 : 0.997;
             }
             if (!isFinite(bassCharge)) bassCharge = 0;
+
+            // Bass-drop snap detector — arma su kick, fira al primo gap > soglia
+            // mentre bassCharge è ancora alta. Soglia gap scala col BPM (1.5× beat
+            // interval se stabile) → niente false-positive su tracce lente.
+            {
+                const _bdNow = Date.now();
+                if (_kickFiring) {
+                    lastKickFiringAt = _bdNow;
+                    bdSnapArmed = true;
+                }
+                const _kickGap = _bdNow - lastKickFiringAt;
+                const _gapThreshold = bpmStable && bpmAvgInterval > 0
+                    ? bpmAvgInterval * 1.5
+                    : 800;
+                if (bdSnapArmed && _kickGap >= _gapThreshold && bassCharge > 0.5
+                    && _bdNow - bdSnapFireAt > BD_SNAP_COOLDOWN) {
+                    bdSnapFireAt = _bdNow;
+                    bdSnapArmed = false;
+                }
+                const _bdAge = _bdNow - bdSnapFireAt;
+                bdSnapAmount = _bdAge < BD_SNAP_DURATION
+                    ? (1 - _bdAge / BD_SNAP_DURATION) * (1 - _bdAge / BD_SNAP_DURATION)
+                    : 0;
+            }
 
             // ritualScore: rising-edge of bodyKick is one beat. While BPM is stable,
             // each beat adds +1/64 → 64 beats (= 16 bars) per score point.
@@ -4560,6 +4602,7 @@
                 _pupilScale *= 1 + _fatBassMask;
                 _pupilScale *= 0.18 + 0.82 * bassCharge;  // sag aggressivo (match drawPupil)
                 _pupilScale *= 1 - calmness * 0.28;
+                _pupilScale *= 1 - bdSnapAmount * BD_SNAP_MAGNITUDE;  // bass-drop snap (match drawPupil)
                 if (silenceMode) _pupilScale += Math.sin(_now * 0.002) * 0.05 * calmness;
                 // Singularity Step 2: mask hole contracts → rays close in on the pupil.
                 const _pupilR = _minDim * 0.06 * _pupilScale * (1 - singularityProgress * 0.85);
