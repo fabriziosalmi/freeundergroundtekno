@@ -1519,6 +1519,11 @@
         // together (rim is always opposite). Speed: visibile sempre, faster in silence.
         let pupilSpinPhase = -Math.PI * 0.75;
 
+        // Parallax starfield — universo periferico che converge al centro della pupilla
+        // (ovunque sia, segue pupilOffX/Y). Lazy-init alla prima frame di drawProceduralBg.
+        let starfield = null;
+        const STARFIELD_COUNT = 90;
+
         // ===== PUPIL BLINK — palpebra che si chiude verticalmente ogni ~25-40s
         // (periodico jittered) o su drop. ~160 ms totale: close fast, open back.
         const BLINK_DURATION = 160;  // ms
@@ -1927,6 +1932,63 @@
                     else ctx.lineTo(p.x * w, p.y * h);
                 }
                 ctx.stroke();
+            }
+
+            // ===== LAYER 0c: Parallax Starfield (peripheral, converges on pupil) =====
+            // Piccoli traits che drift-ano radialmente dalla pupilla verso fuori. Trail
+            // pointing TO the pupil → effetto "vanishing point" sull'occhio. Mask radiale
+            // bell-curve: invisibili dentro pupillaR+margine E oltre _outerMax. "Appena
+            // visibili": peak alpha 0.28, line width 0.7.
+            if (starfield === null) {
+                starfield = new Array(STARFIELD_COUNT);
+                for (let i = 0; i < STARFIELD_COUNT; i++) {
+                    starfield[i] = {
+                        angle: Math.random() * Math.PI * 2,
+                        depth: Math.random(),
+                        speed: 0.0008 + Math.random() * 0.0016
+                    };
+                }
+            }
+            {
+                const pcx = cx + pupilOffX;
+                const pcy = cy + pupilOffY;
+                const _innerMin = lastPupilR + minDim * 0.05;
+                const _outerMax = minDim * 0.72;
+                if (_outerMax > _innerMin) {
+                    const _band = _outerMax - _innerMin;
+                    const _midR = (_innerMin + _outerMax) * 0.5;
+                    const _bandHalf = _band * 0.5;
+                    ctx.lineWidth = 0.7;
+                    // Lieve modulazione della velocità globale al BPM (drift accelera nelle bar piene).
+                    const _starGlobalSpeed = 1 + bpmPulseIntensity * 0.4 + cassoneIntensity * 0.25;
+                    for (let i = 0; i < STARFIELD_COUNT; i++) {
+                        const s = starfield[i];
+                        s.depth -= s.speed * _starGlobalSpeed;
+                        if (s.depth <= 0) {
+                            s.depth = 1;
+                            s.angle = Math.random() * Math.PI * 2;
+                            s.speed = 0.0008 + Math.random() * 0.0016;
+                        }
+                        const radius = _innerMin + (1 - s.depth) * _band;
+                        const ca = Math.cos(s.angle);
+                        const sa = Math.sin(s.angle);
+                        const x = pcx + ca * radius;
+                        const y = pcy + sa * radius;
+                        // Bell-curve alpha: peak nel mid-ring, zero fuori dal band.
+                        const _rd = Math.abs(radius - _midR) / _bandHalf;
+                        const _alpha = Math.max(0, 1 - _rd * _rd) * 0.28 * _active;
+                        if (_alpha < 0.02) continue;
+                        // Trail length easeOut sulla profondità → più lungo quando "vicino".
+                        const trail = (1 - s.depth) * (1 - s.depth) * 14;
+                        const dx = -ca * trail;
+                        const dy = -sa * trail;
+                        ctx.strokeStyle = 'rgba(255,255,255,' + _alpha.toFixed(3) + ')';
+                        ctx.beginPath();
+                        ctx.moveTo(x, y);
+                        ctx.lineTo(x + dx, y + dy);
+                        ctx.stroke();
+                    }
+                }
             }
 
             // ===== LAYER 0.5: Radial BPM Wave =====
