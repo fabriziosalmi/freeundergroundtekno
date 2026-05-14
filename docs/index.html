@@ -1524,6 +1524,26 @@
         let lastBodyKickFired = false;
         let lastBodyKickOnsetTime = 0;
 
+        // ===== SINGULARITY VIBE METER =====
+        // Long-form accumulator that decides when (and only when) the page
+        // is allowed to collapse everything into the pupil for ~2s.
+        // ~1-2 events / 30 min typical. NOT pure audio-driven: hybrid with
+        // hard cooldown + random gate + starvation/satiation → irriproducibile.
+        // Step 1: logging only — no visual effect attached yet.
+        let vibeCharge = 0;                  // 0..1
+        let vibeArmed = false;               // true after threshold crossing, until dip
+        let lastSingularityFireAt = 0;       // ms timestamp
+        let satiationOffset = 0;             // additive to threshold, +0.05 per fire
+        let prevRitualStage = 0;             // 0/1/2/3, for stage transition detection
+        let bassChargePeak = 0;              // recent peak (for drop detection)
+        let bassChargePeakAt = 0;            // when peak was reached
+        const sessionStartAt = Date.now();
+        const VIBE_BASE_THRESHOLD = 0.85;
+        const VIBE_COOLDOWN_MIN_MS = 15 * 60 * 1000;   // hard floor: no fire within 15 min of last
+        const VIBE_COOLDOWN_MAX_MS = 25 * 60 * 1000;   // after this, starvation kicks in
+        const VIBE_WARMUP_MS      = 3 * 60 * 1000;     // no fire in first 3 min of session
+        const VIBE_SATIATION_RESET_MS = 60 * 60 * 1000; // 1h+ deep silence resets satiation
+
         // ===== DROP IMPACT — pre-shoot phase of drop recoil =====
         let lastDropFlashIntensity = 0;
         let dropImpactX = 0, dropImpactY = 0;
@@ -3178,6 +3198,94 @@
             cassoneVel = cassoneVel * _cassDamp + _cassF * _cassStiff;
             cassoneIntensity = Math.max(0, Math.min(1.15, cassoneIntensity + cassoneVel));
 
+            // ===== VIBE METER UPDATE (Singularity trigger logic) =====
+            // Hybrid model: musical accumulator + cooldown + random gate.
+            // Step 1 = decisions only (console.log). Step 2 will wire the visual.
+            {
+                const _nowVibe = Date.now();
+
+                // 1) Sustained cassone fills slowly — la cassa che insiste carica piano
+                vibeCharge += cassoneIntensity * 0.0005;
+
+                // 2) RitualScore stage transition — boost grosso quando si sale di livello
+                //    Stages (vedi commento di ritualScore): 0(0-1) / 1(1-4) / 2(4-8) / 3(8+)
+                const _curStage = ritualScore < 1 ? 0 : ritualScore < 4 ? 1 : ritualScore < 8 ? 2 : 3;
+                if (_curStage > prevRitualStage) {
+                    vibeCharge += 0.15;
+                    console.log('[vibe] +0.15 ritualStage ' + prevRitualStage + '→' + _curStage + ', charge=' + vibeCharge.toFixed(3));
+                }
+                prevRitualStage = _curStage;
+
+                // 3) Drop detection — bassCharge crashato da >0.8 a <0.3 entro 2s
+                if (bassCharge > bassChargePeak) {
+                    bassChargePeak = bassCharge;
+                    bassChargePeakAt = _nowVibe;
+                }
+                if (bassChargePeak > 0.8 && bassCharge < 0.3 && _nowVibe - bassChargePeakAt < 2000) {
+                    vibeCharge += 0.20;
+                    console.log('[vibe] +0.20 drop ' + bassChargePeak.toFixed(2) + '→' + bassCharge.toFixed(2) + ', charge=' + vibeCharge.toFixed(3));
+                    bassChargePeak = 0;  // richiede una nuova risalita per riarmarsi
+                }
+                // Peak decay se non è successo niente da 3s
+                if (_nowVibe - bassChargePeakAt > 3000) bassChargePeak *= 0.95;
+
+                // 4) Silenzio scarica
+                vibeCharge -= calmness * 0.0008;
+                vibeCharge = Math.max(0, Math.min(1, vibeCharge));
+
+                // === FIRE GATE ===
+                const _timeSinceLast = _nowVibe - lastSingularityFireAt;
+                let _effThreshold = VIBE_BASE_THRESHOLD + satiationOffset;
+                // Starvation: se troppo tempo, soglia scende lentamente (0.85+sat → 0.65+sat) nei 10 min dopo cooldown max
+                if (_timeSinceLast > VIBE_COOLDOWN_MAX_MS) {
+                    const _starve = Math.min(1, (_timeSinceLast - VIBE_COOLDOWN_MAX_MS) / (10 * 60 * 1000));
+                    _effThreshold -= 0.20 * _starve;
+                }
+                const _cooldownPassed = _timeSinceLast > VIBE_COOLDOWN_MIN_MS;
+                const _warmupPassed = _nowVibe - sessionStartAt > VIBE_WARMUP_MS;
+
+                if (vibeCharge >= _effThreshold) {
+                    if (!vibeArmed && _cooldownPassed && _warmupPassed) {
+                        // Rising-edge: roll the random gate UNA volta
+                        vibeArmed = true;
+                        if (Math.random() < 0.45) {
+                            console.log('%c[SINGULARITY FIRE]', 'background:#fff;color:#000;font-weight:bold;padding:2px 6px;',
+                                'charge=' + vibeCharge.toFixed(3),
+                                'thresh=' + _effThreshold.toFixed(3),
+                                'sinceLast=' + (_timeSinceLast / 60000).toFixed(1) + 'min',
+                                'satiation=+' + satiationOffset.toFixed(2));
+                            lastSingularityFireAt = _nowVibe;
+                            vibeCharge = 0;
+                            vibeArmed = false;
+                            satiationOffset = Math.min(0.10, satiationOffset + 0.05);
+                        } else {
+                            console.log('[vibe] gate missed (random) — charge=' + vibeCharge.toFixed(3) + ', will re-arm after dip');
+                        }
+                    } else if (!_cooldownPassed) {
+                        // Already above threshold but cooldown active — log once per arming
+                        if (!vibeArmed) {
+                            vibeArmed = true;
+                            console.log('[vibe] threshold hit but cooldown active (' + ((VIBE_COOLDOWN_MIN_MS - _timeSinceLast) / 60000).toFixed(1) + 'min remaining)');
+                        }
+                    } else if (!_warmupPassed) {
+                        if (!vibeArmed) {
+                            vibeArmed = true;
+                            console.log('[vibe] threshold hit but warmup active');
+                        }
+                    }
+                } else if (vibeCharge < _effThreshold - 0.10) {
+                    // Dipped well below — re-arm for next opportunity
+                    vibeArmed = false;
+                }
+
+                // Long deep silence resets satiation (sessione "fresh" dopo riposo)
+                if (calmness > 0.85 && _timeSinceLast > VIBE_SATIATION_RESET_MS) {
+                    if (satiationOffset > 0) {
+                        console.log('[vibe] satiation reset (long silence)');
+                        satiationOffset = 0;
+                    }
+                }
+            }
 
             // Overall energy
             const energy = (bassLevel + midLevel + trebleLevel) / 3;
