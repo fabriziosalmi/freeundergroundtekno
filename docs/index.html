@@ -330,13 +330,12 @@
         }
         
         @keyframes chromatic-shift {
-            0%, 100% { 
-                filter: none;
-            }
-            50% { 
-                filter: 
-                    drop-shadow(2px 0 0 rgba(255,0,0,0.5))
-                    drop-shadow(-2px 0 0 rgba(0,255,255,0.5));
+            0%, 100% { filter: none; }
+            50% {
+                /* Luminance offset invece di chromatic — il "ghost CRT" autoriale B&W */
+                filter:
+                    drop-shadow(2px 0 0 rgba(255,255,255,0.5))
+                    drop-shadow(-2px 0 0 rgba(0,0,0,0.5));
             }
         }
         
@@ -421,20 +420,20 @@
         }
         
         @keyframes distort-pulse {
-            0% { 
+            0% {
                 opacity: 0;
                 transform: scale(0.8);
-                filter: blur(10px) hue-rotate(0deg);
+                filter: blur(10px);
             }
-            50% { 
+            50% {
                 opacity: 0.8;
                 transform: scale(1.2);
-                filter: blur(5px) hue-rotate(180deg);
+                filter: blur(5px);
             }
-            100% { 
+            100% {
                 opacity: 0;
                 transform: scale(1);
-                filter: blur(15px) hue-rotate(360deg);
+                filter: blur(15px);
             }
         }
         
@@ -443,11 +442,9 @@
             position: fixed;
             pointer-events: none;
             z-index: 51;
-            background: linear-gradient(45deg, 
-                transparent 0%, 
-                rgba(255,0,0,0.3) 25%,
-                rgba(0,255,255,0.3) 50%,
-                rgba(255,0,255,0.3) 75%,
+            background: linear-gradient(45deg,
+                transparent 0%,
+                rgba(255,255,255,0.25) 50%,
                 transparent 100%
             );
             opacity: 0;
@@ -459,26 +456,10 @@
         }
         
         @keyframes warp-glitch {
-            0% { 
-                opacity: 0.6;
-                transform: translateX(0) skewX(0deg);
-                filter: hue-rotate(0deg);
-            }
-            33% { 
-                opacity: 0.8;
-                transform: translateX(-5px) skewX(5deg);
-                filter: hue-rotate(120deg);
-            }
-            66% { 
-                opacity: 0.7;
-                transform: translateX(5px) skewX(-5deg);
-                filter: hue-rotate(240deg);
-            }
-            100% { 
-                opacity: 0.6;
-                transform: translateX(0) skewX(0deg);
-                filter: hue-rotate(360deg);
-            }
+            0%   { opacity: 0.6; transform: translateX(0)    skewX(0deg);  }
+            33%  { opacity: 0.8; transform: translateX(-5px) skewX(5deg);  }
+            66%  { opacity: 0.7; transform: translateX(5px)  skewX(-5deg); }
+            100% { opacity: 0.6; transform: translateX(0)    skewX(0deg);  }
         }
         
         /* Chromatic split su zone specifiche */
@@ -488,7 +469,7 @@
             z-index: 52;
             background: radial-gradient(
                 circle at center,
-                rgba(255,0,0,0.4) 0%,
+                rgba(255,255,255,0.4) 0%,
                 transparent 50%
             );
             opacity: 0;
@@ -500,24 +481,12 @@
         }
         
         @keyframes chroma-split {
-            0% { 
-                opacity: 0;
-                transform: translate(0, 0);
-            }
-            25% { 
-                opacity: 0.9;
-                transform: translate(-3px, 0);
-                filter: drop-shadow(6px 0 0 cyan) drop-shadow(-6px 0 0 red);
-            }
-            75% { 
-                opacity: 0.7;
-                transform: translate(3px, 0);
-                filter: drop-shadow(-4px 0 0 cyan) drop-shadow(4px 0 0 red);
-            }
-            100% { 
-                opacity: 0;
-                transform: translate(0, 0);
-            }
+            0%   { opacity: 0;   transform: translate(0, 0);   }
+            25%  { opacity: 0.9; transform: translate(-3px, 0);
+                   filter: drop-shadow(6px 0 0 rgba(255,255,255,0.5)) drop-shadow(-6px 0 0 rgba(0,0,0,0.5)); }
+            75%  { opacity: 0.7; transform: translate(3px, 0);
+                   filter: drop-shadow(-4px 0 0 rgba(255,255,255,0.5)) drop-shadow(4px 0 0 rgba(0,0,0,0.5)); }
+            100% { opacity: 0;   transform: translate(0, 0);   }
         }
 
         
@@ -541,7 +510,7 @@
             background: radial-gradient(
                 circle at center,
                 rgba(255, 255, 255, 1) 0%,
-                var(--glow-color, rgba(255, 0, 255, 0.8)) 30%,
+                var(--glow-color, rgba(255, 255, 255, 0.8)) 30%,
                 transparent 60%
             );
             filter: blur(20px);
@@ -552,9 +521,9 @@
             background: conic-gradient(
                 from 45deg at center,
                 transparent 0deg,
-                var(--glow-color, rgba(255, 255, 0, 0.9)) 90deg,
+                var(--glow-color, rgba(255, 255, 255, 0.9)) 90deg,
                 transparent 180deg,
-                var(--glow-color, rgba(255, 255, 0, 0.9)) 270deg,
+                var(--glow-color, rgba(255, 255, 255, 0.9)) 270deg,
                 transparent 360deg
             );
             filter: blur(25px);
@@ -564,13 +533,13 @@
         #spatialStrobo.spiral-glow {
             background: conic-gradient(
                 from 0deg at center,
-                var(--glow-color, rgba(0, 255, 0, 0.0)) 0deg,
-                var(--glow-color, rgba(0, 255, 0, 0.9)) 60deg,
-                var(--glow-color, rgba(0, 255, 0, 0.0)) 120deg,
-                var(--glow-color, rgba(0, 255, 0, 0.9)) 180deg,
-                var(--glow-color, rgba(0, 255, 0, 0.0)) 240deg,
-                var(--glow-color, rgba(0, 255, 0, 0.9)) 300deg,
-                var(--glow-color, rgba(0, 255, 0, 0.0)) 360deg
+                var(--glow-color, rgba(255, 255, 255, 0.0)) 0deg,
+                var(--glow-color, rgba(255, 255, 255, 0.9)) 60deg,
+                var(--glow-color, rgba(255, 255, 255, 0.0)) 120deg,
+                var(--glow-color, rgba(255, 255, 255, 0.9)) 180deg,
+                var(--glow-color, rgba(255, 255, 255, 0.0)) 240deg,
+                var(--glow-color, rgba(255, 255, 255, 0.9)) 300deg,
+                var(--glow-color, rgba(255, 255, 255, 0.0)) 360deg
             );
             filter: blur(30px);
             animation: rotate-strobo 0.3s linear infinite;
@@ -581,9 +550,9 @@
             background: radial-gradient(
                 circle at center,
                 transparent 30%,
-                var(--glow-color, rgba(255, 0, 0, 0.9)) 40%,
+                var(--glow-color, rgba(255, 255, 255, 0.9)) 40%,
                 transparent 50%,
-                var(--glow-color, rgba(255, 0, 0, 0.7)) 60%,
+                var(--glow-color, rgba(255, 255, 255, 0.7)) 60%,
                 transparent 70%
             );
             filter: blur(10px);
@@ -609,9 +578,9 @@
             opacity: 0;
             filter: blur(8px);
             box-shadow: 0 0 20px rgba(255, 255, 255, 0.9),
-                        0 0 40px rgba(200, 200, 255, 0.6),
-                        0 0 60px rgba(150, 150, 255, 0.4);
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(200, 200, 255, 0.5) 50%, transparent 70%);
+                        0 0 40px rgba(255, 255, 255, 0.6),
+                        0 0 60px rgba(255, 255, 255, 0.4);
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.5) 50%, transparent 70%);
         }
 
         .silver-glow-particle.active {
@@ -667,7 +636,7 @@
             height: 8px;
             border-radius: 50%;
             opacity: 0;
-            box-shadow: 0 0 15px rgba(200, 220, 255, 0.9);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.9);
         }
 
         .shimmer-twinkle.active {
@@ -1359,14 +1328,10 @@
         // 💫 Spatial strobo
         const spatialStrobo = document.getElementById('spatialStrobo');
         const stroboPatterns = ['radial-explosion', 'diamond-burst', 'spiral-glow', 'ring-pulse'];
+        // Strip-color discipline: only ritualScore is authorized to add color. Strobo
+        // patterns retain their geometry but stay strictly white/silver.
         const stroboColors = [
-            'rgba(255, 0, 255, 0.9)',   // magenta
-            'rgba(0, 255, 255, 0.9)',   // cyan
-            'rgba(255, 255, 0, 0.9)',   // yellow
-            'rgba(0, 255, 0, 0.9)',     // green
-            'rgba(255, 0, 0, 0.9)',     // red
-            'rgba(0, 100, 255, 0.9)',   // blue
-            'rgba(255, 255, 255, 0.9)'  // white
+            'rgba(255, 255, 255, 0.9)'  // pure white
         ];
         let currentStroboPattern = stroboPatterns[0];
         let currentStroboColor = stroboColors[0];
@@ -1389,13 +1354,9 @@
             { bottom: '25%', left: '50%' } // zona crowd
         ];
         
-        // Colori e dimensioni per le spirali
+        // Strip-color: spiral-vortex restano in pura scala monocromatica.
         const spiralColors = [
-            'rgba(255, 0, 255, 0.7)',   // magenta
-            'rgba(0, 255, 255, 0.7)',   // cyan
-            'rgba(255, 255, 0, 0.7)',   // yellow
-            'rgba(0, 255, 0, 0.7)',     // green
-            'rgba(255, 100, 0, 0.7)'    // orange
+            'rgba(255, 255, 255, 0.7)'
         ];
         
         const spiralAnimations = ['active', 'implode', 'pulse'];
@@ -1441,7 +1402,8 @@
             return c;
         }
         const starSpriteWhite = _makeStarSprite(255, 255, 255);
-        const starSpriteWarm  = _makeStarSprite(255, 200, 100);
+        // Strip-color Tier 1: marathonMode non porta più tinta amber. Tutto resta bianco.
+        const starSpriteWarm  = starSpriteWhite;
 
         // Layer 1: Pulse Rings pool
         const pulseRingMax = isMobile ? 4 : 6;
@@ -1535,6 +1497,13 @@
         // Recharges fast on any kick band firing; decays slowly when none of them fire.
         // Multiplied into the pupil scale → "no cassa = pupilla si rimpicciolisce sempre di più".
         let bassCharge = 1;
+
+        // ===== PUPIL SPIN — sphere rotates on its own axis. Highlight + rim orbit
+        // together (rim is always opposite). Speed: visibile sempre, faster in silence.
+        let pupilSpinPhase = -Math.PI * 0.75;
+        // Last computed pupil radius (set inside drawPupil, read by drawProceduralBg
+        // to mask the spiral / bg layers away from the pupil area).
+        let lastPupilR = 30;
 
         // ===== RITUAL SCORE — long-form color escalation on sustained 4/4 =====
         // +1/64 per body-kick onset while bpmStable: 64 beats (16 bars) = +1.
@@ -1660,8 +1629,9 @@
                 ravePeakStart = 0;
             }
 
-            // Silence / Breakdown
-            if (energy < 0.08) {
+            // Silence / Breakdown — triggera anche su rhythm-less content
+            // (pad / atmospheric senza kicks) oltre che su silenzio puro.
+            if (energy < 0.08 || bassCharge < 0.15) {
                 if (!silenceStart) silenceStart = time;
                 if (time - silenceStart > 2000) silenceMode = true;
             } else {
@@ -1827,9 +1797,12 @@
             }
 
             // ===== LAYER 2: Hex Grid (pre-rendered blit) =====
+            // _rhythmFactor: 1 quando il kick spara, 0.25 quando assente. Hex e spirale
+            // sotto pad senza drums vengono attenuati di 4x — restano vivi ma quieti.
+            const _rhythmFactor = 0.25 + 0.75 * bassCharge;
             const hexBpmBoost = bpmPulseIntensity * 0.3;
-            // Smooth fade-out with calmness instead of binary silenceMode jump.
-            const hexAlpha = (0.6 + bassLevel * 1.0 + hexBpmBoost) * _active;
+            // Base abbassata 0.6 → 0.4 — meno presente di default.
+            const hexAlpha = (0.4 + bassLevel * 1.0 + hexBpmBoost) * _active * _rhythmFactor;
             ctx.globalAlpha = Math.min(hexAlpha, 1);
             ctx.drawImage(hexGridCanvas, 0, 0);
             ctx.globalAlpha = 1;
@@ -1841,18 +1814,22 @@
                 spiralAngleAccum += energy * 2 * 0.016;
             }
             const armCount = 14;
-            const spiralAlpha = (0.15 + bassLevel * 0.2) * _active; // fades in silence
+            // Base abbassata 0.15 → 0.10 + _rhythmFactor (quasi sparisce senza kicks)
+            const spiralAlpha = (0.10 + bassLevel * 0.2) * _active * _rhythmFactor;
             const spiralLineWidth = 1.5 + bassLevel * 2;
             let _slow = false;
             try { _slow = isSlowDevice; } catch(e) {}
             const spiralSteps = _slow ? 40 : 80;
 
-            // Radial gradient approximates the original quadratic fade-out (1 - t²)
-            // with a single strokeStyle so we can stroke each arm as one path:
-            // 14 strokes/frame instead of 14 × 80 = 1120.
+            // Radial gradient: 14 stroke/frame (era 1120). Inner radius dinamico legato
+            // a lastPupilR → la spirale è trasparente dentro la pupilla, fade-in subito
+            // fuori dal bordo, decade nella metà esterna come prima.
             const spiralMaxR = Math.min(cx, cy) * 0.9;
-            const spiralGradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, spiralMaxR);
-            spiralGradient.addColorStop(0,    `rgba(255,255,255,${spiralAlpha})`);
+            const _spiralInnerR = lastPupilR + minDim * 0.025;
+            const spiralGradient = ctx.createRadialGradient(cx, cy, _spiralInnerR, cx, cy, spiralMaxR);
+            spiralGradient.addColorStop(0,    'rgba(255,255,255,0)');                         // pulisci sopra la pupilla
+            spiralGradient.addColorStop(0.10, `rgba(255,255,255,${spiralAlpha * 0.5})`);      // soft fade-in
+            spiralGradient.addColorStop(0.25, `rgba(255,255,255,${spiralAlpha})`);            // full
             spiralGradient.addColorStop(0.5,  `rgba(255,255,255,${spiralAlpha * 0.75})`);
             spiralGradient.addColorStop(0.75, `rgba(255,255,255,${spiralAlpha * 0.44})`);
             spiralGradient.addColorStop(1,    'rgba(255,255,255,0)');
@@ -1907,7 +1884,9 @@
             }
 
             // ===== LAYER 6: Sacred Geometry — Flower of Life =====
-            const sacredTarget = energy > 0.6 ? 1 : 0;
+            // Gate draconiano: la mandala spettrogramma appare SOLO con cassone vero
+            // (sustained 4/4 + bpmStable), non per generico energy > 0.6.
+            const sacredTarget = cassoneIntensity > 0.25 ? 1 : 0;
             sacredGeoAlpha += (sacredTarget - sacredGeoAlpha) * 0.05;
             sacredGeoBoost *= 0.97; // decay boost from drops
 
@@ -1920,31 +1899,61 @@
                     sacredGeoAngle += energy * 0.02;
                 }
                 const drawAlpha = sacredGeoAlpha * (0.15 + sacredGeoBoost * 0.3);
+
+                // Mandala spettrogramma: i 6 outer circles diventano voci di banda.
+                // Ognuno ascolta una zona dello spettro e respira con essa. La rotazione
+                // del gruppo resta BPM-locked. Il "fisso" diventa "vivo".
+                const _bands = [
+                    [1, 4],     // 0  sub        — ~22-86 Hz
+                    [4, 8],     // 1  body kick  — ~86-172 Hz
+                    [14, 30],   // 2  punch      — ~300-645 Hz
+                    [30, 60],   // 3  low-mid    — ~645-1290 Hz
+                    [60, 120],  // 4  mid        — ~1.3-2.6 kHz
+                    [150, 300]  // 5  treble     — ~3.2-6.5 kHz
+                ];
+                const _bandVals = _bands.map(([lo, hi]) => {
+                    if (!freqData) return 0;
+                    let s = 0;
+                    for (let i = lo; i < hi; i++) s += freqData[i];
+                    return s / ((hi - lo) * 255);
+                });
+
                 ctx.save();
                 ctx.translate(cx, cy);
                 ctx.rotate(sacredGeoAngle);
-                ctx.strokeStyle = `rgba(255,255,255,${drawAlpha})`;
-                ctx.lineWidth = 1;
 
-                // Central circle
-                ctx.beginPath();
-                ctx.arc(0, 0, geoR, 0, Math.PI * 2);
-                ctx.stroke();
-
-                // 6 surrounding circles
-                for (let i = 0; i < 6; i++) {
-                    const a = (i / 6) * Math.PI * 2;
+                // CENTRAL — pulse with ritual + cassone, never fully invisible while geo is on
+                {
+                    const _ca = Math.min(1, drawAlpha * (0.7 + cassoneIntensity * 0.5));
+                    const _cR = geoR * (1 + bassCharge * 0.08 + (ritualScore > 0.5 ? 0.06 : 0));
+                    ctx.strokeStyle = `rgba(255,255,255,${_ca})`;
+                    ctx.lineWidth = 1 + bassLevel * 1.5;
                     ctx.beginPath();
-                    ctx.arc(Math.cos(a) * geoR, Math.sin(a) * geoR, geoR, 0, Math.PI * 2);
+                    ctx.arc(0, 0, _cR, 0, Math.PI * 2);
                     ctx.stroke();
                 }
 
-                // Outer hexagon
+                // 6 OUTER — circular spectrogram, each circle is a band voice
+                for (let i = 0; i < 6; i++) {
+                    const _a = (i / 6) * Math.PI * 2;
+                    const _b = _bandVals[i];
+                    const _oR = geoR * (1 + _b * 0.18);                            // ±18% size wobble
+                    const _oa = Math.min(1, drawAlpha * (0.30 + _b * 1.6));        // dim → bright on band peak
+                    ctx.strokeStyle = `rgba(255,255,255,${_oa})`;
+                    ctx.lineWidth = 1 + _b * 1.5;
+                    ctx.beginPath();
+                    ctx.arc(Math.cos(_a) * geoR, Math.sin(_a) * geoR, _oR, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // OUTER HEXAGON — energy-coupled overall alpha
+                ctx.strokeStyle = `rgba(255,255,255,${Math.min(1, drawAlpha * (0.5 + energy * 0.8))})`;
+                ctx.lineWidth = 1;
                 ctx.beginPath();
                 for (let i = 0; i < 6; i++) {
-                    const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
-                    const hx = Math.cos(a) * geoR * 2;
-                    const hy = Math.sin(a) * geoR * 2;
+                    const _a = (i / 6) * Math.PI * 2 - Math.PI / 6;
+                    const hx = Math.cos(_a) * geoR * 2;
+                    const hy = Math.sin(_a) * geoR * 2;
                     if (i === 0) ctx.moveTo(hx, hy);
                     else ctx.lineTo(hx, hy);
                 }
@@ -1961,15 +1970,12 @@
                 dropFlashIntensity *= 0.92;
             }
 
-            // Rave mode warm tint
-            if (raveMode) {
-                ctx.fillStyle = 'rgba(255,200,100,0.04)';
-                ctx.fillRect(0, 0, w, h);
-            }
+            // raveMode wash rimosso (strip-color Tier 1) — la "warmth" è governata
+            // solo da ritualScore sulla pupilla.
 
-            // Silence mode blue tint
+            // Silence mode wash: leggera oscurazione neutra (era blu, ora grigio)
             if (silenceMode) {
-                ctx.fillStyle = 'rgba(100,120,200,0.05)';
+                ctx.fillStyle = 'rgba(0,0,0,0.05)';
                 ctx.fillRect(0, 0, w, h);
             }
         }
@@ -2227,7 +2233,11 @@
             scale *= 0.4 + 0.6 * bassCharge;     // sag when the kick goes away
             scale *= 1 - calmness * 0.28;        // further shrink in deep silence
             if (silenceMode) scale += Math.sin(time * 0.002) * 0.05 * calmness;
+            // Always-on subtle breath: pupil never holds an exact static size between events,
+            // so it never reads as a default UI button.
+            scale *= 1 + Math.sin(time * 0.0008) * 0.04;
             const r = baseR * scale;
+            lastPupilR = r;   // shared with drawProceduralBg so the spiral masks around it
 
             // === IRIS (parametric ring) ===
             // Drawn FIRST so the pupil dark fill that comes next covers the center —
@@ -2266,16 +2276,11 @@
             }
 
             pupilCtx.save();
-            if (raveMode) {
-                pupilCtx.shadowColor = 'rgba(255,200,100,0.9)';
-                pupilCtx.shadowBlur = 20 + bass * 40;
-            } else if (marathonMode) {
-                pupilCtx.shadowColor = 'rgba(255,200,100,0.7)';
-                pupilCtx.shadowBlur = 15 + bass * 25;
-            } else {
-                pupilCtx.shadowColor = 'rgba(255,255,255,0.8)';
-                pupilCtx.shadowBlur = (10 + bass * 30) * (0.35 + 0.65 * _act);
-            }
+            // Outer glow — sempre argentato, mai warm. L'intensità sale con bass
+            // (e con raveMode/marathonMode tramite gain bump), ma il colore resta neutro.
+            const _glowGain = raveMode ? 40 : marathonMode ? 25 : 30;
+            pupilCtx.shadowColor = 'rgba(245,248,252,0.85)';
+            pupilCtx.shadowBlur = (10 + bass * _glowGain) * (0.35 + 0.65 * _act);
             // Spherical pupil fill — radial gradient with off-center inner highlight
             // so the body reads as a SPHERE, not a flat disc. The base color follows
             // the 4-stage ritual progression (see ritualScore comment for the curve).
@@ -2285,21 +2290,55 @@
             else if (_s < 4) { const _t = (_s - 1) / 3; _R = 255; _G = 255 * _t; _B = 0; }       // red → yellow
             else if (_s < 8) { const _t = (_s - 4) / 4; _R = 255; _G = 255; _B = 255 * _t; }     // yellow → white
             else             { _R = 255; _G = 255; _B = 255; }                                   // luminescent white
+            // Darken 10% toward black — più cupo, rituale notturno
+            _R *= 0.9; _G *= 0.9; _B *= 0.9;
             // Sphere shading: highlight diffuso, contrasto basso. Pupilla scura — il
             // gradiente accenna la sfera, non la dichiara.
-            const _hi = (c) => Math.min(255, c + 18);
-            const _ed = (c) => c * 0.32;
+            // Sphere rotation on axis — highlight + rim orbit together. Always visible:
+            // music: ~25 s/giro (composta), silenzio: ~5 s/giro (ipnotica).
+            pupilSpinPhase += 0.0042 + (1 - _act) * 0.020;
+            if (pupilSpinPhase > Math.PI * 2) pupilSpinPhase -= Math.PI * 2;  // wrap, no float drift over time
+            // Highlight più tenue (+12 invece di +18), edge più scuro (×0.22 invece di ×0.32),
+            // 5 stops per dare curva alla transizione invece di lerp lineare = sfera con
+            // body più scuro, terminator gradualmente discendente, rim shadow netto.
+            const _hi = (c) => Math.min(255, c + 12);
+            const _ed = (c) => c * 0.22;
+            const _hiRadius = r * 0.25;
+            const _hiX = cx + Math.cos(pupilSpinPhase) * _hiRadius;
+            const _hiY = cy + Math.sin(pupilSpinPhase) * _hiRadius;
             const _grad = pupilCtx.createRadialGradient(
-                cx - r * 0.18, cy - r * 0.18, r * 0.45,
+                _hiX, _hiY, r * 0.45,
                 cx, cy, r
             );
             _grad.addColorStop(0,    `rgba(${_hi(_R)|0},${_hi(_G)|0},${_hi(_B)|0},0.92)`);
-            _grad.addColorStop(0.60, `rgba(${_R|0},${_G|0},${_B|0},0.95)`);
-            _grad.addColorStop(1,    `rgba(${_ed(_R)|0},${_ed(_G)|0},${_ed(_B)|0},0.98)`);
+            _grad.addColorStop(0.28, `rgba(${((_hi(_R)+_R)*0.5)|0},${((_hi(_G)+_G)*0.5)|0},${((_hi(_B)+_B)*0.5)|0},0.93)`);  // mezzo tono
+            _grad.addColorStop(0.55, `rgba(${_R|0},${_G|0},${_B|0},0.95)`);
+            _grad.addColorStop(0.82, `rgba(${(_R*0.55)|0},${(_G*0.55)|0},${(_B*0.55)|0},0.97)`);  // terminator scuro
+            _grad.addColorStop(1,    `rgba(${_ed(_R)|0},${_ed(_G)|0},${_ed(_B)|0},0.99)`);
             pupilCtx.beginPath();
             pupilCtx.arc(cx, cy, r, 0, Math.PI * 2);
             pupilCtx.fillStyle = _grad;
             pupilCtx.fill();
+
+            // Rim light: subtle ambient reflection on the side opposite to the highlight,
+            // emerges only near the perimeter. Fa leggere la curvatura sul lato in ombra
+            // (altrimenti piatto) — pure light wrap-around, no extra highlight.
+            const _rimX = cx - (_hiX - cx);
+            const _rimY = cy - (_hiY - cy);
+            const _rimGrad = pupilCtx.createRadialGradient(_rimX, _rimY, r * 0.55, _rimX, _rimY, r * 1.25);
+            const _rimBoost = 22;
+            _rimGrad.addColorStop(0,    'rgba(0,0,0,0)');
+            _rimGrad.addColorStop(0.70, 'rgba(0,0,0,0)');
+            _rimGrad.addColorStop(0.88, `rgba(${Math.min(255, _R + _rimBoost)|0},${Math.min(255, _G + _rimBoost)|0},${Math.min(255, _B + _rimBoost)|0},0.22)`);
+            _rimGrad.addColorStop(1,    'rgba(0,0,0,0)');
+            const _prevComp = pupilCtx.globalCompositeOperation;
+            const _prevShadow = pupilCtx.shadowBlur;
+            pupilCtx.shadowBlur = 0;
+            pupilCtx.globalCompositeOperation = 'lighter';
+            pupilCtx.fillStyle = _rimGrad;
+            pupilCtx.fill();
+            pupilCtx.globalCompositeOperation = _prevComp;
+            pupilCtx.shadowBlur = _prevShadow;
 
             // Webcam reflection — v1 treatment: HDR + scanlines + VCR jitter + lens vignette.
             // Mirror-flipped, B&W high contrast. Composite 'lighter' so the reflection
@@ -2358,10 +2397,10 @@
                 pupilCtx.restore();
             }
 
-            // Bright stroke (iris edge) — 1 px sottile
-            pupilCtx.strokeStyle = raveMode
-                ? `rgba(255,220,150,${0.7 + bass * 0.3})`
-                : `rgba(255,255,255,${0.6 + bass * 0.4})`;
+            // Iris-edge stroke — silvered white luminescente, sempre.
+            // Niente più warm gold su raveMode: il colore "ritualistico" lo porta
+            // solo il fill via ritualScore. Il contorno è argento, neutro, freddo.
+            pupilCtx.strokeStyle = `rgba(245,248,252,${0.7 + bass * 0.3})`;
             pupilCtx.lineWidth = 1;
             pupilCtx.stroke();
             pupilCtx.restore();
@@ -2814,7 +2853,7 @@
                 // Setup analyser for frequency analysis
                 analyser = audioContext.createAnalyser();
                 analyser.fftSize = 2048;
-                analyser.smoothingTimeConstant = 0.8;
+                analyser.smoothingTimeConstant = 0.65; // più reattivo agli attacchi del kick
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
 
                 // Create source and connect to analyser
@@ -3135,7 +3174,8 @@
             }
 
             // 🎯 CALCOLO ZOOM E ROTAZIONE - AUMENTATO PER EFFETTO SOTTOCASSA!
-            zoomIntensity = 1 + bassLevel * 0.6; // da 0.3 a 0.6 = ZOOM DOPPIO!
+            // Baseline 1.07 = pseudo-3D zoom (riempie angoli dalla perspective tilt)
+            zoomIntensity = 1.07 + bassLevel * 0.6;
             const rotateAmount = energy * 5;
             
             // 🎭 TARGET POINT - punto casuale verso cui "guardare" (cambia ogni 3-8 secondi)
@@ -3188,9 +3228,15 @@
                 let _flashBudget   = 1;                  // fullscreen blasts
                 let _accentBudget  = isMobile ? 4 : 3;   // local visual accents
                 let _distortBudget = isMobile ? 3 : 2;   // geometry / post-fx glitches
-                const _claimFlash   = () => _flashBudget--   > 0;
-                const _claimAccent  = () => _accentBudget--  > 0;
-                const _claimDistort = () => _distortBudget-- > 0;
+                // Draconian gate: nessun trigger senza ritmica vera. Triplo OR così il
+                // PRIMO kick dopo silenzio scatta subito (smoothing FFT non ritarda più):
+                //   bassLevel > 0.42 = composite a regime sul rising edge del kick
+                //   kickStack ≥ 1     = almeno una banda kick sopra threshold strict
+                //   cassoneIntensity  = 4/4 sostenuto (rimanenza tra kicks)
+                const _hasRhythm = bassLevel > 0.42 || kickStack >= 1 || cassoneIntensity > 0.4;
+                const _claimFlash   = () => _hasRhythm && _flashBudget--   > 0;
+                const _claimAccent  = () => _hasRhythm && _accentBudget--  > 0;
+                const _claimDistort = () => _hasRhythm && _distortBudget-- > 0;
 
                 // Crowd strobe on beat - AUMENTATO
                 crowdStrobe.style.opacity = isMobile ? '0.95' : '1';
@@ -3320,9 +3366,11 @@
                 }
 
                 // ⚫⚪ NEGATIVE LAYER - raggi rotativi POTENZIATI!
-                // Su bassi: attiva raggi singoli o multipli - SOGLIA RIDOTTA
-                const negRayBasaThreshold = isMobile ? 0.3 : 0.7;
-                if (bassLevel > negRayBasaThreshold && Math.random() > (isMobile ? 0.05 : 0.3) && _claimDistort()) {
+                // Rays single/multi: SOLO su drum hits veri (body + punch), non su synth bass.
+                // bodyKick = thump (mid-bass kick), punchKick = click/skin transient (mid).
+                // Sub-bass synth da solo NON triggera più — i raggi sono "linguaggio percussivo".
+                const _drumHit = bodyKick > 0.45 || punchKick > 0.35;
+                if (_drumHit && Math.random() > (isMobile ? 0.05 : 0.3) && _claimDistort()) {
                     const rayPattern = Math.random() < 0.5 ? rotatingRays[0] : rotatingRays[1];
                     negativeLayer.style.opacity = isMobile ? '1' : '0.95';
                     rayPattern.style.opacity = '1';
@@ -3416,7 +3464,7 @@
                 if (midLevel > whirlMidThreshold && Math.random() > (isMobile ? 0.2 : 0.5) && _claimAccent()) {
                     const whirl = spiralWhirls[Math.floor(Math.random() * spiralWhirls.length)];
                     const pos = magicPositions[Math.floor(Math.random() * magicPositions.length)];
-                    const colors = ['rgba(200, 220, 255, 0.9)', 'rgba(150, 200, 255, 0.9)', 'rgba(220, 200, 255, 0.9)', 'rgba(255, 255, 200, 0.9)'];
+                    const colors = ['rgba(255, 255, 255, 0.9)'];
                     const color = colors[Math.floor(Math.random() * colors.length)];
                     const size = 50 + Math.random() * 80;
                     whirl.style.width = size + 'px';
@@ -3501,9 +3549,14 @@
                 }
             }
             
+            // Draconian gate: these fire OUTSIDE the beat-block. Gate behind
+            // recent beat activity (< 800 ms since last detected beat) so atmospheric
+            // mid/treble content alone doesn't trigger strobes.
+            const _recentBeat = Date.now() - lastBeatTime < 800;
+
             // Mid -> speaker walls laterali - SOGLIA RIDOTTA
             const speakerMidThreshold = isMobile ? 0.3 : 0.7;
-            if (midLevel > speakerMidThreshold && Math.random() > (isMobile ? 0.3 : 0.8)) {
+            if (_recentBeat && midLevel > speakerMidThreshold && Math.random() > (isMobile ? 0.3 : 0.8)) {
                 if (Math.random() < 0.5) {
                     strobeLeftWall.style.opacity = isMobile ? '1' : '0.8';
                     setTimeout(() => {
@@ -3519,7 +3572,7 @@
 
             // Treble -> top flash (antenna beams) - SOGLIA RIDOTTA
             const antennaTrebleThreshold = isMobile ? 0.3 : 0.75;
-            if (trebleLevel > antennaTrebleThreshold && Math.random() > (isMobile ? 0.3 : 0.85)) {
+            if (_recentBeat && trebleLevel > antennaTrebleThreshold && Math.random() > (isMobile ? 0.3 : 0.85)) {
                 strobeTop.style.opacity = isMobile ? '1' : '0.9';
                 setTimeout(() => {
                     strobeTop.style.opacity = '0';
@@ -3528,7 +3581,7 @@
 
             // Peak energy -> random geometric strobe - SOGLIA RIDOTTA
             const peakEnergyThreshold = isMobile ? 0.3 : 0.8;
-            if (energy > peakEnergyThreshold && Math.random() > (isMobile ? 0.7 : 0.92)) {
+            if (_recentBeat && energy > peakEnergyThreshold && Math.random() > (isMobile ? 0.7 : 0.92)) {
                 const randomStrobe = geoStrobes[Math.floor(Math.random() * geoStrobes.length)];
                 randomStrobe.style.opacity = isMobile ? '1' : '0.95';
                 setTimeout(() => {
@@ -3629,8 +3682,17 @@
                 burstBlur = Math.sin(burstEased * Math.PI) * 8; // blur 0→8→0
             }
             
-            // Applica TUTTI i movimenti combinati
-            background.style.transform = `scale(${zoomIntensity + depthZoom}) rotate(${rotateAmount + swayRotateZ}deg) rotateX(${swayRotateX}deg) translate(${swayX + burstOffsetX}px, ${swayY + burstOffsetY}px)`;
+            // Audio-reactive skew (parallax POV): bg si inclina con la musica,
+            // la pupilla resta dritta sul suo canvas → senso di "mondo tilted".
+            // Ampiezza: ±0.3° in silenzio, fino a ±2.1° su mid sostenuto.
+            const skewCycle = (Date.now() % 4000) / 4000;
+            const skewEased = easing.easeInOut(skewCycle);
+            const swaySkewX = Math.sin(skewEased * Math.PI * 2) * (midLevel * 1.8 + 0.3);
+
+            // Applica TUTTI i movimenti combinati — perspective(900px) attiva il 3D
+            // context, rotateY/X baseline (0.3°/-0.5°) creano il pseudo-lens senza
+            // costo runtime (è solo matrix). Scale baseline 1.07 nel zoomIntensity.
+            background.style.transform = `perspective(900px) scale(${zoomIntensity + depthZoom}) rotateY(0.3deg) rotateX(${swayRotateX - 0.5}deg) rotate(${rotateAmount + swayRotateZ}deg) skewX(${swaySkewX}deg) translate(${swayX + burstOffsetX}px, ${swayY + burstOffsetY}px)`;
 
             // ===== PUPIL MOTION (decoupled from #background sway) =====
             // The pupil has its own coreography. Behaviour modes layer in priority,
