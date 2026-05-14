@@ -1538,11 +1538,14 @@
         let bassChargePeak = 0;              // recent peak (for drop detection)
         let bassChargePeakAt = 0;            // when peak was reached
         const sessionStartAt = Date.now();
-        const VIBE_BASE_THRESHOLD = 0.85;
-        const VIBE_COOLDOWN_MIN_MS = 15 * 60 * 1000;   // hard floor: no fire within 15 min of last
-        const VIBE_COOLDOWN_MAX_MS = 25 * 60 * 1000;   // after this, starvation kicks in
-        const VIBE_WARMUP_MS      = 3 * 60 * 1000;     // no fire in first 3 min of session
-        const VIBE_SATIATION_RESET_MS = 60 * 60 * 1000; // 1h+ deep silence resets satiation
+        // ⚠️ DEBUG/TEST mode — rapid fire so we can validate the trigger logic + future visual
+        // in a single short session. REVERT TO false BEFORE SHIP (or remove this block entirely).
+        const VIBE_DEBUG_FAST = true;
+        const VIBE_BASE_THRESHOLD     = VIBE_DEBUG_FAST ? 0.30 : 0.85;
+        const VIBE_COOLDOWN_MIN_MS    = VIBE_DEBUG_FAST ? 30 * 1000          : 15 * 60 * 1000;
+        const VIBE_COOLDOWN_MAX_MS    = VIBE_DEBUG_FAST ? 60 * 1000          : 25 * 60 * 1000;
+        const VIBE_WARMUP_MS          = VIBE_DEBUG_FAST ? 10 * 1000          : 3  * 60 * 1000;
+        const VIBE_SATIATION_RESET_MS = VIBE_DEBUG_FAST ? 5  * 60 * 1000     : 60 * 60 * 1000;
 
         // ===== DROP IMPACT — pre-shoot phase of drop recoil =====
         let lastDropFlashIntensity = 0;
