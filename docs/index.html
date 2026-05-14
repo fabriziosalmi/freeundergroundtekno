@@ -1531,6 +1531,23 @@
         let cassoneIntensity = 0;
         let cassoneVel = 0;
 
+        // ===== BASS CHARGE — pupil deflation when the kick goes away =====
+        // Recharges fast on any kick band firing; decays slowly when none of them fire.
+        // Multiplied into the pupil scale → "no cassa = pupilla si rimpicciolisce sempre di più".
+        let bassCharge = 1;
+
+        // ===== RITUAL SCORE — long-form color escalation on sustained 4/4 =====
+        // +1/64 per body-kick onset while bpmStable: 64 beats (16 bars) = +1.
+        // Fast decay (×0.88/frame) if no kick onset for >800 ms — interruption resets fast.
+        // Mapped to a 4-stage color progression in drawPupil:
+        //   0..1   (0..16 bars)   nero → rosso
+        //   1..4   (16..64 bars)  rosso → giallo
+        //   4..8   (64..128 bars) giallo → bianco
+        //   8+     (128+ bars)    bianco luminescente piena
+        let ritualScore = 0;
+        let lastBodyKickFired = false;
+        let lastBodyKickOnsetTime = 0;
+
         // ===== DROP IMPACT — pre-shoot phase of drop recoil =====
         let lastDropFlashIntensity = 0;
         let dropImpactX = 0, dropImpactY = 0;
@@ -2201,13 +2218,16 @@
             pupilCtx.clearRect(0, 0, w, h);
 
             const baseR = minDim * 0.06;
-            // Three sources of dilation: average bass (legacy), steady-beat dilation,
-            // sustained-cassone bulge, and a direct subKick "kick-thump" punch that
-            // makes the pupil pulse on every sub-bass hit even when not sustained.
-            let scale = 1 + bass * 0.1 + pupilDilation * 0.5 + cassoneIntensity * 0.5 + subKick * 0.18;
-            if (silenceMode) scale = 1 + Math.sin(time * 0.002) * 0.03;
-            const r = baseR * scale;
+            // Expanded dilation range — dramatic zoom in/out:
+            //   4/4 dritta full kick → ~2.6× base
+            //   long breakdown without kicks → shrinks toward ~40% (bassCharge → 0)
+            //   deep silence → shrinks further via calmness
             const _act = 1 - calmness;
+            let scale = 1 + bass * 0.15 + pupilDilation * 0.7 + cassoneIntensity * 0.7 + subKick * 0.25;
+            scale *= 0.4 + 0.6 * bassCharge;     // sag when the kick goes away
+            scale *= 1 - calmness * 0.28;        // further shrink in deep silence
+            if (silenceMode) scale += Math.sin(time * 0.002) * 0.05 * calmness;
+            const r = baseR * scale;
 
             // === IRIS (parametric ring) ===
             // Drawn FIRST so the pupil dark fill that comes next covers the center —
@@ -2256,11 +2276,29 @@
                 pupilCtx.shadowColor = 'rgba(255,255,255,0.8)';
                 pupilCtx.shadowBlur = (10 + bass * 30) * (0.35 + 0.65 * _act);
             }
-            // Dark fill (the "pupil hole") — emits the white glow via shadowBlur,
-            // and sits underneath the optional webcam reflection.
+            // Spherical pupil fill — radial gradient with off-center inner highlight
+            // so the body reads as a SPHERE, not a flat disc. The base color follows
+            // the 4-stage ritual progression (see ritualScore comment for the curve).
+            const _s = ritualScore;
+            let _R, _G, _B;
+            if (_s < 1)      { _R = 255 * _s; _G = 0; _B = 0; }                                  // black → red
+            else if (_s < 4) { const _t = (_s - 1) / 3; _R = 255; _G = 255 * _t; _B = 0; }       // red → yellow
+            else if (_s < 8) { const _t = (_s - 4) / 4; _R = 255; _G = 255; _B = 255 * _t; }     // yellow → white
+            else             { _R = 255; _G = 255; _B = 255; }                                   // luminescent white
+            // Sphere shading: highlight diffuso, contrasto basso. Pupilla scura — il
+            // gradiente accenna la sfera, non la dichiara.
+            const _hi = (c) => Math.min(255, c + 18);
+            const _ed = (c) => c * 0.32;
+            const _grad = pupilCtx.createRadialGradient(
+                cx - r * 0.18, cy - r * 0.18, r * 0.45,
+                cx, cy, r
+            );
+            _grad.addColorStop(0,    `rgba(${_hi(_R)|0},${_hi(_G)|0},${_hi(_B)|0},0.92)`);
+            _grad.addColorStop(0.60, `rgba(${_R|0},${_G|0},${_B|0},0.95)`);
+            _grad.addColorStop(1,    `rgba(${_ed(_R)|0},${_ed(_G)|0},${_ed(_B)|0},0.98)`);
             pupilCtx.beginPath();
             pupilCtx.arc(cx, cy, r, 0, Math.PI * 2);
-            pupilCtx.fillStyle = 'rgba(0,0,0,0.92)';
+            pupilCtx.fillStyle = _grad;
             pupilCtx.fill();
 
             // Webcam reflection — v1 treatment: HDR + scanlines + VCR jitter + lens vignette.
@@ -2320,11 +2358,11 @@
                 pupilCtx.restore();
             }
 
-            // Bright stroke (iris edge)
+            // Bright stroke (iris edge) — 1 px sottile
             pupilCtx.strokeStyle = raveMode
                 ? `rgba(255,220,150,${0.7 + bass * 0.3})`
                 : `rgba(255,255,255,${0.6 + bass * 0.4})`;
-            pupilCtx.lineWidth = 2;
+            pupilCtx.lineWidth = 1;
             pupilCtx.stroke();
             pupilCtx.restore();
         }
@@ -2987,6 +3025,33 @@
                       + (bodyKick > 0.5 ? 1 : 0)
                       + (punchKick > 0.45 ? 1 : 0);
 
+            // bassCharge: 0..1, recharges fast on any kick firing, decays slowly
+            // when none of the bands fire. A 4/4 dritta keeps charge ≈ 1 because
+            // each kick refreshes faster than the decay between beats. A breakdown
+            // (no kicks) lets it sag continuously — pupil shrinks "sempre di più".
+            const _kickFiring = kickStack >= 1;
+            if (_kickFiring) {
+                bassCharge = Math.min(1, bassCharge + 0.35);
+            } else {
+                bassCharge *= 0.997; // ~2.3 s half-life
+            }
+            if (!isFinite(bassCharge)) bassCharge = 0;
+
+            // ritualScore: rising-edge of bodyKick is one beat. While BPM is stable,
+            // each beat adds +1/64 → 64 beats (= 16 bars) per score point.
+            // No body-kick onset for >800 ms → fast decay (interruption resets).
+            const _bodyFiring = bodyKick > 0.5;
+            const _now2 = Date.now();
+            if (_bodyFiring && !lastBodyKickFired) {
+                lastBodyKickOnsetTime = _now2;
+                if (bpmStable) ritualScore = Math.min(16, ritualScore + 1 / 64);
+            }
+            lastBodyKickFired = _bodyFiring;
+            if (_now2 - lastBodyKickOnsetTime > 800) {
+                ritualScore *= 0.88;
+            }
+            if (!isFinite(ritualScore)) ritualScore = 0;
+
             // Composite bassLevel — weighted toward sub+body since those carry the kick body
             const bassLevel = subKick * 0.40 + bodyKick * 0.45 + punchKick * 0.30;
 
@@ -3575,12 +3640,23 @@
             {
                 const _now = Date.now();
                 const _minDim = Math.min(bgCanvas.width, bgCanvas.height);
-                const _amp = _minDim * 0.05;                       // bigger base (was 0.04)
-                const _kickAmp = _amp * (1 + kickStack * 0.5);     // scales with how many kicks stack
+                const _amp = _minDim * 0.085;                      // generous base — was tremolosa
+                const _kickAmp = _amp * (1 + kickStack * 0.55);    // scales with how many kicks stack
 
                 // Compute target + spring tuning per active mode
                 let _tx = 0, _ty = 0;
                 let _stiff = 0.06, _damp = 0.78; // default (slightly stiffer than before)
+
+                // AMBIENT BASELINE — slow ambient drift always present (when none of the
+                // other modes fire). Prevents the pupil from parking at center and looking
+                // like a UI radio button between events.
+                {
+                    const _tBase = _now * 0.0009;
+                    const _baseAmp = _amp * 0.22;
+                    _tx = Math.cos(_tBase) * _baseAmp;
+                    _ty = Math.sin(_tBase * 0.73) * _baseAmp * 0.7;
+                    _stiff = 0.04; _damp = 0.86;
+                }
 
                 // BASE: silence drift — slow circular wander when scene is quiet
                 if (calmness > 0.3) {
@@ -3595,7 +3671,7 @@
                 // Threshold curve on mid: flat below 0.3, climbs sharply above it.
                 if (bpmStable) {
                     const ang = bpmSyncAngle;
-                    const midDrive = 0.5 + Math.max(0, midLevel - 0.3) * 1.5;
+                    const midDrive = 0.6 + Math.max(0, midLevel - 0.3) * 2.0;
                     const lissaAmp = _amp * midDrive;
                     _tx = Math.cos(ang * 0.5) * lissaAmp;
                     _ty = Math.sin(ang) * lissaAmp * 0.7;
@@ -3620,7 +3696,7 @@
                 if (_now - lastConstellation < 130) {
                     if (saccadeT0 !== lastConstellation) {
                         saccadeT0 = lastConstellation;
-                        const sAmp = 18 + trebleLevel * 40;        // 18 → ~50 px
+                        const sAmp = 30 + trebleLevel * 70;        // 30 → ~100 px
                         saccadeX = (Math.random() - 0.5) * 2 * sAmp;
                         saccadeY = (Math.random() - 0.5) * 2 * sAmp;
                     }
@@ -3659,11 +3735,24 @@
                 pupilVelY = pupilVelY * _damp + (pupilTargetY - pupilOffY) * _stiff;
                 pupilOffX += pupilVelX;
                 pupilOffY += pupilVelY;
+                // NaN/Infinity safety: once a non-finite slips into the accumulators
+                // the spring stays poisoned forever and the pupil freezes. Reset.
+                if (!isFinite(pupilOffX) || !isFinite(pupilOffY) ||
+                    !isFinite(pupilVelX) || !isFinite(pupilVelY)) {
+                    console.warn('[pupil] spring poisoned, resetting');
+                    pupilOffX = pupilOffY = pupilVelX = pupilVelY = 0;
+                }
+                // Also clamp to a sane max so a stray spike can't fling the pupil off-screen forever
+                const _maxOff = _minDim * 0.5;
+                if (Math.abs(pupilOffX) > _maxOff) pupilOffX = Math.sign(pupilOffX) * _maxOff;
+                if (Math.abs(pupilOffY) > _maxOff) pupilOffY = Math.sign(pupilOffY) * _maxOff;
 
                 // Update mask CSS vars: hole radius + center offset → rays follow the pupil.
                 // Same scale formula as drawPupil() so the mask hole matches the visible pupil.
-                let _pupilScale = 1 + bassLevel * 0.1 + pupilDilation * 0.5 + cassoneIntensity * 0.5 + subKick * 0.18;
-                if (silenceMode) _pupilScale = 1 + Math.sin(_now * 0.002) * 0.03;
+                let _pupilScale = 1 + bassLevel * 0.15 + pupilDilation * 0.7 + cassoneIntensity * 0.7 + subKick * 0.25;
+                _pupilScale *= 0.4 + 0.6 * bassCharge;
+                _pupilScale *= 1 - calmness * 0.28;
+                if (silenceMode) _pupilScale += Math.sin(_now * 0.002) * 0.05 * calmness;
                 const _pupilR = _minDim * 0.06 * _pupilScale;
                 negativeLayer.style.setProperty('--pupil-r', _pupilR.toFixed(1) + 'px');
                 negativeLayer.style.setProperty('--pupil-x', pupilOffX.toFixed(1) + 'px');
