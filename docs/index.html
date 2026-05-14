@@ -1696,9 +1696,13 @@
         // ===== L3 MULTI-USER AWARENESS (Azuracast nowplaying) =====
         // La creatura "sa" quanti la ascoltano in questo momento e lo lascia
         // trapelare nel rendering (pulse-per-listener, iris alpha, parallax
-        // density). Polling 45 s, server cache 15 s → impatto trascurabile.
-        // Fallback silenzioso su errore/CORS/offline → la creatura non si rompe.
-        const AZURACAST_URL = 'https://radio.freeundergroundtekno.org/api/nowplaying/free_underground_tekno';
+        // density). Polling 45 s, server cache 10 s + Cloudflare edge cache →
+        // impatto trascurabile.
+        // Endpoint statico: ha CORS aperto (Access-Control-Allow-Origin: *)
+        // configurato lato nginx Azuracast. Il dynamic /api/nowplaying/<station>
+        // invece blocca cross-origin. Stesso shape (listeners.current/unique/total).
+        // Fallback silenzioso su errore/offline → la creatura non si rompe.
+        const AZURACAST_URL = 'https://radio.freeundergroundtekno.org/api/nowplaying_static/free_underground_tekno.json';
         const LISTENER_POLL_MS = 45 * 1000;
         let liveListeners = 0;          // listeners.current (smoothed lerp consumer-side)
         let liveListenersUnique = 0;
