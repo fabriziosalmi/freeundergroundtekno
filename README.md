@@ -1,6 +1,9 @@
 # Free Underground Tekno Radio
 
 ![logo](https://github.com/fabriziosalmi/freeundergroundtekno/blob/main/logo.png?raw=true)
+
+![pulse 170 BPM](https://raw.githubusercontent.com/fabriziosalmi/freeundergroundtekno/main/docs/pulse.svg)
+
 # Listen now: [https://listen.free-tekno.com](https://radio.free-tekno.com)
 
 Free Underground Tekno Radio is an online radio station based in Italy dedicated to free tekno music founded by the members of the Space Invaders Tekno Sound collective in the late 2008.

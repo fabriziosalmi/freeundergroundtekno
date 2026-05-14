@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Free Underground Tekno — pulse 170 BPM">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#0c0c0c"/>
+      <stop offset="100%" stop-color="#000"/>
+    </radialGradient>
+    <radialGradient id="sphere" cx="40%" cy="40%" r="68%">
+      <stop offset="0%"   stop-color="#fff" stop-opacity="0.38"/>
+      <stop offset="35%"  stop-color="#fff" stop-opacity="0.08"/>
+      <stop offset="72%"  stop-color="#000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.65"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="800" height="320" fill="url(#bg)"/>
+
+  <!-- Starfield twinkle -->
+  <g fill="#fff">
+    <circle cx="115" cy="70"  r="0.9" opacity="0.4"><animate attributeName="opacity" values="0.2;0.7;0.2" dur="2.8s" repeatCount="indefinite"/></circle>
+    <circle cx="685" cy="55"  r="1.0" opacity="0.5"><animate attributeName="opacity" values="0.6;0.2;0.6" dur="3.4s" repeatCount="indefinite"/></circle>
+    <circle cx="640" cy="255" r="0.7" opacity="0.3"><animate attributeName="opacity" values="0.3;0.8;0.3" dur="2.2s" repeatCount="indefinite"/></circle>
+    <circle cx="165" cy="240" r="0.7" opacity="0.4"><animate attributeName="opacity" values="0.5;0.1;0.5" dur="3.0s" repeatCount="indefinite"/></circle>
+    <circle cx="225" cy="135" r="0.5" opacity="0.3"><animate attributeName="opacity" values="0.2;0.5;0.2" dur="2.6s" repeatCount="indefinite"/></circle>
+    <circle cx="595" cy="170" r="0.7" opacity="0.4"><animate attributeName="opacity" values="0.4;0.1;0.4" dur="3.2s" repeatCount="indefinite"/></circle>
+    <circle cx="295" cy="55"  r="0.5" opacity="0.3"><animate attributeName="opacity" values="0.3;0.7;0.3" dur="2.4s" repeatCount="indefinite"/></circle>
+    <circle cx="520" cy="265" r="0.6" opacity="0.4"><animate attributeName="opacity" values="0.5;0.2;0.5" dur="2.9s" repeatCount="indefinite"/></circle>
+    <circle cx="380" cy="40"  r="0.4" opacity="0.3"><animate attributeName="opacity" values="0.2;0.6;0.2" dur="2.7s" repeatCount="indefinite"/></circle>
+    <circle cx="420" cy="285" r="0.5" opacity="0.4"><animate attributeName="opacity" values="0.5;0.1;0.5" dur="3.1s" repeatCount="indefinite"/></circle>
+  </g>
+
+  <!-- Expanding halo (1 per bar, ~352.94ms × 4 = 1411.76ms) -->
+  <circle cx="400" cy="160" r="42" fill="none" stroke="#fff" opacity="0">
+    <animate attributeName="r"            values="42;200"      dur="1411.76ms" repeatCount="indefinite"/>
+    <animate attributeName="opacity"      values="0.5;0"       dur="1411.76ms" repeatCount="indefinite"/>
+    <animate attributeName="stroke-width" values="2.2;0.3"     dur="1411.76ms" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Iris ring: r breath per bar + alpha pulse per beat -->
+  <circle cx="400" cy="160" r="100" fill="none" stroke="#fff" stroke-width="1.5">
+    <animate attributeName="r"       values="95;112;98;95"               keyTimes="0;0.25;0.6;1"  dur="1411.76ms" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.28;0.62;0.36;0.28"        keyTimes="0;0.12;0.5;1"  dur="352.94ms"  repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Pupil sphere: r pulse @ 170 BPM + color cycle (~8 bars = ritualScore in miniatura) -->
+  <circle cx="400" cy="160" r="42">
+    <animate attributeName="r"    values="42;65;48;42"  keyTimes="0;0.1;0.5;1" dur="352.94ms" repeatCount="indefinite"/>
+    <animate attributeName="fill"
+             values="#1a0000;#8a0000;#e60000;#ffaa00;#ffee66;#ffffff;#ffee66;#ffaa00;#e60000;#8a0000;#1a0000"
+             dur="11294ms" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Sphere shading overlay (synced to pulse size) -->
+  <circle cx="400" cy="160" r="42" fill="url(#sphere)" pointer-events="none">
+    <animate attributeName="r" values="42;65;48;42" keyTimes="0;0.1;0.5;1" dur="352.94ms" repeatCount="indefinite"/>
+  </circle>
+</svg>
