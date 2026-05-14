@@ -2473,6 +2473,10 @@
                 pupilCtx.clip();
                 pupilCtx.translate(cx, cy);
                 pupilCtx.scale(-1, 1); // mirror
+                // Sphere rotation: contenuto webcam + scanlines + lens vignette
+                // ruotano insieme al highlight orbit (pupilSpinPhase). Negato per
+                // allineare la direzione visiva post-mirror al moto del highlight.
+                pupilCtx.rotate(-pupilSpinPhase);
                 pupilCtx.shadowBlur = 0;
 
                 const vw = webcamVideo.videoWidth || 320;
@@ -2548,6 +2552,23 @@
             pupilCtx.stroke();
             pupilCtx.restore();
             pupilCtx.restore();   // chiude il blink outer wrap
+
+            // Singularity Step 2: HOLD FLASH — white burst at the pupil during the hold phase.
+            // Drawn OUTSIDE the blink wrap so the flash is always full-sized.
+            // Composite "screen" → additive feel without saturating to color.
+            const _flashI = Math.max(0, (singularityProgress - 0.85) / 0.15);
+            if (_flashI > 0.001) {
+                pupilCtx.save();
+                pupilCtx.globalCompositeOperation = 'screen';
+                const _fr = lastPupilR * (3 + _flashI * 2);
+                const _fg = pupilCtx.createRadialGradient(cx, cy, 0, cx, cy, _fr);
+                _fg.addColorStop(0,   'rgba(255,255,255,' + (0.95 * _flashI).toFixed(3) + ')');
+                _fg.addColorStop(0.4, 'rgba(255,255,255,' + (0.35 * _flashI).toFixed(3) + ')');
+                _fg.addColorStop(1,   'rgba(255,255,255,0)');
+                pupilCtx.fillStyle = _fg;
+                pupilCtx.fillRect(0, 0, w, h);
+                pupilCtx.restore();
+            }
         }
         // Initial static render of procedural background (no audio)
         drawProceduralBg(bgCtx, bgCanvas.width, bgCanvas.height, 0, 0, 0, 0, Date.now(), null);
