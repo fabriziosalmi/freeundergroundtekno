@@ -1521,8 +1521,11 @@
 
         // Parallax starfield — universo periferico che converge al centro della pupilla
         // (ovunque sia, segue pupilOffX/Y). Lazy-init alla prima frame di drawProceduralBg.
+        // Density modulata dai listener: BASE soli quando azuracastOnline=false o 1 listener,
+        // fino a MAX con community attiva (cap implicito ai ~17 listener).
         let starfield = null;
-        const STARFIELD_COUNT = 90;
+        const STARFIELD_BASE = 90;
+        const STARFIELD_MAX = 160;
 
         // ===== PUPIL BLINK — palpebra che si chiude verticalmente ogni ~25-40s
         // (periodico jittered) o su drop. ~160 ms totale: close fast, open back.
@@ -1687,6 +1690,56 @@
                 freezeState = 'idle';
                 freezeOverlayCanvas.style.opacity = '0';
                 console.log('[stacco] idle');
+            }
+        }
+
+        // ===== L3 MULTI-USER AWARENESS (Azuracast nowplaying) =====
+        // La creatura "sa" quanti la ascoltano in questo momento e lo lascia
+        // trapelare nel rendering (pulse-per-listener, iris alpha, parallax
+        // density). Polling 45 s, server cache 15 s → impatto trascurabile.
+        // Fallback silenzioso su errore/CORS/offline → la creatura non si rompe.
+        const AZURACAST_URL = 'https://radio.freeundergroundtekno.org/api/nowplaying/free_underground_tekno';
+        const LISTENER_POLL_MS = 45 * 1000;
+        let liveListeners = 0;          // listeners.current (smoothed lerp consumer-side)
+        let liveListenersUnique = 0;
+        let lastListenerFetchAt = 0;
+        let azuracastOnline = false;    // true after first successful fetch
+        let listenerFetchInFlight = null;  // AbortController
+
+        // Pulse-per-listener state — 4-bar-locked micro-glow array attorno alla pupilla.
+        let listenerPulses = [];        // [{t0, dur}, ...] ring waves attive
+        let lastListenerPulseGroup = -1; // ultimo group di 4-bar visto, per rising-edge
+        const LISTENER_PULSE_DUR_MS = 1000;
+        const LISTENER_PULSE_CAP = 12;
+
+        async function fetchListenerCount() {
+            // Abort any in-flight request to avoid pile-up if the network is slow.
+            if (listenerFetchInFlight) try { listenerFetchInFlight.abort(); } catch(e) {}
+            const ac = new AbortController();
+            listenerFetchInFlight = ac;
+            const _timeout = setTimeout(() => ac.abort(), 6000);
+            try {
+                const res = await fetch(AZURACAST_URL, { signal: ac.signal, cache: 'default' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const j = await res.json();
+                const cur = j && j.listeners && Number(j.listeners.current);
+                const uniq = j && j.listeners && Number(j.listeners.unique);
+                const online = !!(j && j.is_online);
+                if (Number.isFinite(cur)) liveListeners = Math.max(0, cur);
+                if (Number.isFinite(uniq)) liveListenersUnique = Math.max(0, uniq);
+                azuracastOnline = online;
+                lastListenerFetchAt = Date.now();
+                console.log('%c[listeners]', 'color:#888', 'current=' + liveListeners,
+                    'unique=' + liveListenersUnique, 'online=' + azuracastOnline);
+            } catch (e) {
+                // Silent: keep lastKnown values. If we never succeeded, azuracastOnline stays false
+                // and all listener-driven viz layers stay quiet.
+                if (e.name !== 'AbortError') {
+                    console.log('%c[listeners] fetch failed:', 'color:#888', e.message || e);
+                }
+            } finally {
+                clearTimeout(_timeout);
+                if (listenerFetchInFlight === ac) listenerFetchInFlight = null;
             }
         }
 
@@ -1940,8 +1993,8 @@
             // bell-curve: invisibili dentro pupillaR+margine E oltre _outerMax. "Appena
             // visibili": peak alpha 0.28, line width 0.7.
             if (starfield === null) {
-                starfield = new Array(STARFIELD_COUNT);
-                for (let i = 0; i < STARFIELD_COUNT; i++) {
+                starfield = new Array(STARFIELD_MAX);
+                for (let i = 0; i < STARFIELD_MAX; i++) {
                     starfield[i] = {
                         angle: Math.random() * Math.PI * 2,
                         depth: Math.random(),
@@ -1949,6 +2002,11 @@
                     };
                 }
             }
+            // Active count = BASE quando radio offline / 1 listener, scala fino a MAX
+            // con liveListeners > 1. +4 stars per listener oltre il primo.
+            const _starfieldCount = azuracastOnline
+                ? Math.min(STARFIELD_MAX, STARFIELD_BASE + Math.max(0, liveListeners - 1) * 4)
+                : STARFIELD_BASE;
             {
                 const pcx = cx + pupilOffX;
                 const pcy = cy + pupilOffY;
@@ -1961,7 +2019,7 @@
                     ctx.lineWidth = 0.7;
                     // Lieve modulazione della velocità globale al BPM (drift accelera nelle bar piene).
                     const _starGlobalSpeed = 1 + bpmPulseIntensity * 0.4 + cassoneIntensity * 0.25;
-                    for (let i = 0; i < STARFIELD_COUNT; i++) {
+                    for (let i = 0; i < _starfieldCount; i++) {
                         const s = starfield[i];
                         s.depth -= s.speed * _starGlobalSpeed;
                         if (s.depth <= 0) {
@@ -1988,6 +2046,32 @@
                         ctx.lineTo(x + dx, y + dy);
                         ctx.stroke();
                     }
+                }
+            }
+
+            // ===== LAYER 0d: Listener Pulses (L3 multi-user awareness) =====
+            // Micro-rings espansivi attorno alla pupilla, 1 per listener oltre il primo
+            // (capped a LISTENER_PULSE_CAP). Spawn 4-bar-locked dal main loop. Disegnati
+            // su bgCanvas così la pupilla li copre sulla parte interna → halos naturali.
+            if (listenerPulses.length > 0) {
+                const pcx = cx + pupilOffX;
+                const pcy = cy + pupilOffY;
+                const pR = lastPupilR;
+                const _nowLp = Date.now();
+                for (let i = listenerPulses.length - 1; i >= 0; i--) {
+                    const lp = listenerPulses[i];
+                    const age = _nowLp - lp.t0;
+                    if (age < 0) continue;                                  // staggered, non partito
+                    if (age > lp.dur) { listenerPulses.splice(i, 1); continue; }
+                    const _t = age / lp.dur;
+                    const _r = pR + (1 - (1 - _t) * (1 - _t)) * pR * 1.6;   // easeOut: pR → 2.6pR
+                    const _a = Math.sin(Math.PI * _t) * 0.18;                // 0 → 0.18 → 0
+                    if (_a < 0.005) continue;
+                    ctx.strokeStyle = 'rgba(255,255,255,' + _a.toFixed(3) + ')';
+                    ctx.lineWidth = (1 - _t) * 2 + 0.5;
+                    ctx.beginPath();
+                    ctx.arc(pcx, pcy, _r, 0, Math.PI * 2);
+                    ctx.stroke();
                 }
             }
 
@@ -2429,6 +2513,15 @@
             }
         });
 
+        // Bootstrap L3 multi-user polling — first fetch immediato (non bloccante),
+        // poi cadenza LISTENER_POLL_MS. Skip silenzioso quando tab hidden (i listener
+        // contano lato server comunque, e così non spam-iamo se la pagina dorme).
+        fetchListenerCount();
+        setInterval(() => {
+            if (document.hidden) return;
+            fetchListenerCount();
+        }, LISTENER_POLL_MS);
+
         // Iris parametric ring around the pupil. Toggle in 1 sec to disable.
         const IRIS_ENABLED = true;
 
@@ -2561,7 +2654,10 @@
                 const midDrive = 0.5 + Math.max(0, mid - 0.3) * 1.5;
                 const irisR = irisBaseR + r * 0.5 * (midDrive - 0.5) + bpmPulseIntensity * r * 0.18;
                 const irisThick = 1 + bass * 4;
-                const irisAlpha = Math.min(1, (0.18 + bass * 0.5 + mid * 0.25 + cassoneIntensity * 0.3) * _act);
+                // L3 multi-user: iris ring più presente quanta più gente ascolta.
+                // Cap a +25% per evitare che diventi dominante (linear su listeners, cap 6).
+                const _listenerBoost = azuracastOnline ? Math.min(0.25, Math.max(0, liveListeners - 1) * 0.04) : 0;
+                const irisAlpha = Math.min(1, (0.18 + bass * 0.5 + mid * 0.25 + cassoneIntensity * 0.3) * _act * (1 + _listenerBoost));
                 if (irisAlpha > 0.02) {
                     pupilCtx.save();
                     pupilCtx.shadowBlur = 0;
@@ -3407,6 +3503,24 @@
             // Update singularity state machine (Step 2) — reads Date.now(), drives renderers
             updateSingularity();
             updateFreeze();
+
+            // L3 listener pulses — spawn rising-edge ogni 16 beat (= 4 bar) quando
+            // bpmStable, ci sono listener > 1, radio online e non siamo in silenzio.
+            // 1 ring per listener oltre il primo (capped a LISTENER_PULSE_CAP).
+            if (bpmStable && beatHistory.length > 0 && azuracastOnline && !silenceMode) {
+                const _grp = Math.floor((beatHistory.length - 1) / 16);
+                if (_grp !== lastListenerPulseGroup) {
+                    lastListenerPulseGroup = _grp;
+                    const _extra = Math.max(0, Math.min(LISTENER_PULSE_CAP, liveListeners - 1));
+                    if (_extra > 0) {
+                        const _now = Date.now();
+                        for (let i = 0; i < _extra; i++) {
+                            listenerPulses.push({ t0: _now + i * 70, dur: LISTENER_PULSE_DUR_MS });
+                        }
+                        console.log('%c[listeners] pulse ×' + _extra, 'color:#888', '(4-bar group ' + _grp + ')');
+                    }
+                }
+            }
 
             // === KICK DECOMPOSITION ===
             // Tekno stacks kicks: sub (30-65 Hz) + body (85-170 Hz) + punch (300-650 Hz).
