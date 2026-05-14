@@ -547,14 +547,6 @@
             filter: blur(20px);
         }
         
-        /* Pattern 2: Cross beam */
-        #spatialStrobo.cross-beam {
-            background: 
-                linear-gradient(to bottom, transparent 48%, var(--glow-color, rgba(0, 255, 255, 0.9)) 50%, transparent 52%),
-                linear-gradient(to right, transparent 48%, var(--glow-color, rgba(0, 255, 255, 0.9)) 50%, transparent 52%);
-            filter: blur(15px);
-        }
-        
         /* Pattern 3: Diamond burst */
         #spatialStrobo.diamond-burst {
             background: conic-gradient(
@@ -896,14 +888,6 @@
                 white 360deg
             );
             filter: blur(4px) drop-shadow(0 0 25px white);
-        }
-        
-        /* Pattern 4: Croce espandente RUOTATA 45° */
-        .rotating-rays.cross-beam {
-            background: 
-                linear-gradient(135deg, transparent 48%, white 50%, transparent 52%),
-                linear-gradient(45deg, transparent 48%, white 50%, transparent 52%);
-            filter: blur(5px) drop-shadow(0 0 30px white);
         }
         
         /* Strobo circolari concentrici */
@@ -1271,7 +1255,6 @@
         <div class="rotating-rays single-beam" id="rays1"></div>
         <div class="rotating-rays multi-beam" id="rays2"></div>
         <div class="rotating-rays spiral-beam" id="rays3"></div>
-        <div class="rotating-rays cross-beam" id="rays4"></div>
     </div>
     
     <!-- ⭕ CIRCULAR STROBO - cerchi concentrici espandenti -->
@@ -1362,7 +1345,7 @@
         
         // 💫 Spatial strobo
         const spatialStrobo = document.getElementById('spatialStrobo');
-        const stroboPatterns = ['radial-explosion', 'cross-beam', 'diamond-burst', 'spiral-glow', 'ring-pulse'];
+        const stroboPatterns = ['radial-explosion', 'diamond-burst', 'spiral-glow', 'ring-pulse'];
         const stroboColors = [
             'rgba(255, 0, 255, 0.9)',   // magenta
             'rgba(0, 255, 255, 0.9)',   // cyan
@@ -2049,8 +2032,7 @@
         const rotatingRays = [
             document.getElementById('rays1'),
             document.getElementById('rays2'),
-            document.getElementById('rays3'),
-            document.getElementById('rays4')
+            document.getElementById('rays3')
         ];
         
         // ⭕ Circular strobo
@@ -3233,7 +3215,8 @@
                 // Su alti: attiva spirale o croce - SOGLIA RIDOTTA
                 const negRayTrebleThreshold = isMobile ? 0.25 : 0.65;
                 if (trebleLevel > negRayTrebleThreshold && Math.random() > (isMobile ? 0.1 : 0.4) && _claimDistort()) {
-                    const rayPattern = Math.random() < 0.5 ? rotatingRays[2] : rotatingRays[3];
+                    // Only spiral-beam remains for treble (cross-beam removed — "croci da levare")
+                    const rayPattern = rotatingRays[2];
                     negativeLayer.style.opacity = isMobile ? '1' : '0.98';
                     rayPattern.style.opacity = '1';
                     rayPattern.classList.add('active');
