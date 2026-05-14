@@ -1891,10 +1891,15 @@
             } else {
                 spiralAngleAccum += energy * 2 * 0.016;
             }
+            // Step 2 (Singularity variation A — Suction Spirale): durante collapse/hold
+            // la spirale si stringe (avvitamento + outer pulled inward) e si illumina.
+            // _sing = 0 quando idle → tutto invariato, costo zero.
+            const _sing = singularityProgress;
+            if (singularityState !== 'idle') spiralAngleAccum += _sing * 0.12;
             const armCount = 14;
             // Base abbassata 0.15 → 0.10 + _rhythmFactor (quasi sparisce senza kicks)
-            const spiralAlpha = (0.10 + bassLevel * 0.2) * _active * _rhythmFactor;
-            const spiralLineWidth = 1.5 + bassLevel * 2;
+            const spiralAlpha = (0.10 + bassLevel * 0.2) * _active * _rhythmFactor * (1 + _sing * 3);
+            const spiralLineWidth = (1.5 + bassLevel * 2) * (1 + _sing * 1.5);
             let _slow = false;
             try { _slow = isSlowDevice; } catch(e) {}
             const spiralSteps = _slow ? 40 : 80;
@@ -1902,8 +1907,11 @@
             // Radial gradient: 14 stroke/frame (era 1120). Inner radius dinamico legato
             // a lastPupilR → la spirale è trasparente dentro la pupilla, fade-in subito
             // fuori dal bordo, decade nella metà esterna come prima.
-            const spiralMaxR = Math.min(cx, cy) * 0.9;
+            // Suction: outer raggio tirato verso la pupilla con singularityProgress.
+            // Clamp sopra _spiralInnerR + delta per non degenerare il gradient.
+            const _spiralMaxBase = Math.min(cx, cy) * 0.9;
             const _spiralInnerR = lastPupilR + minDim * 0.025;
+            const spiralMaxR = Math.max(_spiralInnerR + minDim * 0.05, _spiralMaxBase * (1 - _sing * 0.55));
             const spiralGradient = ctx.createRadialGradient(cx, cy, _spiralInnerR, cx, cy, spiralMaxR);
             spiralGradient.addColorStop(0,    'rgba(255,255,255,0)');                         // pulisci sopra la pupilla
             spiralGradient.addColorStop(0.10, `rgba(255,255,255,${spiralAlpha * 0.5})`);      // soft fade-in
@@ -1920,7 +1928,7 @@
                 for (let s = 0; s <= spiralSteps; s++) {
                     const t = s / spiralSteps;
                     const r = t * spiralMaxR;
-                    const theta = armAngle + t * Math.PI * 3;
+                    const theta = armAngle + t * Math.PI * (3 + _sing * 6);
                     const x = cx + r * Math.cos(theta);
                     const y = cy + r * Math.sin(theta);
                     if (s === 0) ctx.moveTo(x, y);
@@ -2308,6 +2316,8 @@
             //   deep silence → shrinks further via calmness
             const _act = 1 - calmness;
             let scale = 1 + bass * 0.15 + pupilDilation * 0.7 + cassoneIntensity * 0.7 + subKick * 0.25;
+            // Singularity bloom — la sfera si gonfia mentre tutto le collassa addosso.
+            scale *= 1 + singularityProgress * 0.18;
             // FAT-BASS DILATION BOOST — su kick distorti e cassa pastosa la pupilla
             // si ingrandisce ulteriormente. Tre contributi:
             //   1) kickStack pesante (≥2 bande firing) — soglia abbassata a 1.2 + coef 0.25
@@ -2507,6 +2517,26 @@
                 pupilCtx.fillStyle = innerGrad;
                 pupilCtx.fillRect(-r, -r, r * 2, r * 2);
 
+                pupilCtx.restore();
+            }
+
+            // === SPHERICAL INNER-RIM SHADOW ===
+            // Vignette interna minima, concentrata negli ultimi ~28% del raggio con
+            // ease-out → accentua la sfera senza appiattire il body. Drawn dopo la
+            // webcam reflection così condividono lo stesso envelope sferico. Stroke
+            // dell'iride viene dopo, quindi resta nitido sopra l'ombra.
+            {
+                const _innerShadow = pupilCtx.createRadialGradient(cx, cy, r * 0.55, cx, cy, r);
+                _innerShadow.addColorStop(0,    'rgba(0,0,0,0)');
+                _innerShadow.addColorStop(0.72, 'rgba(0,0,0,0)');
+                _innerShadow.addColorStop(0.88, 'rgba(0,0,0,0.10)');
+                _innerShadow.addColorStop(1.00, 'rgba(0,0,0,0.28)');
+                pupilCtx.save();
+                pupilCtx.shadowBlur = 0;
+                pupilCtx.beginPath();
+                pupilCtx.arc(cx, cy, r, 0, Math.PI * 2);
+                pupilCtx.fillStyle = _innerShadow;
+                pupilCtx.fill();
                 pupilCtx.restore();
             }
 
@@ -3555,7 +3585,7 @@
 
                 // Random VHS glitch on strong beats - SOGLIA RIDOTTA
                 const vhsThreshold = isMobile ? 0.35 : 0.8;
-                if (bassLevel > vhsThreshold && Math.random() > (isMobile ? 0.5 : 0.85) && _claimDistort()) {
+                if (bassLevel > vhsThreshold && Math.random() > (isMobile ? 0.5 : 0.85) && _claimDistort() && singularityProgress < 0.01) {
                     vhsLines.style.opacity = isMobile ? '1' : '0.8';
                     background.style.transform = `scale(${zoomIntensity}) rotate(${rotateAmount}deg) translateX(${Math.random() * 10 - 5}px)`;
                     setTimeout(() => {
@@ -3850,7 +3880,8 @@
             
             // 🎲 RANDOM MICRO MOVEMENTS - movimenti sottili costanti
             // Suppressed in silence so the scene reads as still, not twitchy.
-            if (calmness < 0.4 && Math.random() > 0.95) {
+            // Also suppressed during a singularity event so the suction transform isn't fought.
+            if (calmness < 0.4 && Math.random() > 0.95 && singularityProgress < 0.01) {
                 const microX = (Math.random() - 0.5) * 3;
                 const microY = (Math.random() - 0.5) * 3;
                 const microRotate = (Math.random() - 0.5) * 1;
@@ -4031,7 +4062,8 @@
                 _pupilScale *= 0.4 + 0.6 * bassCharge;
                 _pupilScale *= 1 - calmness * 0.28;
                 if (silenceMode) _pupilScale += Math.sin(_now * 0.002) * 0.05 * calmness;
-                const _pupilR = _minDim * 0.06 * _pupilScale;
+                // Singularity Step 2: mask hole contracts → rays close in on the pupil.
+                const _pupilR = _minDim * 0.06 * _pupilScale * (1 - singularityProgress * 0.85);
                 negativeLayer.style.setProperty('--pupil-r', _pupilR.toFixed(1) + 'px');
                 negativeLayer.style.setProperty('--pupil-x', pupilOffX.toFixed(1) + 'px');
                 negativeLayer.style.setProperty('--pupil-y', pupilOffY.toFixed(1) + 'px');
