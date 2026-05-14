@@ -1,20 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Free Underground Tekno — pulse 170 BPM">
   <defs>
     <radialGradient id="bg" cx="50%" cy="50%" r="60%">
-      <stop offset="0%" stop-color="#0c0c0c"/>
+      <stop offset="0%" stop-color="#0a0a0a"/>
       <stop offset="100%" stop-color="#000"/>
     </radialGradient>
     <radialGradient id="sphere" cx="40%" cy="40%" r="68%">
-      <stop offset="0%"   stop-color="#fff" stop-opacity="0.38"/>
-      <stop offset="35%"  stop-color="#fff" stop-opacity="0.08"/>
+      <stop offset="0%"   stop-color="#fff" stop-opacity="0.42"/>
+      <stop offset="35%"  stop-color="#fff" stop-opacity="0.10"/>
       <stop offset="72%"  stop-color="#000" stop-opacity="0"/>
-      <stop offset="100%" stop-color="#000" stop-opacity="0.65"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.70"/>
     </radialGradient>
   </defs>
 
   <rect width="800" height="320" fill="url(#bg)"/>
 
-  <!-- Starfield twinkle -->
+  <!-- Starfield twinkle: 10 dot con periodi sfasati -->
   <g fill="#fff">
     <circle cx="115" cy="70"  r="0.9" opacity="0.4"><animate attributeName="opacity" values="0.2;0.7;0.2" dur="2.8s" repeatCount="indefinite"/></circle>
     <circle cx="685" cy="55"  r="1.0" opacity="0.5"><animate attributeName="opacity" values="0.6;0.2;0.6" dur="3.4s" repeatCount="indefinite"/></circle>
@@ -28,29 +28,68 @@
     <circle cx="420" cy="285" r="0.5" opacity="0.4"><animate attributeName="opacity" values="0.5;0.1;0.5" dur="3.1s" repeatCount="indefinite"/></circle>
   </g>
 
-  <!-- Expanding halo (1 per bar, ~352.94ms × 4 = 1411.76ms) -->
+  <!-- ONDE RADIO: 3 halo staggered di mezzo bar → wave sempre presente outward -->
+  <!-- Halo A: bar onset, raggio medio -->
   <circle cx="400" cy="160" r="42" fill="none" stroke="#fff" opacity="0">
-    <animate attributeName="r"            values="42;200"      dur="1411.76ms" repeatCount="indefinite"/>
-    <animate attributeName="opacity"      values="0.5;0"       dur="1411.76ms" repeatCount="indefinite"/>
-    <animate attributeName="stroke-width" values="2.2;0.3"     dur="1411.76ms" repeatCount="indefinite"/>
+    <animate attributeName="r"            values="42;210"     dur="1411.76ms" begin="0s"      repeatCount="indefinite"/>
+    <animate attributeName="opacity"      values="0.55;0"     dur="1411.76ms" begin="0s"      repeatCount="indefinite"/>
+    <animate attributeName="stroke-width" values="2.4;0.3"    dur="1411.76ms" begin="0s"      repeatCount="indefinite"/>
+  </circle>
+  <!-- Halo B: half-bar offset, raggio lungo, sottile -->
+  <circle cx="400" cy="160" r="42" fill="none" stroke="#fff" opacity="0">
+    <animate attributeName="r"            values="42;270"     dur="1411.76ms" begin="0.706s"  repeatCount="indefinite"/>
+    <animate attributeName="opacity"      values="0.35;0"     dur="1411.76ms" begin="0.706s"  repeatCount="indefinite"/>
+    <animate attributeName="stroke-width" values="1.4;0.15"   dur="1411.76ms" begin="0.706s"  repeatCount="indefinite"/>
+  </circle>
+  <!-- Halo C: quarter-bar offset, raggio breve, in-out più rapido -->
+  <circle cx="400" cy="160" r="42" fill="none" stroke="#fff" opacity="0">
+    <animate attributeName="r"            values="42;150"     dur="705.88ms"  begin="0.353s"  repeatCount="indefinite"/>
+    <animate attributeName="opacity"      values="0.35;0"     dur="705.88ms"  begin="0.353s"  repeatCount="indefinite"/>
+    <animate attributeName="stroke-width" values="1.8;0.2"    dur="705.88ms"  begin="0.353s"  repeatCount="indefinite"/>
   </circle>
 
-  <!-- Iris ring: r breath per bar + alpha pulse per beat -->
+  <!-- IRIS ring: breath per bar + alpha pulse per beat -->
   <circle cx="400" cy="160" r="100" fill="none" stroke="#fff" stroke-width="1.5">
-    <animate attributeName="r"       values="95;112;98;95"               keyTimes="0;0.25;0.6;1"  dur="1411.76ms" repeatCount="indefinite"/>
-    <animate attributeName="opacity" values="0.28;0.62;0.36;0.28"        keyTimes="0;0.12;0.5;1"  dur="352.94ms"  repeatCount="indefinite"/>
+    <animate attributeName="r"       values="95;112;98;95"          keyTimes="0;0.25;0.6;1" dur="1411.76ms" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.30;0.70;0.40;0.30"   keyTimes="0;0.12;0.5;1" dur="352.94ms"  repeatCount="indefinite"/>
   </circle>
 
-  <!-- Pupil sphere: r pulse @ 170 BPM + color cycle (~8 bars = ritualScore in miniatura) -->
-  <circle cx="400" cy="160" r="42">
-    <animate attributeName="r"    values="42;65;48;42"  keyTimes="0;0.1;0.5;1" dur="352.94ms" repeatCount="indefinite"/>
-    <animate attributeName="fill"
-             values="#1a0000;#8a0000;#e60000;#ffaa00;#ffee66;#ffffff;#ffee66;#ffaa00;#e60000;#8a0000;#1a0000"
-             dur="11294ms" repeatCount="indefinite"/>
-  </circle>
+  <!-- GAZE DRIFT — wrapper g per pupilla + shading. Translate erratico, ciclo lungo (~17s)
+       per non leggersi come pattern ripetitivo. Idle gaze, non mouse tracking (impossibile su README). -->
+  <g>
+    <animateTransform attributeName="transform" type="translate"
+      values="0,0; 22,-14; -8,-26; -28,-4; -12,18; 14,24; 26,8; 4,-18; -18,-12; 0,0"
+      keyTimes="0;0.11;0.22;0.34;0.46;0.58;0.70;0.82;0.92;1"
+      dur="17s" repeatCount="indefinite"/>
 
-  <!-- Sphere shading overlay (synced to pulse size) -->
-  <circle cx="400" cy="160" r="42" fill="url(#sphere)" pointer-events="none">
-    <animate attributeName="r" values="42;65;48;42" keyTimes="0;0.1;0.5;1" dur="352.94ms" repeatCount="indefinite"/>
-  </circle>
+    <!-- Pupil sphere: r pulse @ 170 BPM + color cycle 14s (B&W default + red rarissimo) -->
+    <circle cx="400" cy="160" r="42">
+      <animate attributeName="r"
+               values="42;65;48;42"
+               keyTimes="0;0.1;0.5;1"
+               dur="352.94ms" repeatCount="indefinite"/>
+      <!-- 14s cycle: 11s di B&W rest + breath, 1 white peak, 1 red flash rapido, ritorno -->
+      <animate attributeName="fill"
+               values="#222222;#444444;#aaaaaa;#444444;#222222;#dddddd;#666666;#222222;#ffffff;#888888;#ff2020;#aaaaaa;#444444;#222222;#222222"
+               keyTimes="0;0.05;0.10;0.15;0.30;0.40;0.45;0.55;0.62;0.66;0.74;0.78;0.86;0.94;1"
+               dur="14s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- Sphere shading overlay (synced to pulse size) -->
+    <circle cx="400" cy="160" r="42" fill="url(#sphere)" pointer-events="none">
+      <animate attributeName="r" values="42;65;48;42" keyTimes="0;0.1;0.5;1" dur="352.94ms" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- STROBE overlay: rect bianco full-canvas, opacity 0 di default.
+       2 flash per cycle 14s, ~70-90ms l'uno. Allineati a:
+       - white peak della pupilla (t=0.62) → "DROP" cinematico
+       - red flash (t=0.74) → "RITUAL" snap
+       Safety: max 2 flash/14s = 0.14 Hz, ben sotto la soglia epilessia (3 Hz). -->
+  <rect width="800" height="320" fill="#fff" opacity="0">
+    <animate attributeName="opacity"
+             values="0;0;0.45;0;0;0.38;0;0"
+             keyTimes="0;0.615;0.62;0.635;0.735;0.74;0.755;1"
+             dur="14s" repeatCount="indefinite"/>
+  </rect>
 </svg>
