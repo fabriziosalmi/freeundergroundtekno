@@ -185,7 +185,7 @@
             /* Single-layer shadow (was 3 layers including an inset). Same visual
                weight, ~half the paint cost when width/height/opacity change. */
             box-shadow: 0 0 45px rgba(255, 255, 255, 0.75);
-            will-change: width, height, opacity, box-shadow;
+            will-change: transform, opacity, box-shadow;
         }
         
         /* SPEAKER FLASHES - flash sulle casse laterali */
@@ -1433,6 +1433,11 @@
         // dust / listener pulses / parallax) col destination-out diretto.
         let hexMaskedCanvas = document.createElement('canvas');
         let hexMaskedCtx = hexMaskedCanvas.getContext('2d');
+        // Frame-rate-independent motion factor. 1.0 @ 60fps, 2.0 @ 30fps, 0.5 @ 120fps.
+        // Set once per rendered frame in animate(); read by every persistent per-frame
+        // increment/decay/spring in animate(), drawProceduralBg() and drawPupil(). Declared
+        // here (before drawProceduralBg's first call during init) to avoid a TDZ ReferenceError.
+        let frameScale = 1;
         let spiralAngleAccum = 0;
 
         // ===== V2 LAYERED ART STATE =====
@@ -2093,7 +2098,7 @@
                     bpmAvgInterval = avgInterval; // expose to drawPupil for BPM-locked rotation + exhale
                 }
             }
-            if (!bpmStable) bpmPulseIntensity *= 0.95;
+            if (!bpmStable) bpmPulseIntensity *= Math.pow(0.95, frameScale);
 
             // Pupil dilation: steady beats make the pupil grow
             if (_beatH && _beatH.length >= 3) {
@@ -2116,10 +2121,10 @@
             }
             // Decay when no steady beats
             if (time - lastSteadyBeatTime > 500) {
-                steadyBeatCount = Math.max(0, steadyBeatCount - 0.05); // smooth decay per frame
+                steadyBeatCount = Math.max(0, steadyBeatCount - 0.05 * frameScale); // smooth decay per frame
             }
             pupilTarget = Math.min(1, steadyBeatCount / 16);
-            pupilDilation += (pupilTarget - pupilDilation) * 0.08; // smooth lerp
+            pupilDilation += (pupilTarget - pupilDilation) * (1 - Math.pow(0.92, frameScale)); // smooth lerp (fps-independent)
 
             // ===== LAYER 0: Star Field / Warehouse Dust =====
             // _active is still needed by downstream layers (hex, spiral, vortex…).
@@ -2137,7 +2142,7 @@
                 for (let i = 0; i < bgParticles.length; i++) {
                     const p = bgParticles[i];
                     // Drift upward (halts in silence)
-                    p.y -= p.speed * _active;
+                    p.y -= p.speed * _active * frameScale;
                     if (p.y < -0.01) { p.y = 1.01; p.x = Math.random(); }
 
                     const twinkle = Math.sin(time * 0.003 + p.twinkleOffset) * 0.5 + 0.5;
@@ -2223,7 +2228,7 @@
                     const _starGlobalSpeed = 1 + bpmPulseIntensity * 0.4 + cassoneIntensity * 0.25;
                     for (let i = 0; i < _starfieldCount; i++) {
                         const s = starfield[i];
-                        s.depth -= s.speed * _starGlobalSpeed;
+                        s.depth -= s.speed * _starGlobalSpeed * frameScale;
                         if (s.depth <= 0) {
                             s.depth = 1;
                             s.angle = Math.random() * Math.PI * 2;
@@ -2335,13 +2340,13 @@
             if (bpmStable) {
                 spiralAngleAccum = bpmSyncAngle * 0.5;
             } else {
-                spiralAngleAccum += energy * 2 * 0.016;
+                spiralAngleAccum += energy * 2 * 0.016 * frameScale;
             }
             // Step 2 (Singularity variation A — Suction Spirale): durante collapse/hold
             // la spirale si stringe (avvitamento + outer pulled inward) e si illumina.
             // _sing = 0 quando idle → tutto invariato, costo zero.
             const _sing = singularityProgress;
-            if (singularityState !== 'idle') spiralAngleAccum += _sing * 0.12;
+            if (singularityState !== 'idle') spiralAngleAccum += _sing * 0.12 * frameScale;
             const armCount = 14;
             // Base abbassata 0.15 → 0.10 + _rhythmFactor (quasi sparisce senza kicks)
             const spiralAlpha = (0.10 + bassLevel * 0.2) * _active * _rhythmFactor * (1 + _sing * 3);
@@ -2426,7 +2431,7 @@
             // (sustained 4/4 + bpmStable), non per generico energy > 0.6.
             // Skipped in STREAM_MODE — heaviest decorative layer (6 paths × bands).
             const sacredTarget = cassoneIntensity > 0.25 ? 1 : 0;
-            sacredGeoAlpha += (sacredTarget - sacredGeoAlpha) * 0.05;
+            sacredGeoAlpha += (sacredTarget - sacredGeoAlpha) * (1 - Math.pow(0.95, frameScale));
             sacredGeoBoost *= 0.97; // decay boost from drops
 
             if (!STREAM_MODE && sacredGeoAlpha > 0.01) {
@@ -2435,7 +2440,7 @@
                 if (bpmStable) {
                     sacredGeoAngle = bpmSyncAngle;
                 } else {
-                    sacredGeoAngle += energy * 0.02;
+                    sacredGeoAngle += energy * 0.02 * frameScale;
                 }
                 const drawAlpha = sacredGeoAlpha * (0.15 + sacredGeoBoost * 0.3);
 
@@ -2506,7 +2511,7 @@
             if (dropFlashIntensity > 0.01) {
                 ctx.fillStyle = `rgba(255,255,255,${dropFlashIntensity * 0.3})`;
                 ctx.fillRect(0, 0, w, h);
-                dropFlashIntensity *= 0.92;
+                dropFlashIntensity *= Math.pow(0.92, frameScale);
             }
 
             // raveMode wash rimosso (strip-color Tier 1) — la "warmth" è governata
@@ -2975,7 +2980,7 @@
                 const _period = bpmAvgInterval * ROT_BARS * 4;
                 pupilSpinPhase = ((Date.now() % _period) / _period) * Math.PI * 2;
             } else {
-                pupilSpinPhase += 0.0042 + (1 - _act) * 0.020;
+                pupilSpinPhase += (0.0042 + (1 - _act) * 0.020) * frameScale;
                 if (pupilSpinPhase > Math.PI * 2) pupilSpinPhase -= Math.PI * 2;
             }
             // Highlight più tenue (+12 invece di +18), edge più scuro (×0.22 invece di ×0.32),
@@ -3167,6 +3172,13 @@
         let lastFrameTime = 0;
         const baseFrameTime = isSlowDevice ? 1000 / 30 : 1000 / 60;
         let skippedFrames = 0;
+
+        // === PERF PROFILER — opt-in via ?profile=1. Console-only, zero render impact. ===
+        // Wraps each frame phase with performance.now() and logs a per-phase breakdown
+        // every 120 rendered frames. Lets us decide optimizations on numbers, not on a
+        // generic audit. Guarded so the disabled path costs nothing.
+        const PROFILE = /[?&]profile=1\b/.test(location.search);
+        const _pf = { bg: 0, pupil: 0, frame: 0, n: 0, bgN: 0, last: 0, gap: 0, skip0: 0 };
 
         // Live toggle button
         const liveToggle = document.getElementById('liveToggle');
@@ -3747,13 +3759,29 @@
             // Frame rate throttling for performance — dynamic downshift in deep silence.
             const now = performance.now();
             const deltaTime = now - lastFrameTime;
-            const targetFrameTime = calmness > 0.85 ? 1000 / 10 : baseFrameTime;
-            if (deltaTime < targetFrameTime) {
+            // Free-run on capable devices: render every native vsync so the loop never
+            // fights an adaptive / high-refresh (ProMotion) panel — the old fixed 60-cap
+            // beat against the refresh and dropped ~half the frames to jitter (~36fps from
+            // a 60Hz display). Motion stays consistent across refresh rates via frameScale
+            // below, NOT by dropping frames. Deliberate battery caps are kept: 10fps in deep
+            // silence, 30fps on slow devices.
+            const targetFrameTime = calmness > 0.85 ? 1000 / 10 : (isSlowDevice ? 1000 / 30 : 0);
+            if (targetFrameTime > 0 && deltaTime < targetFrameTime * 0.9) {
                 skippedFrames++;
                 animationId = requestAnimationFrame(animate);
                 return;
             }
             lastFrameTime = now;
+
+            // frameScale: how many 60fps-frames' worth of time this frame represents. At a
+            // steady 60fps it is exactly 1.0 → every scaled term below reduces to the original
+            // hand-tuned value (byte-identical). Clamped so a tab-switch / GC hitch can't
+            // teleport state by a huge dt.
+            frameScale = deltaTime / 16.6667;
+            if (!(frameScale > 0)) frameScale = 1;
+            if (frameScale > 4) frameScale = 4;
+
+            if (PROFILE) { if (_pf.last) _pf.gap += now - _pf.last; _pf.last = now; }
 
             analyser.getByteFrequencyData(dataArray);
 
@@ -3841,7 +3869,7 @@
             } else {
                 // Bi-modal decay: lento sopra 0.30 (sustain del groove), accelerato sotto
                 // (3.3× più veloce) → breakdown profondo si svuota invece di plateau-are.
-                bassCharge *= bassCharge < 0.30 ? 0.99 : 0.997;
+                bassCharge *= Math.pow(bassCharge < 0.30 ? 0.99 : 0.997, frameScale);
             }
             if (!isFinite(bassCharge)) bassCharge = 0;
 
@@ -3880,7 +3908,7 @@
             }
             lastBodyKickFired = _bodyFiring;
             if (_now2 - lastBodyKickOnsetTime > 800) {
-                ritualScore *= 0.88;
+                ritualScore *= Math.pow(0.88, frameScale);
             }
             if (!isFinite(ritualScore)) ritualScore = 0;
 
@@ -3956,8 +3984,8 @@
             // Spring-damped so the fade is curved, never linear.
             const calmTarget = silenceMode ? 1 : 0;
             const calmForce = (calmTarget - calmness) * 0.03;
-            calmnessVelocity = calmnessVelocity * 0.80 + calmForce;
-            calmness += calmnessVelocity;
+            calmnessVelocity = calmnessVelocity * Math.pow(0.80, frameScale) + calmForce * frameScale;
+            calmness += calmnessVelocity * frameScale;
             if (calmness < 0) { calmness = 0; calmnessVelocity = 0; }
             if (calmness > 1) { calmness = 1; calmnessVelocity = 0; }
             const activity = 1 - calmness; // convenience inverse
@@ -4017,7 +4045,7 @@
                 if (bpmStable) hatScore = Math.min(16, hatScore + 1 / 64);
             }
             lastHatFired = _hatFiring;
-            if (_now2 - lastHatOnsetTime > 800) hatScore *= 0.88;
+            if (_now2 - lastHatOnsetTime > 800) hatScore *= Math.pow(0.88, frameScale);
             if (!isFinite(hatScore)) hatScore = 0;
 
             // ===== LEAD VOICE — sustained mid-band ride (synth/melodic content) =====
@@ -4046,7 +4074,7 @@
                 if (bpmStable) leadScore = Math.min(16, leadScore + 1 / 64);
             }
             lastLeadFired = _leadFiring;
-            if (_now2 - lastLeadOnsetTime > 800) leadScore *= 0.88;
+            if (_now2 - lastLeadOnsetTime > 800) leadScore *= Math.pow(0.88, frameScale);
             if (!isFinite(leadScore)) leadScore = 0;
 
             // ===== VOICES SUMMARY — unified rhythm vocabulary for downstream visuals =====
@@ -4064,7 +4092,7 @@
                 const _nowVibe = Date.now();
 
                 // 1) Sustained cassone fills slowly — la cassa che insiste carica piano
-                vibeCharge += cassoneIntensity * 0.0005;
+                vibeCharge += cassoneIntensity * 0.0005 * frameScale;
 
                 // 2) RitualScore stage transition — boost grosso quando si sale di livello
                 //    Stages (vedi commento di ritualScore): 0(0-1) / 1(1-4) / 2(4-8) / 3(8+)
@@ -4107,10 +4135,10 @@
                     bassChargePeak = 0;  // richiede una nuova risalita per riarmarsi
                 }
                 // Peak decay se non è successo niente da 3s
-                if (_nowVibe - bassChargePeakAt > 3000) bassChargePeak *= 0.95;
+                if (_nowVibe - bassChargePeakAt > 3000) bassChargePeak *= Math.pow(0.95, frameScale);
 
                 // 4) Silenzio scarica
-                vibeCharge -= calmness * 0.0008;
+                vibeCharge -= calmness * 0.0008 * frameScale;
                 vibeCharge = Math.max(0, Math.min(1, vibeCharge));
 
                 // === FIRE GATE ===
@@ -4822,10 +4850,10 @@
                 pupilTargetY = _ty;
 
                 // Spring-damper update — ease-in/out curve, never linear
-                pupilVelX = pupilVelX * _damp + (pupilTargetX - pupilOffX) * _stiff;
-                pupilVelY = pupilVelY * _damp + (pupilTargetY - pupilOffY) * _stiff;
-                pupilOffX += pupilVelX;
-                pupilOffY += pupilVelY;
+                pupilVelX = pupilVelX * Math.pow(_damp, frameScale) + (pupilTargetX - pupilOffX) * _stiff * frameScale;
+                pupilVelY = pupilVelY * Math.pow(_damp, frameScale) + (pupilTargetY - pupilOffY) * _stiff * frameScale;
+                pupilOffX += pupilVelX * frameScale;
+                pupilOffY += pupilVelY * frameScale;
                 // NaN/Infinity safety: once a non-finite slips into the accumulators
                 // the spring stays poisoned forever and the pupil freezes. Reset.
                 if (!isFinite(pupilOffX) || !isFinite(pupilOffY) ||
@@ -4877,7 +4905,9 @@
                 }
             }
             // Draw the pupil on its dedicated top canvas (always on top of everything).
+            const _ppA = PROFILE ? performance.now() : 0;
             drawPupil(Date.now(), bassLevel, midLevel, trebleLevel, pupilOffX, pupilOffY);
+            if (PROFILE) _pf.pupil += performance.now() - _ppA;
 
             // Coalesced blur: sum mid-driven soft blur + burst blur, drive a
             // spring-damper so the rise/fall is always eased (never flat).
@@ -4889,8 +4919,8 @@
             // Spring: stiffness pulls toward target, damping smooths velocity →
             // velocity ramps up, peaks in the middle, decays near target.
             const blurForce = (targetBlur - currentBlur) * 0.05;
-            blurVelocity = blurVelocity * 0.78 + blurForce;
-            currentBlur += blurVelocity;
+            blurVelocity = blurVelocity * Math.pow(0.78, frameScale) + blurForce * frameScale;
+            currentBlur += blurVelocity * frameScale;
             if (currentBlur < 0) currentBlur = 0;
             if (currentBlur > 0.15) {
                 background.style.filter = `blur(${currentBlur.toFixed(2)}px)`;
@@ -4936,16 +4966,39 @@
             let bgRenderFrequency = isSmallMobile ? 4 : isMobile ? 2 : 1;
             if (isSlowDevice) bgRenderFrequency += 2;
             if (bgFrameCount % bgRenderFrequency === 0) {
+                const _bgA = PROFILE ? performance.now() : 0;
                 drawProceduralBg(bgCtx, bgCanvas.width, bgCanvas.height, bassLevel, midLevel, trebleLevel, energy, Date.now(), dataArray);
+                if (PROFILE) { _pf.bg += performance.now() - _bgA; _pf.bgN++; }
             }
 
             // 🎨 VORTEX ROTATION — RIMOSSO in v1.3.6 (3° layer di "gabbia" attorno
             // al centro, dopo tunnel-ring CSS e LAYER 1 pulse-rings). Saving netto
             // ~3-5 ms/frame nel worst case (8 stroke + shadowBlur 15 quando bassLevel>0.5).
 
+            if (PROFILE) {
+                _pf.frame += performance.now() - now;
+                _pf.n++;
+                if (_pf.n >= 120) {
+                    const n = _pf.n;
+                    const frameAvg = _pf.frame / n;
+                    const pupilAvg = _pf.pupil / n;
+                    const bgPerFrame = _pf.bg / n;
+                    const bgPerCall = _pf.bgN ? _pf.bg / _pf.bgN : 0;
+                    const rest = frameAvg - pupilAvg - bgPerFrame;
+                    const realFps = _pf.gap ? 1000 / (_pf.gap / n) : 0;
+                    const skipped = skippedFrames - _pf.skip0;
+                    console.log(
+                        `%c[PROFILE] ${n}f  frame ${frameAvg.toFixed(2)}ms (~${realFps.toFixed(0)} real fps)  |  bg ${bgPerFrame.toFixed(2)}ms/f (${bgPerCall.toFixed(2)}ms ×${_pf.bgN})  |  pupil ${pupilAvg.toFixed(2)}ms  |  rest ${rest.toFixed(2)}ms  |  skipped ${skipped}`,
+                        'color:#0f0;background:#111;padding:2px 4px;font-family:monospace'
+                    );
+                    _pf.frame = _pf.pupil = _pf.bg = _pf.bgN = _pf.n = _pf.gap = 0;
+                    _pf.skip0 = skippedFrames;
+                }
+            }
+
             animationId = requestAnimationFrame(animate);
         }
-        
+
         console.log('FREE UNDERGROUND TEKNO - Radio VJ System Ready');
     </script>
 </body>
