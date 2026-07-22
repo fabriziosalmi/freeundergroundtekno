@@ -4226,10 +4226,9 @@
             // Dream conditions: specific frequency combinations during energetic moments
             dreamIntensity = (bassLevel * 0.4) + (midLevel * 0.6); // More mid-sensitive
 
-            // These three are the only per-frame dice left in animate() — every
-            // other gate lives inside the per-beat block below and is therefore
-            // already paced by the music. Odds are expressed per 60fps-frame and
-            // rescaled by chance(); see the helper for why.
+            // These three are the only per-frame dream-flash dice in animate() — most other random
+            // gating lives inside the per-beat block below and is therefore paced by the music.
+            // Other per-frame visual-only jitter (e.g. webcam VCR) is also frameScale-corrected via chance().
 
             // Trigger 1: Strong mid-level with bass presence (party vibe)
             const dreamTrigger1 = bassLevel > (isMobile ? 0.4 : 0.6) &&
