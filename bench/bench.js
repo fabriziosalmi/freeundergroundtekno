@@ -34,6 +34,7 @@
 const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
+const { neutralize, installLoopCounter, assertSingleLoop } = require('./harness');
 
 const PAGE = path.join(__dirname, '..', 'docs', 'index.html');
 const VIEWPORT = { width: 1920, height: 1080 };
@@ -202,6 +203,8 @@ async function runScene(browser, name) {
     }
     // Silence the app's own chatter; we only care about PROFILE lines.
     page.on('pageerror', (e) => console.error('  ! page error:', e.message));
+    // Stop the page autoplaying into a second render loop. See harness.js.
+    await neutralize(page);
     if (OPT.ablate && OPT.ablate !== 'none') {
         const css = ABLATIONS[OPT.ablate];
         if (css == null) { console.error('unknown ablation:', OPT.ablate); process.exit(1); }
@@ -215,6 +218,7 @@ async function runScene(browser, name) {
     }
     const q = '?profile=1' + (OPT.extraQuery ? '&' + OPT.extraQuery.replace(/^[?&]/, '') : '');
     await page.goto('file://' + PAGE + q, { waitUntil: 'load' });
+    await page.evaluate(installLoopCounter);
     await page.evaluate(installHarness, scene, 0x1337beef);
 
     // Force real compositing. Without a screencast, headless Chrome records the
@@ -240,6 +244,7 @@ async function runScene(browser, name) {
     const m1 = await page.metrics();
     try { await cdp.send('Page.stopScreencast'); } catch {}
     const samples = await page.evaluate(() => window.__bench.samples);
+    const loopRatio = await assertSingleLoop(page, 'scene ' + name);
     await page.close();
     // Drop the first sample: cold JIT + first-paint noise.
     const st = stats(samples.slice(1)) || stats(samples);
@@ -255,6 +260,7 @@ async function runScene(browser, name) {
         // Composited frames per second actually delivered to the capture pipe.
         // This is the number that decides whether the YouTube stream is smooth.
         st.castFps = castFps;
+        st.loopRatio = loopRatio;
     }
     return st;
 }

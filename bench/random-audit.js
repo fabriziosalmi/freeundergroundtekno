@@ -30,6 +30,7 @@
 
 const puppeteer = require('puppeteer');
 const path = require('path');
+const { neutralize, installLoopCounter, assertSingleLoop } = require('./harness');
 
 const PAGE = path.join(__dirname, '..', 'docs', 'index.html');
 
@@ -48,8 +49,11 @@ const SCENES = {
 };
 
 // Frame rates to sample. CPU throttling is the only portable way to move the
-// frame rate without editing the page's own throttle logic.
-const THROTTLES = [1, 4, 8, 16];
+// frame rate without editing the page's own throttle logic. The values are
+// deliberately extreme: the render loop is light enough that x8 barely dents
+// it (still ~108 fps), and without a wide fps spread the end-to-end classifier
+// below has nothing to discriminate against.
+const THROTTLES = [1, 6, 12, 20];
 
 function installAudit(scene, seed) {
     let s = seed >>> 0;
@@ -140,6 +144,39 @@ function installAudit(scene, seed) {
         const o = triggerDreamFlash;
         triggerDreamFlash = function (...a) { bump('dreamFlash'); return o.apply(this, a); };
     }
+
+    // Direct property test of the per-frame dice.
+    //
+    // Counting the downstream effects cannot settle this: the dream flash fires
+    // a couple of times a minute, and the audio preconditions in front of each
+    // gate short-circuit before chance() is even reached, so an end-to-end run
+    // yields single-digit event counts — a "2x trend" there is two events
+    // against one, which is Poisson noise, not evidence.
+    //
+    // So probe the gate itself. Each frame, roll the real chance() (with the
+    // real frameScale the page just computed) PROBE_N extra times at a fixed p,
+    // into a counter that touches nothing else. Expected hits/sec is p × 60,
+    // independent of frame rate — that is exactly the invariant being claimed,
+    // and PROBE_N rolls per frame give it enough events to actually test.
+    // Two gates are probed side by side, on the very same frames:
+    //   fixed  — chance(p), the frame-rate corrected form now in the page
+    //   legacy — Math.random() < p, the raw per-frame form it replaced
+    // The legacy row is the control that shows what is being corrected: it must
+    // track fps (p x fps), while the fixed row must stay flat at p x 60.
+    const PROBE_N = 200, PROBE_P = 0.08;
+    A.probeHits = 0;
+    A.legacyHits = 0;
+    const rawChance = typeof chance === 'function' ? chance : null;
+    if (rawChance) {
+        A.probe = () => {
+            A.probeCalls = (A.probeCalls || 0) + 1;
+            A.fsSum = (A.fsSum || 0) + frameScale;
+            for (let i = 0; i < PROBE_N; i++) {
+                if (rawChance(PROBE_P)) A.probeHits++;
+                if (Math.random() < PROBE_P) A.legacyHits++;
+            }
+        };
+    }
     if (typeof changeState === 'function') {
         const o = changeState;
         changeState = function (...a) { bump('changeState'); return o.apply(this, a); };
@@ -147,17 +184,20 @@ function installAudit(scene, seed) {
 
     // Frame counter + beat counter (the control). beatCount is the page's own
     // monotonic beat counter, driven by bassLevel crossing its threshold.
-    const rafTick = () => { A.frames++; requestAnimationFrame(rafTick); };
+    const rafTick = () => { A.frames++; if (A.probe) A.probe(); requestAnimationFrame(rafTick); };
     requestAnimationFrame(rafTick);
 
     animate();
 
     window.__auditStart = () => {
-        A.frames = 0; A.counts = {}; A.beat0 = beatCount; A.t0 = performance.now();
+        A.frames = 0; A.counts = {}; A.probeHits = 0; A.legacyHits = 0; A.probeCalls = 0; A.fsSum = 0; A.beat0 = beatCount; A.t0 = performance.now();
     };
     window.__auditRead = () => {
         const secs = (performance.now() - A.t0) / 1000;
-        const out = { secs, fps: A.frames / secs, beatsPerSec: (beatCount - A.beat0) / secs, rates: {} };
+        const out = { secs, fps: A.frames / secs, beatsPerSec: (beatCount - A.beat0) / secs,
+                      probeHitsPerSec: A.probeHits / secs / PROBE_N, probeN: A.probeHits,
+                      legacyHitsPerSec: A.legacyHits / secs / PROBE_N,
+                      probeCalls: A.probeCalls || 0, fsAvg: (A.fsSum || 0) / Math.max(1, A.probeCalls || 0), rates: {} };
         for (const k of Object.keys(A.counts)) out.rates[k] = A.counts[k] / secs;
         return out;
     };
@@ -183,12 +223,15 @@ function installAudit(scene, seed) {
         const page = await browser.newPage();
         await page.setViewport({ width: 1920, height: 1080 });
         if (th > 1) await page.emulateCPUThrottling(th);
+        await neutralize(page);
         await page.goto('file://' + PAGE + '?profile=0', { waitUntil: 'load' });
+        await page.evaluate(installLoopCounter);
         await page.evaluate(installAudit, scene, 0x1337beef);
         await new Promise((r) => setTimeout(r, 2500));      // let BPM lock
         await page.evaluate(() => window.__auditStart());
         await new Promise((r) => setTimeout(r, SECS * 1000));
         const r = await page.evaluate(() => window.__auditRead());
+        r.loopRatio = await assertSingleLoop(page, 'cpu x' + th);
         await page.close();
         rows.push({ th, ...r });
     }
@@ -206,24 +249,75 @@ function installAudit(scene, seed) {
 
     // Correlation with fps: 1.0 means the event rate is a pure multiple of the
     // frame rate (worst case), 0 means it is independent of it (what we want).
+    // The property test, reported separately: this is the one row with enough
+    // events to carry a conclusion. Expected value is PROBE_P × 60 = 4.8 hits
+    // per second per gate, at every frame rate.
+    console.log('\ngate probe — hits/sec for ONE p=0.08 gate, ~' + '20k events per row.');
+    console.log('  fixed  = chance(0.08)         must stay flat at 4.80 at every fps');
+    console.log('  legacy = Math.random() < 0.08 the old form: fires at 0.08 x fps\n');
+    console.log('  cpu     fps  frameScale |    fixed   dev |   legacy      dev');
+    console.log('  ' + '-'.repeat(59));
+    for (const r of rows) {
+        const dev = ((r.probeHitsPerSec - 4.8) / 4.8) * 100;
+        const legacyExp = 0.08 * r.fps;
+        // frameScale is clamped to 4 in animate(), so below ~15 fps the fixed
+        // gate saturates and under-fires. That clamp is deliberate (it stops a
+        // GC hitch teleporting state) and this is its visible edge.
+        const clamped = r.fsAvg > 3.5 ? '  [frameScale clamped]' : '';
+        const legacyDev = ((r.legacyHitsPerSec - 4.8) / 4.8) * 100;
+        console.log('  ×' + String(r.th).padEnd(4) + pad(r.fps.toFixed(0), 5) +
+            pad(r.fsAvg.toFixed(3), 12) + ' |' + pad(r.probeHitsPerSec.toFixed(2), 9) +
+            pad((dev >= 0 ? '+' : '') + dev.toFixed(1) + '%', 7) + ' |' +
+            pad(r.legacyHitsPerSec.toFixed(2), 9) +
+            pad((legacyDev >= 0 ? '+' : '') + legacyDev.toFixed(0) + '%', 9) +
+            '   (0.08×fps=' + legacyExp.toFixed(1) + ')' + clamped);
+    }
+
     console.log('\nper-event verdict — ratio of (events/sec) between the fastest and slowest row:');
     console.log('  ≈1.0  music-driven, frame-rate independent   ·   ≈fps ratio  frame-rate driven\n');
-    const fast = rows.reduce((a, b) => (a.fps > b.fps ? a : b));
-    const slow = rows.reduce((a, b) => (a.fps < b.fps ? a : b));
+    // Enforce the control before comparing anything. beats/sec is set by the
+    // synthetic track and must be identical on every row. When it is not, the
+    // page's own beat detector is missing kicks at that frame rate — measured
+    // below ~30 fps — which means the rows are no longer listening to the same
+    // music and no cross-row comparison is meaningful. Drop them.
+    const ref = rows.reduce((a, b) => (a.fps > b.fps ? a : b));
+    const valid = rows.filter((r) => Math.abs(r.beatsPerSec - ref.beatsPerSec) / ref.beatsPerSec < 0.1);
+    for (const r of rows) {
+        if (valid.includes(r)) continue;
+        console.log(`  ! row cpu x${r.th} (${r.fps.toFixed(0)} fps) dropped: beats/sec ` +
+            `${r.beatsPerSec.toFixed(2)} vs ${ref.beatsPerSec.toFixed(2)} on the reference row — ` +
+            `the beat detector is missing kicks at this frame rate, so the row heard a different track.`);
+    }
+    if (valid.length < 2) { console.log('\n  not enough valid rows to compare.\n'); return; }
+    const fast = valid.reduce((a, b) => (a.fps > b.fps ? a : b));
+    const slow = valid.reduce((a, b) => (a.fps < b.fps ? a : b));
     const fpsRatio = fast.fps / slow.fps;
     console.log(`  fps ratio between rows: ${fpsRatio.toFixed(2)}×   (beats/s ratio: ` +
                 `${(fast.beatsPerSec / slow.beatsPerSec).toFixed(2)}× — the control)\n`);
+    // A rate built from a handful of events carries no information: two events
+    // against one is a 2x "trend" that is pure Poisson noise. Require enough
+    // total events on both rows before printing a verdict at all.
+    // Discriminating "flat" from "tracks fps" means separating a ratio of 1.0
+    // from a ratio of fpsRatio. With Poisson counts the relative error is
+    // ~1/sqrt(n), so the events needed grow as the fps spread shrinks. Require
+    // enough that the two hypotheses are at least a few sigma apart.
+    const MIN_EVENTS = Math.max(60, Math.ceil(40 / Math.pow(Math.log(fpsRatio) || 0.1, 2)));
     for (const k of keys) {
         const a = slow.rates[k] || 0, b = fast.rates[k] || 0;
-        if (!a && !b) continue;
+        const nSlow = a * slow.secs, nFast = b * fast.secs;
         const ratio = a ? b / a : Infinity;
+        const shown = (ratio === Infinity ? 'inf' : ratio.toFixed(2) + '×').padStart(7);
+        const counts = `  (n=${Math.round(nSlow)} vs ${Math.round(nFast)})`;
+        if (nSlow + nFast < MIN_EVENTS) {
+            console.log('  ' + k.padEnd(14) + shown + '   too few events to judge' + counts);
+            continue;
+        }
         // Attribute to whichever model the observed ratio sits closer to, in log
         // space so "flat" and "tracks fps" are compared on equal footing.
         const dMusic = Math.abs(Math.log(ratio || 1e-6));
         const dFrame = Math.abs(Math.log((ratio || 1e-6) / fpsRatio));
         const verdict = dMusic < dFrame ? 'music-driven' : 'FRAME-RATE DRIVEN';
-        console.log('  ' + k.padEnd(14) + (ratio === Infinity ? '  inf' : ratio.toFixed(2) + '×').padStart(7) +
-                    '   ' + verdict);
+        console.log('  ' + k.padEnd(14) + shown + '   ' + verdict.padEnd(24) + counts);
     }
     console.log('');
 })();
