@@ -1674,6 +1674,26 @@
             }
         };
 
+        // ===== FRAME-RATE INVARIANT DICE =====
+        // A gate written as `Math.random() < p` fires p times per FRAME, so its
+        // real rate is p × fps. Since the loop free-runs (see animate()), that
+        // means the same track reacts twice as often on a 120 Hz panel as on a
+        // 60 Hz one — the visuals stop being a function of the audio and start
+        // being a function of the display. Measured with bench/random-audit.js:
+        // the dream-flash triggers scaled 3-4× across a 2.68× spread in fps,
+        // while every per-beat gate stayed flat.
+        //
+        // chance(p) keeps p as "probability per 60fps-frame" — the number the
+        // effects were originally tuned at — and rescales it to the frame we
+        // actually rendered. At a steady 60 fps frameScale is 1.0 and this
+        // returns exactly the original odds. It is the discrete-event twin of
+        // the Math.pow(decay, frameScale) already used for every spring below.
+        function chance(p) {
+            if (p <= 0) return false;
+            if (p >= 1) return true;
+            return Math.random() < 1 - Math.pow(1 - p, frameScale);
+        }
+
         // ===== BASS-CLUSTER FLASH (BC FLASH) =====
         // Composite-gated rare event: fires when bass-RMS transient exceeds an
         // ADAPTIVE threshold AND kickStack >= 2 AND cooldown >= 30 s elapsed.
@@ -3054,12 +3074,14 @@
                 const _fxBase = 'saturate(0) brightness(0.95) contrast(1.85) blur(1.3px)';
                 pupilCtx.filter = FISHEYE_ENABLED ? `url(#fxFisheye) ${_fxBase}` : _fxBase;
                 pupilCtx.globalCompositeOperation = 'lighter';
-                // VCR horizontal jitter: ~8% of frames the image shifts a few px
-                const vcrJitter = (Math.random() < 0.08) ? (Math.random() - 0.5) * 10 : 0;
+                // VCR horizontal jitter: ~8% of 60fps-frames the image shifts a few px.
+                // chance() so the jitter rate is the same on a 60 Hz panel and a
+                // 120 Hz one — otherwise the tape looks twice as worn on ProMotion.
+                const vcrJitter = chance(0.08) ? (Math.random() - 0.5) * 10 : 0;
                 pupilCtx.drawImage(webcamVideo, -drawW / 2 + vcrJitter, -drawH / 2, drawW, drawH);
 
                 // Occasional ghost pass (luminance-shifted, brighter, more blur) → VCR feel
-                if (Math.random() < 0.12) {
+                if (chance(0.12)) {
                     const _fxGhost = 'saturate(0) brightness(1.15) contrast(2.0) blur(2.2px)';
                     pupilCtx.filter = FISHEYE_ENABLED ? `url(#fxFisheye) ${_fxGhost}` : _fxGhost;
                     pupilCtx.globalAlpha = 0.28;
@@ -4205,21 +4227,25 @@
             // Dream conditions: specific frequency combinations during energetic moments
             dreamIntensity = (bassLevel * 0.4) + (midLevel * 0.6); // More mid-sensitive
 
+            // These three are the only per-frame dream-flash dice in animate() — most other random
+            // gating lives inside the per-beat block below and is therefore paced by the music.
+            // Other per-frame visual-only jitter (e.g. webcam VCR) is also frameScale-corrected via chance().
+
             // Trigger 1: Strong mid-level with bass presence (party vibe)
             const dreamTrigger1 = bassLevel > (isMobile ? 0.4 : 0.6) &&
                                   midLevel > (isMobile ? 0.5 : 0.7) &&
-                                  Math.random() > 0.92;  // Rare trigger (8% chance per frame)
+                                  chance(0.08);
 
             // Trigger 2: Peak energy moment with treble spike (climax effect)
             const dreamTrigger2 = energy > 0.7 &&
                                   trebleLevel > (isMobile ? 0.4 : 0.6) &&
                                   bassLevel > (isMobile ? 0.3 : 0.5) &&
-                                  Math.random() > 0.88;  // Slightly less rare (12% chance)
+                                  chance(0.12);
 
             // Trigger 3: Sustained high mid-level (continuous presence)
             const dreamTrigger3 = midLevel > (isMobile ? 0.6 : 0.8) &&
                                   Date.now() - lastDreamFlash > 3000 &&  // Max once every 3s
-                                  Math.random() > 0.94;  // Very rare (6% chance)
+                                  chance(0.06);
 
             if (dreamTrigger1) {
                 triggerDreamFlash('party');
@@ -4402,7 +4428,10 @@
                 const vhsThreshold = isMobile ? 0.35 : 0.8;
                 if (bassLevel > vhsThreshold && Math.random() > (isMobile ? 0.5 : 0.85) && _claimDistort() && singularityProgress < 0.01) {
                     vhsLines.style.opacity = isMobile ? '1' : '0.8';
-                    background.style.transform = `scale(${zoomIntensity}) rotate(${rotateAmount}deg) translateX(${Math.random() * 10 - 5}px)`;
+                    // (removed: a translateX jitter on #background. It was overwritten
+                    // unconditionally by the sway/singularity transform later in the
+                    // same frame, so it never reached the screen. The scanlines are
+                    // the whole effect.)
                     setTimeout(() => {
                         vhsLines.style.opacity = (psychState === 'vhs' ? '0.6' : '0');
                     }, 80);
@@ -4693,16 +4722,12 @@
             // 🌊 CONTINUOUS MOTION BLUR - target computed here, applied (lerped) at end of frame
             // Soft ramp on mid: starts at 0.6, full strength at 0.8 (no hard 0.75 step).
             
-            // 🎲 RANDOM MICRO MOVEMENTS - movimenti sottili costanti
-            // Suppressed in silence so the scene reads as still, not twitchy.
-            // Also suppressed during a singularity event so the suction transform isn't fought.
-            if (calmness < 0.4 && Math.random() > 0.95 && singularityProgress < 0.01) {
-                const microX = (Math.random() - 0.5) * 3;
-                const microY = (Math.random() - 0.5) * 3;
-                const microRotate = (Math.random() - 0.5) * 1;
-                background.style.transform = `scale(${zoomIntensity}) rotate(${rotateAmount + microRotate}deg) translate(${microX}px, ${microY}px)`;
-            }
-            
+            // (removed: RANDOM MICRO MOVEMENTS. A 5%-per-frame gate that built a
+            // ±3px transform on #background — overwritten unconditionally by the
+            // sway transform ~50 lines below, in the same frame. Four dice rolls
+            // and a style write per hit, never once visible. If the subtle jitter
+            // is wanted back, it belongs in the swayX/swayY terms that survive.)
+
             // 🎯 EFFETTO 3D POV COMPLETO - dondolio su tutti gli assi CON EASING
             // Calcola progress con easing (0-1 ciclico ogni 2 secondi)
             const cycleTime = 2000; // 2 secondi per ciclo
