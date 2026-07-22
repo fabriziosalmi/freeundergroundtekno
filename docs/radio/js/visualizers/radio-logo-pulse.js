@@ -30,10 +30,10 @@ const RadioLogoPulse = (function() {
         };
         
         // Prova prima WebP, poi PNG, poi fallback
-        logo.src = 'images/logo.webp';
+        logo.src = '../images/logo.webp';
         setTimeout(() => {
             if (!logoLoaded) {
-                logo.src = 'images/logo.png';
+                logo.src = '../images/logo.png';
             }
         }, 500);
         

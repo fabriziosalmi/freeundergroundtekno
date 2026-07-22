@@ -41,7 +41,7 @@ const RaveSlideshow = (function() {
                 console.warn(`⚠️ Failed to load image ${i}`);
                 imagesLoaded++; // Conta comunque per non bloccare
             };
-            img.src = `images/${i}.webp`;
+            img.src = `../images/${i}.webp`;
             images.push(img);
         }
         
