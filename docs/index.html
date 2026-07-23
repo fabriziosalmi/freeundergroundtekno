@@ -2113,8 +2113,16 @@
                 variance /= intervals.length;
                 bpmStable = variance < 10000; // < 100ms²
                 if (bpmStable && avgInterval > 0) {
-                    bpmSyncAngle = ((time % avgInterval) / avgInterval) * Math.PI * 2;
-                    bpmPulsePhase = (time % avgInterval) / avgInterval;
+                    // Phase from the beat engine's PLL when it has locked — this is
+                    // PREDICTED, so the spiral (L3) and sacred geometry (L6) that read
+                    // bpmSyncAngle sit ON the beat instead of trailing it by the
+                    // detection latency. Falls back to the reactive estimate until
+                    // the PLL locks (~first few bars). bpmStable keeps its own
+                    // variance gate so the set of bpmStable-gated behaviours is
+                    // unchanged; only the phase source becomes predictive.
+                    const _phase = beatLocked ? beatPhase : ((time % avgInterval) / avgInterval);
+                    bpmSyncAngle = _phase * Math.PI * 2;
+                    bpmPulsePhase = _phase;
                     bpmPulseIntensity = Math.pow(1 - bpmPulsePhase, 3); // cubic decay
                     bpmAvgInterval = avgInterval; // expose to drawPupil for BPM-locked rotation + exhale
                 }
@@ -3328,7 +3336,144 @@
         let beatCount = 0;                    // contatore monotonico di battute dalla session start
         let lastBeatTime = 0;
         let bpm = 0;
-        
+
+        // ===== BEAT ENGINE — spectral-flux onset + phase-locked beat clock =====
+        // Source of truth: bench/beat-engine.js (validated in pure Node against a
+        // synthetic timeline with known kick times — bench/beat-engine.test.js).
+        // Keep this body IN SYNC with that file. It replaces the old level gate
+        // `bassLevel > 0.7 && now - last > 200ms`, which fired ~2x per beat on a
+        // sustained bass wall (precision 51%, jitter ±62ms measured) and missed
+        // every soft/ghost kick (recall 50%). This holds 97% precision on a wall
+        // and 100% recall on ghost kicks, and its PLL predicts the next beat with
+        // ~0 jitter so visuals can pre-roll onto the kick instead of trailing it.
+        function createBeatEngine(opts) {
+            opts = opts || {};
+            var cfg = {
+                fluxBins: opts.fluxBins || 32,          // sub+body+punch, ~0-650 Hz at fftSize 2048
+                refractoryMs: opts.refractoryMs || 110,
+                thresholdK: opts.thresholdK || 2.0,
+                fluxTauMs: opts.fluxTauMs || 1000,
+                minPeriodMs: opts.minPeriodMs || 60000 / 200,
+                maxPeriodMs: opts.maxPeriodMs || 60000 / 80,
+                phaseGain: opts.phaseGain || 0.10,
+                periodGain: opts.periodGain || 0.05,
+                lockTolerance: opts.lockTolerance || 0.18,
+                confTauOnsets: opts.confTauOnsets || 8,
+            };
+            var prevMag = new Float32Array(cfg.fluxBins);
+            var havePrev = false;
+            var fluxMean = 0, fluxVar = 0, fluxSeen = 0, prevFlux = 0;
+            var lastOnsetAt = -1e9, lastPush = 0;
+            var period = 0, gridRef = 0, confidence = 0;
+            var bootIntervals = [], lastOnsetForBoot = 0;
+            function wrapPhaseErr(e) { return e - Math.round(e); }
+            function registerOnset(now) {
+                if (period === 0) {
+                    if (lastOnsetForBoot > 0) {
+                        var iv = now - lastOnsetForBoot;
+                        if (iv >= cfg.minPeriodMs && iv <= cfg.maxPeriodMs) {
+                            bootIntervals.push(iv);
+                            if (bootIntervals.length > 8) bootIntervals.shift();
+                            if (bootIntervals.length >= 4) {
+                                var s = bootIntervals.slice().sort(function (a, b) { return a - b; });
+                                period = s[s.length >> 1]; gridRef = now; confidence = 0.3;
+                            }
+                        }
+                    }
+                    lastOnsetForBoot = now; return;
+                }
+                lastOnsetForBoot = now;
+                var phaseErr = wrapPhaseErr((now - gridRef) / period);
+                var errMs = phaseErr * period;
+                gridRef += cfg.phaseGain * errMs;
+                if (Math.abs(phaseErr) < cfg.lockTolerance) {
+                    period += cfg.periodGain * errMs;
+                    if (period < cfg.minPeriodMs) period = cfg.minPeriodMs;
+                    if (period > cfg.maxPeriodMs) period = cfg.maxPeriodMs;
+                }
+                var aligned = Math.max(0, 1 - Math.abs(phaseErr) / cfg.lockTolerance);
+                var a = 2 / (cfg.confTauOnsets + 1);
+                confidence += a * (aligned - confidence);
+            }
+            return {
+                push: function (bytes, now) {
+                    var f = 0, n = cfg.fluxBins;
+                    for (var i = 0; i < n; i++) {
+                        var m = bytes[i] / 255;
+                        if (havePrev) { var d = m - prevMag[i]; if (d > 0) f += d; }
+                        prevMag[i] = m;
+                    }
+                    havePrev = true; f /= n;
+                    var fired = false;
+                    if (fluxSeen > 6) {
+                        var std = Math.sqrt(fluxVar > 0 ? fluxVar : 0);
+                        var thr = fluxMean + cfg.thresholdK * std;
+                        if (f > thr && f >= prevFlux && (now - lastOnsetAt) > cfg.refractoryMs) {
+                            lastOnsetAt = now; registerOnset(now); fired = true;
+                        }
+                    }
+                    var dt = lastPush ? (now - lastPush) : 8; lastPush = now;
+                    if (dt < 1) dt = 1; if (dt > 250) dt = 250;
+                    var alpha = 1 - Math.exp(-dt / cfg.fluxTauMs);
+                    var dm = f - fluxMean;
+                    fluxMean += alpha * dm;
+                    fluxVar += alpha * (dm * dm - fluxVar);
+                    prevFlux = f; if (fluxSeen <= 6) fluxSeen++;
+                    return fired;
+                },
+                state: function (now) {
+                    if (period === 0) return { locked: false, bpm: 0, period: 0, beatPhase: 0, confidence: 0, nextBeatMs: 0 };
+                    var beats = (now - gridRef) / period;
+                    var frac = beats - Math.floor(beats);
+                    return {
+                        locked: confidence > 0.5, bpm: Math.round(60000 / period), period: period,
+                        beatPhase: frac, confidence: confidence,
+                        nextBeatMs: gridRef + Math.ceil((now - gridRef) / period) * period,
+                    };
+                },
+                // Clear onset + PLL state so a restart doesn't inherit a stale grid
+                // (a gridRef minutes old would report locked with an arbitrary phase).
+                reset: function () {
+                    havePrev = false; fluxMean = 0; fluxVar = 0; fluxSeen = 0; prevFlux = 0;
+                    lastOnsetAt = -1e9; lastPush = 0; period = 0; gridRef = 0; confidence = 0;
+                    bootIntervals = []; lastOnsetForBoot = 0;
+                    for (var i = 0; i < prevMag.length; i++) prevMag[i] = 0;
+                },
+            };
+        }
+        const beatEngine = createBeatEngine();
+        let beatEngineBuf = null;              // Uint8Array, sized when the analyser exists
+        let beatOnsetQueue = [];               // Date.now() times of onsets not yet drained by a frame
+        let beatEngineTimer = null;            // fixed-rate sampler handle
+        let beatPhase = 0, beatLocked = false; // exposed to visuals for anticipation
+
+        // Fixed-rate sampler: reads the analyser every ~8ms REGARDLESS of render
+        // fps, so onset timing (and the PLL lock) are identical at 30 fps and at
+        // 120 fps. This is the fix for "the detector misses kicks below 30 fps"
+        // found in bench/random-audit.js — detection no longer rides the render
+        // loop. Effects still fire in animate(); the sampler only feeds the queue.
+        function startBeatSampler() {
+            if (beatEngineTimer || !analyser) return;
+            beatEngineBuf = new Uint8Array(analyser.frequencyBinCount);
+            beatEngineTimer = setInterval(() => {
+                if (!analyser || document.hidden) return;
+                analyser.getByteFrequencyData(beatEngineBuf);
+                // Queue the DETECTION time (Date.now(), the clock beatHistory uses).
+                // The frame loop drains this; queuing timestamps rather than a count
+                // means a long frame that spans two onsets still registers both, with
+                // their real intervals — no dropped beats in the low-fps case the
+                // sampler exists to cover.
+                if (beatEngine.push(beatEngineBuf, performance.now())) beatOnsetQueue.push(Date.now());
+            }, 8);
+        }
+        function stopBeatSampler() {
+            if (beatEngineTimer) { clearInterval(beatEngineTimer); beatEngineTimer = null; }
+            // Fresh rhythm state on the next play — no stale grid, no phantom lock.
+            beatEngine.reset();
+            beatOnsetQueue.length = 0;
+            beatPhase = 0; beatLocked = false;
+        }
+
         // Motion effects
         let lastZoomBurst = 0;
         let lastShakeBurst = 0;
@@ -3752,6 +3897,9 @@
                     cancelAnimationFrame(animationId);
                 }
 
+                // Stop the fixed-rate beat sampler (restarts on next play).
+                stopBeatSampler();
+
                 // Reset health status
                 streamHealthStatus.retryCount = 0;
                 streamHealthStatus.stalledCount = 0;
@@ -3778,6 +3926,11 @@
 
         function animate() {
             if (!isPlaying) return;
+
+            // Ensure the fixed-rate beat sampler is running (idempotent). Started
+            // here rather than only in startAudio() so headless harnesses that
+            // drive animate() directly get the same rhythm path as real playback.
+            startBeatSampler();
 
             // Frame rate throttling for performance — dynamic downshift in deep silence.
             const now = performance.now();
@@ -3807,6 +3960,17 @@
             if (PROFILE) { if (_pf.last) _pf.gap += now - _pf.last; _pf.last = now; }
 
             analyser.getByteFrequencyData(dataArray);
+
+            // Snapshot the beat engine once per frame. beatPhase is the PREDICTED
+            // position in the beat (0 at the kick, →1 approaching the next), so any
+            // visual can pre-roll onto the beat. beatLocked gates that on the PLL
+            // actually being confident. Both are read below (bpmSyncAngle) and are
+            // available to any future anticipatory effect.
+            {
+                const _be = beatEngine.state(now);
+                beatPhase = _be.beatPhase;
+                beatLocked = _be.locked;
+            }
 
             // Update singularity state machine (Step 2) — reads Date.now(), drives renderers
             updateSingularity();
@@ -4282,12 +4446,26 @@
             // Easing functions hoisted to module scope as EASING — see top.
             const currentEasingFunc = EASING[window.currentEasing || 'easeInOut'];
             
-            // Beat detection - SOGLIA RIDOTTA per mobile
-            const beatThreshold = isMobile ? 0.3 : 0.7;
-            if (bassLevel > beatThreshold && Date.now() - lastBeatTime > 200) {
-                beatHistory.push(Date.now());
-                if (beatHistory.length > 10) beatHistory.shift();
-                beatCount++;                  // monotonic — usalo per qualunque counter discreto di beat
+            // Beat detection — driven by the fixed-rate beat engine (spectral-flux
+            // onset), NOT by a bass-level threshold. The sampler queues an onset
+            // TIME whenever a real kick fires. This is what makes the per-beat
+            // effect budget below refill on the kick instead of on a 200ms timer
+            // during a sustained wall — the single change that both tightens the
+            // sync AND removes the wall-of-sound over-triggering.
+            if (beatOnsetQueue.length > 0) {
+                // Advance the beat counters for EVERY queued onset, using each
+                // onset's real time, so a long frame that spanned two kicks keeps
+                // beatCount and the interval math exact (no dropped beats in the
+                // low-fps case). The visible per-beat EFFECTS below fire once for
+                // the frame — the budget still refills once — to keep the scene
+                // legible; the queue only holds >1 below ~8 fps at any real BPM.
+                for (let _q = 0; _q < beatOnsetQueue.length; _q++) {
+                    beatHistory.push(beatOnsetQueue[_q]);
+                    if (beatHistory.length > 10) beatHistory.shift();
+                    beatCount++;              // monotonic — usalo per qualunque counter discreto di beat
+                }
+                lastBeatTime = beatOnsetQueue[beatOnsetQueue.length - 1];
+                beatOnsetQueue.length = 0;
 
                 if (beatHistory.length >= 2) {
                     const intervals = [];
@@ -4297,8 +4475,6 @@
                     const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
                     bpm = Math.round(60000 / avgInterval);
                 }
-
-                lastBeatTime = Date.now();
 
                 // Per-beat effect budget: cap how many effects fire on the same
                 // beat to keep the scene legible. Tuned for the rave vibe; bump
