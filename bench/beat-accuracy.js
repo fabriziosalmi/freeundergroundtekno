@@ -40,10 +40,13 @@ function arg(name, def) {
 const BPM = parseFloat(arg('bpm', '150'));
 const SECS = parseFloat(arg('secs', '25'));
 const SCENE = arg('scene', 'all');
-// page  = the shipped level-threshold detector (bassLevel > 0.7 + 200ms refractory)
-// flux  = candidate: spectral-flux onset with an adaptive threshold, run in the
-//         SAME rAF loop reading the SAME spectrum, so the comparison isolates the
-//         algorithm, not the sampling rate.
+// page = whatever the page currently ships. Since the beat-engine PR that is now
+//        the fixed-rate spectral-flux engine feeding beatCount, so `page`
+//        measures the integrated engine end-to-end (sampler + PLL + frame drain).
+// flux = a standalone spectral-flux onset detector run inside this harness's rAF
+//        watch loop. Kept as a reference/skeptic: it shares the algorithm but not
+//        the page's fixed-rate sampler, so a gap between `page` and `flux` at low
+//        fps is the sampler earning its keep, not the algorithm.
 const DETECTOR = arg('detector', 'page');
 const THROTTLES = [1, 4, 8, 16];
 

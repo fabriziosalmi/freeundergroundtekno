@@ -7,9 +7,11 @@
  *
  * It is deliberately pure and DOM-free so it can be validated in Node against a
  * synthetic timeline (see beat-engine.test.js) where every true beat time is
- * known — the same discipline as the rest of bench/. The identical function
- * body is inlined into docs/index.html; this file is the source of truth and
- * the two must stay in sync (the page carries a comment pointing here).
+ * known — the same discipline as the rest of bench/. This file is the source of
+ * truth; docs/index.html inlines the SAME algorithm (the createBeatEngine body
+ * below), minus this UMD wrapper and the doc comments. Keep the algorithm — the
+ * onset math, the PLL update, reset(), and the cfg defaults — in sync across
+ * both; the wrapper and comments are allowed to differ.
  *
  * Three properties, each measured, not assumed:
  *
@@ -57,6 +59,7 @@
         var fluxMean = 0, fluxVar = 0, fluxSeen = 0;
         var prevFlux = 0;
         var lastOnsetAt = -1e9;
+        var lastPush = 0;
 
         // PLL state
         var period = 0;             // ms; 0 until bootstrapped
@@ -147,8 +150,8 @@
 
                 // adaptive flux statistics — EMA over ~fluxTauMs, dt-aware so the
                 // window is the same wall-clock length at any sample rate.
-                var dt = this._lastPush ? (now - this._lastPush) : 8;
-                this._lastPush = now;
+                var dt = lastPush ? (now - lastPush) : 8;
+                lastPush = now;
                 if (dt < 1) dt = 1; if (dt > 250) dt = 250;
                 var alpha = 1 - Math.exp(-dt / cfg.fluxTauMs);
                 var dm = f - fluxMean;
@@ -182,6 +185,21 @@
                     nextBeatMs: nextBeatMs,
                     sinceBeat: frac,
                 };
+            },
+
+            /**
+             * Clear all onset and PLL state. Call when the audio stops, so a later
+             * restart does not inherit a stale grid — otherwise the next play would
+             * report locked=true against a gridRef minutes in the past, giving an
+             * arbitrary beatPhase until fresh onsets re-lock (~first bars).
+             */
+            reset: function () {
+                havePrev = false;
+                fluxMean = 0; fluxVar = 0; fluxSeen = 0; prevFlux = 0;
+                lastOnsetAt = -1e9; lastPush = 0;
+                period = 0; gridRef = 0; confidence = 0;
+                bootIntervals = []; lastOnsetForBoot = 0;
+                for (var i = 0; i < prevMag.length; i++) prevMag[i] = 0;
             },
         };
     }

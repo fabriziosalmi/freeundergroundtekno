@@ -3431,11 +3431,19 @@
                         nextBeatMs: gridRef + Math.ceil((now - gridRef) / period) * period,
                     };
                 },
+                // Clear onset + PLL state so a restart doesn't inherit a stale grid
+                // (a gridRef minutes old would report locked with an arbitrary phase).
+                reset: function () {
+                    havePrev = false; fluxMean = 0; fluxVar = 0; fluxSeen = 0; prevFlux = 0;
+                    lastOnsetAt = -1e9; lastPush = 0; period = 0; gridRef = 0; confidence = 0;
+                    bootIntervals = []; lastOnsetForBoot = 0;
+                    for (var i = 0; i < prevMag.length; i++) prevMag[i] = 0;
+                },
             };
         }
         const beatEngine = createBeatEngine();
         let beatEngineBuf = null;              // Uint8Array, sized when the analyser exists
-        let beatEnginePending = 0;             // onsets detected since the last frame drained
+        let beatOnsetQueue = [];               // Date.now() times of onsets not yet drained by a frame
         let beatEngineTimer = null;            // fixed-rate sampler handle
         let beatPhase = 0, beatLocked = false; // exposed to visuals for anticipation
 
@@ -3450,11 +3458,20 @@
             beatEngineTimer = setInterval(() => {
                 if (!analyser || document.hidden) return;
                 analyser.getByteFrequencyData(beatEngineBuf);
-                if (beatEngine.push(beatEngineBuf, performance.now())) beatEnginePending++;
+                // Queue the DETECTION time (Date.now(), the clock beatHistory uses).
+                // The frame loop drains this; queuing timestamps rather than a count
+                // means a long frame that spans two onsets still registers both, with
+                // their real intervals — no dropped beats in the low-fps case the
+                // sampler exists to cover.
+                if (beatEngine.push(beatEngineBuf, performance.now())) beatOnsetQueue.push(Date.now());
             }, 8);
         }
         function stopBeatSampler() {
             if (beatEngineTimer) { clearInterval(beatEngineTimer); beatEngineTimer = null; }
+            // Fresh rhythm state on the next play — no stale grid, no phantom lock.
+            beatEngine.reset();
+            beatOnsetQueue.length = 0;
+            beatPhase = 0; beatLocked = false;
         }
 
         // Motion effects
@@ -4430,18 +4447,25 @@
             const currentEasingFunc = EASING[window.currentEasing || 'easeInOut'];
             
             // Beat detection — driven by the fixed-rate beat engine (spectral-flux
-            // onset), NOT by a bass-level threshold. beatEnginePending is set by
-            // the sampler whenever a real kick onset fires. This is what makes the
-            // per-beat effect budget below refill on the kick instead of on a
-            // 200ms timer during a sustained wall — the single change that both
-            // tightens the sync AND removes the wall-of-sound over-triggering.
-            // At most one beat's worth of effects per frame keeps the scene
-            // legible; the queue never backs up above ~8 fps at any real BPM.
-            if (beatEnginePending > 0) {
-                beatEnginePending = 0;
-                beatHistory.push(Date.now());
-                if (beatHistory.length > 10) beatHistory.shift();
-                beatCount++;                  // monotonic — usalo per qualunque counter discreto di beat
+            // onset), NOT by a bass-level threshold. The sampler queues an onset
+            // TIME whenever a real kick fires. This is what makes the per-beat
+            // effect budget below refill on the kick instead of on a 200ms timer
+            // during a sustained wall — the single change that both tightens the
+            // sync AND removes the wall-of-sound over-triggering.
+            if (beatOnsetQueue.length > 0) {
+                // Advance the beat counters for EVERY queued onset, using each
+                // onset's real time, so a long frame that spanned two kicks keeps
+                // beatCount and the interval math exact (no dropped beats in the
+                // low-fps case). The visible per-beat EFFECTS below fire once for
+                // the frame — the budget still refills once — to keep the scene
+                // legible; the queue only holds >1 below ~8 fps at any real BPM.
+                for (let _q = 0; _q < beatOnsetQueue.length; _q++) {
+                    beatHistory.push(beatOnsetQueue[_q]);
+                    if (beatHistory.length > 10) beatHistory.shift();
+                    beatCount++;              // monotonic — usalo per qualunque counter discreto di beat
+                }
+                lastBeatTime = beatOnsetQueue[beatOnsetQueue.length - 1];
+                beatOnsetQueue.length = 0;
 
                 if (beatHistory.length >= 2) {
                     const intervals = [];
@@ -4451,8 +4475,6 @@
                     const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
                     bpm = Math.round(60000 / avgInterval);
                 }
-
-                lastBeatTime = Date.now();
 
                 // Per-beat effect budget: cap how many effects fire on the same
                 // beat to keep the scene legible. Tuned for the rave vibe; bump

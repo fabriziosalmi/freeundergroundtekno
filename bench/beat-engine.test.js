@@ -102,7 +102,6 @@ function run(name) {
     const truth = trueBeatsFor(scene);
 
     const dets = [];
-    const predErrs = [];       // predicted-beat error at each true onset, after lock
     let lockedAt = null;
 
     // Fixed-rate sample loop. The engine reads the spectrum as it was
