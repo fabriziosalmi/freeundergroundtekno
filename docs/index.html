@@ -19,15 +19,16 @@
             font-family: 'Courier New', monospace;
         }
         
-        /* BACKGROUND IMAGE - con effetti 3D e motion blur */
+        /* BACKGROUND IMAGE - con effetti 3D, perspective tilt e motion blur */
         #background {
             position: fixed;
             width: 100vw;
             height: 100vh;
             background: #000;
             z-index: 0;
-            transition: transform 0.05s ease-out, filter 0.1s ease-out;
             transform-origin: center center;
+            transform: perspective(600px) rotateX(var(--sub-tilt-x, 0deg)) rotateY(var(--sub-tilt-y, 0deg)) translateZ(var(--sub-tilt-z, 0px));
+            transition: filter 0.1s ease-out;
             will-change: transform, filter;
         }
 
@@ -1092,8 +1093,9 @@
         #eyeToggle:active { transform: scale(0.85); }
         #eyeToggle.on { opacity: 1; color: rgba(255,255,255,0.95); }
 
-        /* 💫 DREAM SOUNDSYSTEM LAYER - blurred memory flashes */
+        /* 💫 DREAM SOUNDSYSTEM LAYER - replaced by procedural LSD cosmic universe */
         #dreamLayer {
+            display: none !important;
             position: fixed;
             top: 0;
             left: 0;
@@ -1440,6 +1442,7 @@
         let analyser = null;
         let isPlaying = false;
         let animationId = null;
+        let bpm = 130;
         
         // DOM elements
         const background = document.getElementById('background');
@@ -1457,6 +1460,7 @@
         let targetViewportScale = 1;
         let currentViewportRot = 0;
         let targetViewportRot = 0;
+        let subTiltX = 0, subTiltY = 0, subTiltZ = 0;
         const bgCanvas = document.getElementById('proceduralBg');
         const bgCtx = bgCanvas.getContext('2d');
         const vhsLines = document.getElementById('vhsLines');
@@ -2260,22 +2264,29 @@
             pupilTarget = Math.min(1, steadyBeatCount / 16);
             pupilDilation += (pupilTarget - pupilDilation) * (1 - Math.pow(0.92, frameScale)); // smooth lerp (fps-independent)
 
-            // ===== LAYER 0: Star Field / Warehouse Dust =====
-            // _active is still needed by downstream layers (hex, spiral, vortex…).
+            // ===== LAYER 0: LSD COSMIC NEBULA & WARP ENGINE =====
             const _active = 1 - calmness;
+            const cosmicHue = (time * 0.02 + bpmSyncAngle * (180 / Math.PI)) % 360;
+            const cosmicAlpha = (0.08 + bassCharge * 0.15 + midLevel * 0.12) * _active;
+
+            if (cosmicAlpha > 0.01) {
+                const grad = ctx.createRadialGradient(cx, cy, minDim * 0.04, cx, cy, minDim * 0.90);
+                grad.addColorStop(0, `hsla(${cosmicHue}, 85%, 18%, ${cosmicAlpha * 0.85})`);
+                grad.addColorStop(0.5, `hsla(${(cosmicHue + 70) % 360}, 80%, 10%, ${cosmicAlpha * 0.5})`);
+                grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, 0, w, h);
+            }
+
             // Warehouse dust killed in STREAM_MODE (decorative starfield).
             const STARS_ENABLED = !STREAM_MODE;
             if (STARS_ENABLED) {
                 const starBrightBase = 0.25 * _active + 0.06 * calmness;
-                // Outer-check: max alpha possibile = starBrightBase + (treble*0.5 + bpmPulse*0.4) * _active.
-                // Se sotto soglia → ogni particle skip individualmente ma il loop gira lo stesso.
-                // In silenzio profondo: _active=0 → max ≈ 0.06*calmness ≈ 0.06 quando full silence
-                // (sopra soglia), ma con calmness < 0.17 max < 0.01 → skip outright.
                 const _maxStarAlpha = starBrightBase + (trebleLevel * 0.5 + bpmPulseIntensity * 0.4) * _active;
                 if (_maxStarAlpha >= 0.01)
                 for (let i = 0; i < bgParticles.length; i++) {
                     const p = bgParticles[i];
-                    // Drift upward (halts in silence)
                     p.y -= p.speed * _active * frameScale;
                     if (p.y < -0.01) { p.y = 1.01; p.x = Math.random(); }
 
@@ -2294,8 +2305,6 @@
             }
 
             // ===== LAYER 0b: Constellation Lines (treble onsets) =====
-            // Ease-in 200ms (smoothstep), ease-out 400ms (1-t²). Suppressed in silence.
-            // Skipped in STREAM_MODE — purely decorative connective tissue.
             if (!STREAM_MODE) {
             ctx.lineWidth = 0.6;
             for (let i = 0; i < constellationMax; i++) {
@@ -2324,12 +2333,7 @@
             }
             } // STREAM_MODE close: LAYER 0b
 
-            // ===== LAYER 0c: Parallax Starfield (peripheral, converges on pupil) =====
-            // Piccoli traits che drift-ano radialmente dalla pupilla verso fuori. Trail
-            // pointing TO the pupil → effetto "vanishing point" sull'occhio. Mask radiale
-            // bell-curve: invisibili dentro pupillaR+margine E oltre _outerMax. "Appena
-            // visibili": peak alpha 0.28, line width 0.7.
-            // Skipped in STREAM_MODE — decorative depth cue.
+            // ===== LAYER 0c: LSD HYPERSPACE WARP STARFIELD =====
             if (!STREAM_MODE) {
             if (starfield === null) {
                 starfield = new Array(STARFIELD_MAX);
@@ -2341,13 +2345,9 @@
                     };
                 }
             }
-            // Active count = BASE quando radio offline / 1 listener, scala fino a MAX
-            // con liveListeners > 1. +4 stars per listener oltre il primo.
             const _starfieldCount = azuracastOnline
                 ? Math.min(STARFIELD_MAX, STARFIELD_BASE + Math.max(0, liveListeners - 1) * 4)
                 : STARFIELD_BASE;
-            // Early-exit: peak alpha = 0.28 * _active. Se _active < 0.07 ogni star
-            // skip individualmente ma il loop gira lo stesso → outer skip.
             if (_active >= 0.07) {
                 const pcx = cx + pupilOffX;
                 const pcy = cy + pupilOffY;
@@ -2357,31 +2357,35 @@
                     const _band = _outerMax - _innerMin;
                     const _midR = (_innerMin + _outerMax) * 0.5;
                     const _bandHalf = _band * 0.5;
-                    ctx.lineWidth = 0.7;
-                    // Lieve modulazione della velocità globale al BPM (drift accelera nelle bar piene).
-                    const _starGlobalSpeed = 1 + bpmPulseIntensity * 0.4 + cassoneIntensity * 0.25;
+                    
+                    // Hyperspace warp speed factor (music speed & bass energy dependent)
+                    const _musicWarpSpeed = (1 + ((bpm || 130) / 130) * 0.5 + bassCharge * 2.5 + kickStack * 1.5) * _active;
+                    const _streakLength = 8 + bassCharge * 35 + kickStack * 15;
+                    ctx.lineWidth = isMobile ? 1.0 : 1.4;
                     for (let i = 0; i < _starfieldCount; i++) {
                         const s = starfield[i];
-                        s.depth -= s.speed * _starGlobalSpeed * frameScale;
+                        s.depth -= s.speed * _musicWarpSpeed * frameScale;
                         if (s.depth <= 0) {
                             s.depth = 1;
                             s.angle = Math.random() * Math.PI * 2;
-                            s.speed = 0.0008 + Math.random() * 0.0016;
+                            s.speed = 0.0008 + Math.random() * 0.002;
                         }
                         const radius = _innerMin + (1 - s.depth) * _band;
                         const ca = Math.cos(s.angle);
                         const sa = Math.sin(s.angle);
                         const x = pcx + ca * radius;
                         const y = pcy + sa * radius;
-                        // Bell-curve alpha: peak nel mid-ring, zero fuori dal band.
+
                         const _rd = Math.abs(radius - _midR) / _bandHalf;
-                        const _alpha = Math.max(0, 1 - _rd * _rd) * 0.28 * _active;
+                        const _alpha = Math.max(0, 1 - _rd * _rd) * 0.65 * _active;
                         if (_alpha < 0.02) continue;
-                        // Trail length easeOut sulla profondità → più lungo quando "vicino".
-                        const trail = (1 - s.depth) * (1 - s.depth) * 14;
+
+                        const trail = (1 - s.depth) * _streakLength;
                         const dx = -ca * trail;
                         const dy = -sa * trail;
-                        ctx.strokeStyle = 'rgba(255,255,255,' + _alpha.toFixed(3) + ')';
+                        const _starHue = (cosmicHue + i * 12) % 360;
+
+                        ctx.strokeStyle = `hsla(${_starHue}, 90%, 75%, ${_alpha.toFixed(3)})`;
                         ctx.beginPath();
                         ctx.moveTo(x, y);
                         ctx.lineTo(x + dx, y + dy);
@@ -2640,6 +2644,56 @@
                 ctx.restore();
             }
 
+            // ===== LAYER 7.5: 📐 LASER SCANNER MATRIX =====
+            const laserActive = (midLevel > 0.38 || trebleLevel > 0.42 || raveMode) && _active > 0.2;
+            if (laserActive) {
+                const laserCount = isMobile ? 6 : 10;
+                const laserAlpha = Math.min(0.85, (midLevel * 0.5 + trebleLevel * 0.5) * _active);
+                ctx.save();
+                ctx.lineWidth = isMobile ? 1.5 : 2.0;
+                const maxDist = Math.hypot(w, h);
+
+                for (let i = 0; i < laserCount; i++) {
+                    const baseAngle = (i / laserCount) * Math.PI * 2;
+                    // Rhythmic angular sweep synced to bpmSyncAngle & treble transients
+                    const sweepAngle = baseAngle + Math.sin(bpmSyncAngle * 2 + i * 0.7) * (0.35 + trebleLevel * 0.3);
+                    const lx = cx + Math.cos(sweepAngle) * maxDist;
+                    const ly = cy + Math.sin(sweepAngle) * maxDist;
+
+                    // Alternating cyan and magenta/violet vector lasers
+                    const hue = (i % 2 === 0) ? 175 : 310;
+                    ctx.strokeStyle = `hsla(${hue}, 100%, 65%, ${laserAlpha * 0.6})`;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = `hsl(${hue}, 100%, 65%)`;
+
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.lineTo(lx, ly);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            // ===== LAYER 7.6: 📺 CRT PHOSPHOR FEEDBACK RECURSION =====
+            if (cassoneIntensity > 0.45 && _active > 0.2) {
+                const phosphorAlpha = Math.min(0.65, (cassoneIntensity - 0.45) * 1.5) * _active;
+                ctx.save();
+                ctx.shadowBlur = 25 * cassoneIntensity;
+                ctx.shadowColor = 'rgba(0, 255, 160, 0.7)'; // CRT phosphor green/cyan glow
+
+                // Concentric spectral ghost rings expanding outward
+                const phosphorRings = 3;
+                for (let i = 1; i <= phosphorRings; i++) {
+                    const r = minDim * (0.12 * i) * (1 + bassCharge * 0.15 * i);
+                    ctx.strokeStyle = `rgba(0, 255, 180, ${phosphorAlpha * (1 - i * 0.25)})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
             // ===== LAYER 8: State Overlays =====
             // Drop burst flash
             if (dropFlashIntensity > 0.01) {
@@ -2657,6 +2711,40 @@
                 ctx.fillRect(0, 0, w, h);
             }
         }
+
+        // 🌀 Distortion zones (declared before adaptToViewport)
+        const distortZones = [
+            document.getElementById('distort1'),
+            document.getElementById('distort2'),
+            document.getElementById('distort3')
+        ];
+        const warpZones = [
+            document.getElementById('warp1'),
+            document.getElementById('warp2')
+        ];
+        const chromaZones = [
+            document.getElementById('chroma1'),
+            document.getElementById('chroma2'),
+            document.getElementById('chroma3')
+        ];
+        
+        // Posiziona zone di distorsione in punti strategici (speaker stacks, centro, crowd)
+        const distortPositions = [
+            { top: '20%', left: '15%', width: '200px', height: '300px' },  // stack sinistro
+            { top: '20%', right: '15%', width: '200px', height: '300px' }, // stack destro
+            { top: '35%', left: '50%', width: '250px', height: '250px', transform: 'translateX(-50%)' }, // centro spirale
+        ];
+        
+        const warpPositions = [
+            { top: '10%', left: '30%', width: '300px', height: '150px' }, // antenna zone
+            { bottom: '15%', left: '50%', width: '400px', height: '200px', transform: 'translateX(-50%)' }, // crowd zone
+        ];
+        
+        const chromaPositions = [
+            { top: '40%', left: '10%', width: '150px', height: '150px' },  // lato sinistro
+            { top: '40%', right: '10%', width: '150px', height: '150px' }, // lato destro
+            { top: '60%', left: '50%', width: '200px', height: '200px', transform: 'translateX(-50%)' }  // centro in basso
+        ];
 
         // Funzione per scalare le posizioni in base al viewport
         function adaptToViewport() {
@@ -2781,40 +2869,6 @@
         const _nullEl = { set textContent(v) { /* no-op, DOM removed */ } };
         const audioStatus = _nullEl;
         const signalStatus = _nullEl;
-        
-        // 🌀 Distortion zones
-        const distortZones = [
-            document.getElementById('distort1'),
-            document.getElementById('distort2'),
-            document.getElementById('distort3')
-        ];
-        const warpZones = [
-            document.getElementById('warp1'),
-            document.getElementById('warp2')
-        ];
-        const chromaZones = [
-            document.getElementById('chroma1'),
-            document.getElementById('chroma2'),
-            document.getElementById('chroma3')
-        ];
-        
-        // Posiziona zone di distorsione in punti strategici (speaker stacks, centro, crowd)
-        const distortPositions = [
-            { top: '20%', left: '15%', width: '200px', height: '300px' },  // stack sinistro
-            { top: '20%', right: '15%', width: '200px', height: '300px' }, // stack destro
-            { top: '35%', left: '50%', width: '250px', height: '250px', transform: 'translateX(-50%)' }, // centro spirale
-        ];
-        
-        const warpPositions = [
-            { top: '10%', left: '30%', width: '300px', height: '150px' }, // antenna zone
-            { bottom: '15%', left: '50%', width: '400px', height: '200px', transform: 'translateX(-50%)' }, // crowd zone
-        ];
-        
-        const chromaPositions = [
-            { top: '40%', left: '10%', width: '150px', height: '150px' },  // lato sinistro
-            { top: '40%', right: '10%', width: '150px', height: '150px' }, // lato destro
-            { top: '60%', left: '50%', width: '180px', height: '180px', transform: 'translateX(-50%)' }, // basso centro
-        ];
         
         distortZones.forEach((zone, i) => {
             Object.assign(zone.style, distortPositions[i]);
@@ -3440,7 +3494,7 @@
         let beatHistory = [];                 // SLIDING WINDOW (cap 10): NON usare .length come contatore
         let beatCount = 0;                    // contatore monotonico di battute dalla session start
         let lastBeatTime = 0;
-        let bpm = 0;
+        bpm = 130;
 
         // ===== BEAT ENGINE — spectral-flux onset + phase-locked beat clock =====
         // Source of truth: bench/beat-engine.js (validated in pure Node against a
@@ -3755,6 +3809,33 @@
 
             lastDreamFlash = Date.now();
             console.log(`💫 Dream flash #${imageIndex} - ${dreamState}`);
+        }
+
+        // 💥 DROP EXPLOSION COMBO CHAIN (La Madre di Tutti i Drop)
+        let lastDropExplosionTime = 0;
+        function triggerDropExplosionComboChain() {
+            if (Date.now() - lastDropExplosionTime < 1500) return; // Cooldown gate (1.5s)
+            lastDropExplosionTime = Date.now();
+
+            // 1. ⚡ 1-Frame Hyper-Invert Flash
+            if (hyperInvertFlash) {
+                hyperInvertFlash.classList.add('active');
+                hyperInvertPending = true;
+            }
+
+            // 2. 🌊 Whole-Viewport Extreme Shockwave + Fisheye + Rotation Spike
+            targetViewportDistortion = 85;
+            targetViewportScale = 1.14;
+            targetViewportRot = (Math.random() - 0.5) * 22; // -11° to +11°
+
+            // 3. 🌀 Glitch Distortion Matrix Burst (attiva tutte le zone per 350ms)
+            if (distortZones) distortZones.forEach(z => { if (z) { z.classList.add('active'); setTimeout(() => z.classList.remove('active'), 350); } });
+            if (warpZones) warpZones.forEach(z => { if (z) { z.classList.add('active'); setTimeout(() => z.classList.remove('active'), 350); } });
+            if (chromaZones) chromaZones.forEach(z => { if (z) { z.classList.add('active'); setTimeout(() => z.classList.remove('active'), 350); } });
+
+            // 4. 🖼️ Dream Memory Flash
+            try { triggerDreamFlash('peak'); } catch(e) {}
+            console.log('%c💥 DROP EXPLOSION COMBO CHAIN FIRED!', 'background:#f00;color:#fff;font-weight:bold;padding:4px 8px;');
         }
 
         // Spirali 3D SVG - renderizza come path
@@ -4603,14 +4684,11 @@
                 const _claimAccent  = () => _hasRhythm && _accentBudget--  > 0;
                 const _claimDistort = () => _hasRhythm && _distortBudget-- > 0;
 
-                // ⚡ 1-FRAME HYPER-INVERTED STROBE FLASH (Beat #1 of 16-beat phrases or 3-stack drop beats)
+                // 💥 DROP EXPLOSION COMBO CHAIN on Beat #1 of 16-beat phrases or 3-stack drop beats
                 if (_hasRhythm && (beatCount % 16 === 1 || (beatCount % 4 === 1 && kickStack >= 3))) {
-                    hyperInvertFlash.classList.add('active');
-                    hyperInvertPending = true;
-                }
-
-                // 🌊 WHOLE-VIEWPORT SHOCKWAVE DISTORTION + FISHEYE + ROTATION SPIKE on kick onset
-                if (_hasRhythm && kickStack >= 2) {
+                    triggerDropExplosionComboChain();
+                } else if (_hasRhythm && kickStack >= 2) {
+                    // 🌊 Standard Whole-Viewport Shockwave on intermediate kicks
                     targetViewportDistortion = Math.max(targetViewportDistortion, 60 * (bassLevel * 0.85 + 0.15));
                     targetViewportScale = 1 + (bassLevel * 0.08);
                     targetViewportRot = (Math.random() - 0.5) * 10;
@@ -5313,6 +5391,32 @@
                     viewportDistortionOverlay.style.setProperty('--viewport-scale', '1');
                     viewportDistortionOverlay.style.setProperty('--viewport-rot', '0deg');
                 }
+            }
+
+            // 🔊 SUB-BASS 3D PERSPECTIVE TILT (Subwoofer Camera Hydraulics)
+            if (subKick > 0.15 || bassLevel > 0.45) {
+                const subDrive = subKick * 0.7 + bassLevel * 0.3;
+                const targetTiltX = Math.sin(now * 0.0025) * (14 * subDrive) * activity;
+                const targetTiltY = Math.cos(now * 0.0021) * (16 * subDrive) * activity;
+                const targetTiltZ = (subDrive * 35) * activity;
+
+                subTiltX += (targetTiltX - subTiltX) * 0.15 * frameScale;
+                subTiltY += (targetTiltY - subTiltY) * 0.15 * frameScale;
+                subTiltZ += (targetTiltZ - subTiltZ) * 0.15 * frameScale;
+            } else {
+                subTiltX *= Math.pow(0.85, frameScale);
+                subTiltY *= Math.pow(0.85, frameScale);
+                subTiltZ *= Math.pow(0.85, frameScale);
+            }
+
+            if (background && (Math.abs(subTiltX) > 0.1 || Math.abs(subTiltY) > 0.1)) {
+                background.style.setProperty('--sub-tilt-x', subTiltX.toFixed(2) + 'deg');
+                background.style.setProperty('--sub-tilt-y', subTiltY.toFixed(2) + 'deg');
+                background.style.setProperty('--sub-tilt-z', subTiltZ.toFixed(1) + 'px');
+            } else if (background) {
+                background.style.setProperty('--sub-tilt-x', '0deg');
+                background.style.setProperty('--sub-tilt-y', '0deg');
+                background.style.setProperty('--sub-tilt-z', '0px');
             }
 
             // body.silent pauses purely-CSS animations (dust, vhs, grain). Hysteresis
