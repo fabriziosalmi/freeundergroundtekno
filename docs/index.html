@@ -681,6 +681,7 @@
             mix-blend-mode: screen;
             border-radius: 50%;
             transition: opacity 0.1s ease-out;
+            will-change: transform, opacity;
         }
         
         .spiral-vortex.active {
@@ -760,8 +761,73 @@
             }
             100% {
                 opacity: 0;
-                transform: translate(-50%, -50%) scale(2.5) rotate(360deg);
-                filter: blur(20px);
+                transform: translate(-50%, -50%) scale(0.6) rotate(360deg);
+                filter: blur(12px);
+            }
+        }
+        
+        /* Strobo circolari concentrici */
+        .circular-strobo {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 100px;
+            height: 100px;
+            transform: translate(-50%, -50%) scale(0.5);
+            border-radius: 50%;
+            border: 3px solid white;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 0 20px white;
+            will-change: transform, opacity;
+        }
+        
+        .circular-strobo.active {
+            animation: circle-pulse-expand 0.4s ease-out forwards;
+        }
+        
+        @keyframes circle-pulse-expand {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(0.5);
+            }
+            50% {
+                opacity: 0.8;
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(20);
+            }
+        }
+        
+        /* 🌊 FRACTAL TEARS - distorsioni frattali organiche */
+        .fractal-tear {
+            position: fixed;
+            pointer-events: none;
+            z-index: 155;
+            opacity: 0;
+            mix-blend-mode: difference;
+            background: white;
+            filter: blur(3px);
+            will-change: transform, opacity;
+        }
+        
+        .fractal-tear.active {
+            animation: tear-distort 0.5s ease-out forwards;
+        }
+        
+        @keyframes tear-distort {
+            0% {
+                opacity: 0;
+                transform: scale(0.5) rotate(0deg);
+            }
+            40% {
+                opacity: 0.9;
+                transform: scale(1.2) rotate(180deg);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(2) rotate(360deg);
             }
         }
         
@@ -875,42 +941,6 @@
                 white 360deg
             );
             filter: blur(4px) drop-shadow(0 0 25px white);
-        }
-        
-        /* Strobo circolari concentrici */
-        .circular-strobo {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            border-radius: 50%;
-            border: 3px solid white;
-            pointer-events: none;
-            opacity: 0;
-            box-shadow: 0 0 40px white, inset 0 0 40px white;
-        }
-        
-        .circular-strobo.active {
-            animation: circle-pulse-expand 0.4s ease-out forwards;
-        }
-        
-        @keyframes circle-pulse-expand {
-            0% {
-                width: 50px;
-                height: 50px;
-                opacity: 1;
-                border-width: 5px;
-            }
-            50% {
-                opacity: 0.8;
-                border-width: 3px;
-            }
-            100% {
-                width: 150vw;
-                height: 150vw;
-                opacity: 0;
-                border-width: 1px;
-            }
         }
         
         /* 🌊 FRACTAL TEARS - distorsioni frattali organiche */
@@ -2984,7 +3014,7 @@
             // (e con raveMode/marathonMode tramite gain bump), ma il colore resta neutro.
             const _glowGain = raveMode ? 40 : marathonMode ? 25 : 30;
             pupilCtx.shadowColor = 'rgba(245,248,252,0.85)';
-            pupilCtx.shadowBlur = (10 + bass * _glowGain) * (0.35 + 0.65 * _act);
+            pupilCtx.shadowBlur = bass > 0.5 ? (10 + bass * _glowGain) * (0.35 + 0.65 * _act) : 0;
             // Spherical pupil fill — radial gradient with off-center inner highlight
             // so the body reads as a SPHERE, not a flat disc. The base color follows
             // the 4-stage ritual progression (see ritualScore comment for the curve).

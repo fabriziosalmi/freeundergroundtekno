@@ -2,3 +2,4 @@
 docs/test.html
 node_modules/
 lxc/
+*.log
