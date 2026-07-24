@@ -267,6 +267,23 @@
             opacity: 1;
         }
         
+        /* 👁️ REAL ANATOMICAL ALMOND EYE CONTOUR MASK OVERLAY (WITH CRT SCANLINES) */
+        #realEyeContourMask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 190;
+            background: 
+                repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.22) 1px, transparent 1px, transparent 3px),
+                radial-gradient(ellipse 78% 48% at 50% 50%, transparent 32%, rgba(3, 3, 8, 0.85) 68%, rgba(0, 0, 0, 0.96) 92%);
+            mix-blend-mode: multiply;
+            opacity: 0.95;
+            will-change: background;
+        }
+        
         /* VORTEX ROTATION - rimosso in v1.3.6: era 8 cerchi concentrici 2-6px
            con shadowBlur 15 sui kick → terzo layer di "gabbia" attorno alla
            pupilla, sopra tunnel-ring e LAYER 1 pulse-rings (anch'essi rimossi).
@@ -1338,6 +1355,8 @@
     <div id="hyperInvertFlash"></div>
     <!-- 🌊 WHOLE-VIEWPORT INTELLIGENT DISTORTION OVERLAY -->
     <div id="viewportDistortionOverlay"></div>
+    <!-- 👁️ REAL ANATOMICAL ALMOND EYE CONTOUR MASK -->
+    <div id="realEyeContourMask"></div>
     
     
     <!-- 🌀 DISTORTION ZONES - zone di distorsione parziale -->
@@ -2395,6 +2414,30 @@
             }
             } // STREAM_MODE close: LAYER 0c
 
+            // ===== LAYER 1.5: 🌌 CHROMA-DEPTH 3D STROBE TUNNEL =====
+            if (_active > 0.15 && (midLevel > 0.25 || bassCharge > 0.3)) {
+                const tunnelRings = isMobile ? 6 : 10;
+                const tunnelAlpha = Math.min(0.55, (midLevel * 0.4 + bassCharge * 0.4) * _active);
+                ctx.save();
+                for (let i = 1; i <= tunnelRings; i++) {
+                    const depthNorm = i / tunnelRings;
+                    // Dynamic 3D depth expansion with bpmSyncAngle
+                    const r = minDim * (0.08 + depthNorm * 0.42 * (1 + bassCharge * 0.25 + Math.sin(bpmSyncAngle + i * 0.3) * 0.08));
+                    
+                    // Chromatic depth split (cyan inner / magenta outer)
+                    const strokeColor = i % 2 === 0 
+                        ? `rgba(0, 240, 255, ${(tunnelAlpha * (1 - depthNorm * 0.4)).toFixed(3)})` 
+                        : `rgba(240, 0, 220, ${(tunnelAlpha * (1 - depthNorm * 0.4)).toFixed(3)})`;
+                    
+                    ctx.strokeStyle = strokeColor;
+                    ctx.lineWidth = 1.0 + (1 - depthNorm) * 1.5;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
             // ===== LAYER 0d: Listener Pulses (L3 multi-user awareness) =====
             // Micro-rings espansivi attorno alla pupilla, 1 per listener oltre il primo
             // (capped a LISTENER_PULSE_CAP). Spawn 4-bar-locked dal main loop. Disegnati
@@ -2691,6 +2734,45 @@
                     ctx.arc(cx, cy, r, 0, Math.PI * 2);
                     ctx.stroke();
                 }
+                ctx.restore();
+            }
+
+            // ===== LAYER 7.7: 🔥 PLASMA ARC ELECTRIC DISCHARGE (Raffinato & Elegante) =====
+            if (_active > 0.2 && (kickStack >= 3 || dropFlashIntensity > 0.25)) {
+                const arcAlpha = Math.min(0.75, (bassLevel * 0.6 + dropFlashIntensity * 0.4) * _active);
+                ctx.save();
+                ctx.lineWidth = 1.2;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = 'rgba(180, 240, 255, 0.7)';
+                ctx.strokeStyle = `rgba(210, 245, 255, ${arcAlpha})`;
+
+                // 2 elegant arcs from speaker stacks to pupil center
+                const stackOrigins = [
+                    { x: w * 0.15, y: h * 0.25 },
+                    { x: w * 0.85, y: h * 0.25 }
+                ];
+
+                stackOrigins.forEach(start => {
+                    ctx.beginPath();
+                    ctx.moveTo(start.x, start.y);
+                    const segments = 4;
+                    let currX = start.x;
+                    let currY = start.y;
+
+                    for (let s = 1; s <= segments; s++) {
+                        const t = s / segments;
+                        const targetX = start.x + (cx - start.x) * t;
+                        const targetY = start.y + (cy - start.y) * t;
+                        // Organic subtle electrical jitter
+                        const jitterX = (s < segments) ? (Math.random() - 0.5) * 25 : 0;
+                        const jitterY = (s < segments) ? (Math.random() - 0.5) * 25 : 0;
+
+                        currX = targetX + jitterX;
+                        currY = targetY + jitterY;
+                        ctx.lineTo(currX, currY);
+                    }
+                    ctx.stroke();
+                });
                 ctx.restore();
             }
 
@@ -3213,9 +3295,197 @@
             pupilCtx.globalCompositeOperation = _prevComp;
             pupilCtx.shadowBlur = _prevShadow;
 
-            // Webcam reflection — v1 treatment: HDR + scanlines + VCR jitter + lens vignette.
-            // Mirror-flipped, B&W high contrast. Composite 'lighter' so the reflection
-            // reads on a dark surface, not as a photo.
+            // 💥 LIQUID CHROME MIRRORING — Platinum / Silver Specular Refraction Layer
+            if (_act > 0.15) {
+                const chromeGrad = pupilCtx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+                const chromeAlpha = Math.min(0.45, (0.15 + bass * 0.35 + cassoneIntensity * 0.25) * _act);
+                chromeGrad.addColorStop(0, `rgba(255, 255, 255, ${chromeAlpha})`);
+                chromeGrad.addColorStop(0.35, `rgba(160, 185, 210, ${chromeAlpha * 0.5})`);
+                chromeGrad.addColorStop(0.70, `rgba(240, 248, 255, ${chromeAlpha * 0.8})`);
+                chromeGrad.addColorStop(1, `rgba(80, 100, 120, ${chromeAlpha * 0.3})`);
+
+                pupilCtx.save();
+                pupilCtx.globalCompositeOperation = 'lighter';
+                pupilCtx.fillStyle = chromeGrad;
+                pupilCtx.beginPath();
+                pupilCtx.arc(cx, cy, r * 0.96, 0, Math.PI * 2);
+                pupilCtx.fill();
+
+                // 🌀 3D SPHERE AXIS ROTATION & LIQUID CHROMATIC SPOKES
+                // Rotating internal caustics so you clearly SEE the pupil spinning on its axis!
+                pupilCtx.translate(cx, cy);
+                pupilCtx.rotate(pupilSpinPhase);
+
+                const spokeCount = 6;
+                const spokeAlpha = Math.min(0.55, (0.2 + bass * 0.4 + mid * 0.3) * _act);
+                pupilCtx.lineWidth = 1.4;
+                for (let s = 0; s < spokeCount; s++) {
+                    const angle = (s / spokeCount) * Math.PI * 2;
+                    const rInner = r * 0.22;
+                    const rOuter = r * 0.85;
+
+                    const x1 = Math.cos(angle) * rInner;
+                    const y1 = Math.sin(angle) * rInner;
+                    const x2 = Math.cos(angle + 0.35) * rOuter;
+                    const y2 = Math.sin(angle + 0.35) * rOuter;
+
+                    const spokeGrad = pupilCtx.createLinearGradient(x1, y1, x2, y2);
+                    spokeGrad.addColorStop(0, `rgba(255, 255, 255, ${spokeAlpha * 0.9})`);
+                    spokeGrad.addColorStop(0.5, `rgba(180, 220, 255, ${spokeAlpha * 0.5})`);
+                    spokeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+                    pupilCtx.strokeStyle = spokeGrad;
+                    pupilCtx.beginPath();
+                    pupilCtx.moveTo(x1, y1);
+                    pupilCtx.quadraticCurveTo(
+                        Math.cos(angle + 0.18) * r * 0.6,
+                        Math.sin(angle + 0.18) * r * 0.6,
+                        x2, y2
+                    );
+                    pupilCtx.stroke();
+                }
+                pupilCtx.restore();
+
+                // 👁️ RECURSIVE INNER CORE PUPIL (Pupilla nella Pupilla / Coordinated HSL Core)
+                const innerPulseOpposite = Math.sin(bpmSyncAngle * 2) * 0.05 - bass * 0.12;
+                const innerPupilScale = Math.max(0.20, 0.36 + innerPulseOpposite); // Pulsazione ritmica locked al tempo
+                const innerR = r * innerPupilScale;
+
+                // 🌀 10-ARM LOGARITHMIC SPIRAL MATRIX — Dynamic Coordinated Palette (Nero, Bianco, Grigio, Rosso, Ciano)
+                pupilCtx.save();
+                pupilCtx.translate(cx, cy);
+                pupilCtx.rotate(pupilSpinPhase);
+
+                const spiralArms = isMobile ? 6 : 10;
+                const stepsPerArm = isMobile ? 8 : 12;
+                pupilCtx.lineWidth = isMobile ? 1.0 : 1.3;
+
+                // Palette selection based on audio energy mode (uses local scope mid & treble)
+                const isRedDrop = (kickStack >= 3 || dropFlashIntensity > 0.2);
+                const isCyanMelody = (mid > 0.42 || treble > 0.42);
+
+                for (let arm = 0; arm < spiralArms; arm++) {
+                    const baseAngle = (arm / spiralArms) * Math.PI * 2;
+                    let armColor;
+
+                    if (isRedDrop) {
+                        // Rosso Tekno Flash (Rosso brillante e scuro alternati)
+                        const redGlow = (arm % 2 === 0) ? 255 : 180;
+                        armColor = `rgba(${redGlow}, 30, 40, ${(0.75 * _act).toFixed(2)})`;
+                    } else if (isCyanMelody) {
+                        // Ciano Cybernetic (Ciano/Teal brillante e platino)
+                        const cyanLightness = (arm % 2 === 0) ? 65 : 45;
+                        armColor = `hsla(185, 100%, ${cyanLightness}%, ${(0.65 * _act).toFixed(2)})`;
+                    } else {
+                        // High-Contrast Monochrome (Nero / Bianco / Grigio Platinum)
+                        const monoVal = (arm % 3 === 0) ? 255 : (arm % 3 === 1 ? 160 : 40);
+                        armColor = `rgba(${monoVal}, ${monoVal}, ${monoVal}, ${(0.60 * _act).toFixed(2)})`;
+                    }
+
+                    pupilCtx.strokeStyle = armColor;
+                    pupilCtx.beginPath();
+
+                    for (let step = 0; step <= stepsPerArm; step++) {
+                        const t = step / stepsPerArm;
+                        const armR = innerR + t * (r * 0.90 - innerR);
+                        const armAngle = baseAngle + t * Math.PI * 1.25;
+                        const ax = Math.cos(armAngle) * armR;
+                        const ay = Math.sin(armAngle) * armR;
+
+                        if (step === 0) pupilCtx.moveTo(ax, ay);
+                        else pupilCtx.lineTo(ax, ay);
+                    }
+                    pupilCtx.stroke();
+                }
+                pupilCtx.restore();
+
+                if (innerR > 2 && _act > 0.1) {
+                    pupilCtx.save();
+
+                    // Coordinated Inner Core Palette (Complementare alla spirale esterna)
+                    let innerCoreShadow, innerCoreEdge;
+                    if (isRedDrop) {
+                        // Quando la spirale è Rossa, il nucleo è Platino Bianco / Ciano scuro
+                        innerCoreShadow = 'rgba(0, 240, 255, 0.85)';
+                        innerCoreEdge = 'rgba(255, 255, 255, 0.95)';
+                    } else if (isCyanMelody) {
+                        // Quando la spirale è Ciano, il nucleo è Rosso Tekno / Ossidiana
+                        innerCoreShadow = 'rgba(255, 30, 40, 0.85)';
+                        innerCoreEdge = 'rgba(255, 80, 80, 0.90)';
+                    } else {
+                        // In Monochrome: Nucleo Ciano / Bianco alta definizione
+                        innerCoreShadow = 'rgba(0, 255, 220, 0.80)';
+                        innerCoreEdge = 'rgba(255, 255, 255, 0.90)';
+                    }
+
+                    // 1. Involucro & Ombra Interna del Nucleo
+                    pupilCtx.shadowColor = innerCoreShadow;
+                    pupilCtx.shadowBlur = 15;
+
+                    // Gradiente del Nucleo Interno Coordinato
+                    const innerGrad = pupilCtx.createRadialGradient(
+                        cx - innerR * 0.3, cy - innerR * 0.3, innerR * 0.1,
+                        cx, cy, innerR
+                    );
+                    innerGrad.addColorStop(0, `rgba(255, 255, 255, ${(0.95 * _act).toFixed(2)})`);
+                    innerGrad.addColorStop(0.35, isRedDrop ? 'rgba(0, 40, 60, 0.95)' : 'rgba(40, 50, 70, 0.95)');
+                    innerGrad.addColorStop(0.85, 'rgba(5, 5, 12, 0.98)');
+                    innerGrad.addColorStop(1, 'rgba(0, 0, 0, 1.0)');
+
+                    pupilCtx.fillStyle = innerGrad;
+                    pupilCtx.beginPath();
+                    pupilCtx.arc(cx, cy, innerR, 0, Math.PI * 2);
+                    pupilCtx.fill();
+
+                    // 2. Anello di Bordo della Micro-Pupilla Coordinata
+                    pupilCtx.shadowBlur = 8;
+                    pupilCtx.shadowColor = innerCoreEdge;
+                    pupilCtx.strokeStyle = innerCoreEdge;
+                    pupilCtx.lineWidth = 1.3;
+                    pupilCtx.stroke();
+
+                    // 3. Contro-Rotazione Intelligente a Serie (Phase-Locked 2.0x Gear Ratio + Treble Jitter Step)
+                    pupilCtx.translate(cx, cy);
+                    const innerSeriesRotation = -pupilSpinPhase * 2.0 + bpmSyncAngle * 0.5 + Math.sin(time * 0.008) * treble * 0.25;
+                    pupilCtx.rotate(innerSeriesRotation);
+
+                    const corePetals = 4;
+                    pupilCtx.lineWidth = 1.0;
+                    pupilCtx.strokeStyle = innerCoreEdge;
+                    for (let p = 0; p < corePetals; p++) {
+                        const pAng = (p / corePetals) * Math.PI * 2;
+                        const px1 = Math.cos(pAng) * innerR * 0.2;
+                        const py1 = Math.sin(pAng) * innerR * 0.2;
+                        const px2 = Math.cos(pAng) * innerR * 0.8;
+                        const py2 = Math.sin(pAng) * innerR * 0.8;
+
+                        pupilCtx.beginPath();
+                        pupilCtx.moveTo(px1, py1);
+                        pupilCtx.lineTo(px2, py2);
+                        pupilCtx.stroke();
+                    }
+
+                    pupilCtx.restore();
+                }
+
+                // 🌊 LIQUID CHROME RIPPLES — 3 Smooth Concentric Waves
+                pupilCtx.save();
+                for (let w = 1; w <= 3; w++) {
+                    const wavePhase = (time * 0.0025 + w * 0.33) % 1.0;
+                    const waveR = r * (0.40 + wavePhase * 0.54);
+                    const waveAlpha = (1 - wavePhase) * (0.15 + bass * 0.45) * _act;
+
+                    if (waveAlpha > 0.02) {
+                        pupilCtx.strokeStyle = `rgba(255, 255, 255, ${waveAlpha.toFixed(3)})`;
+                        pupilCtx.lineWidth = 1.0 + (1 - wavePhase) * 1.5;
+                        pupilCtx.beginPath();
+                        pupilCtx.arc(cx, cy, waveR, 0, Math.PI * 2);
+                        pupilCtx.stroke();
+                    }
+                }
+                pupilCtx.restore();
+            }
+
             if (webcamReady && webcamMode > 0 && webcamVideo.readyState >= 2) {
                 pupilCtx.save();
                 pupilCtx.beginPath();
@@ -3416,26 +3686,28 @@
             webcamReady = false;
         }
         function updateEyeUI() {
-            if (!eyeToggle) return;
+            if (!eyeToggle || !eyeToggle.classList) return;
             eyeToggle.classList.toggle('on', webcamMode > 0);
             eyeToggle.textContent = webcamMode === 0 ? '○' : '●';
         }
-        eyeToggle.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            if (webcamMode === 0) {
-                const ok = await startWebcam();
-                if (ok) {
-                    webcamMode = 1;
+        if (eyeToggle) {
+            eyeToggle.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                if (webcamMode === 0) {
+                    const ok = await startWebcam();
+                    if (ok) {
+                        webcamMode = 1;
+                        updateEyeUI();
+                    }
+                } else {
+                    webcamMode = 0;
+                    stopWebcam();
                     updateEyeUI();
                 }
-            } else {
-                webcamMode = 0;
-                stopWebcam();
-                updateEyeUI();
-            }
-            resetAutoHide();
-        });
-        updateEyeUI();
+                resetAutoHide();
+            });
+            updateEyeUI();
+        }
 
         function resetAutoHide() {
             liveToggle.classList.remove('autohide');
@@ -5352,6 +5624,14 @@
                 ? '0 0 90px rgba(255, 255, 255, 1)'
                 : '0 0 45px rgba(255, 255, 255, 0.75)';
             
+            // 👁️ REAL ANATOMICAL ALMOND EYE CONTOUR MASK - Audio-Driven Eyelid Opening (WITH CRT SCANLINES)
+            const realEyeContourMask = document.getElementById('realEyeContourMask');
+            if (realEyeContourMask) {
+                const eyeOpeningX = 76 + bassLevel * 16 + dropFlashIntensity * 12;
+                const eyeOpeningY = (eyeOpeningX * 0.60).toFixed(1);
+                realEyeContourMask.style.background = `repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.22) 1px, transparent 1px, transparent 3px), radial-gradient(ellipse ${eyeOpeningX.toFixed(1)}% ${eyeOpeningY}% at 50% 50%, transparent 32%, rgba(3, 3, 8, 0.85) 68%, rgba(0, 0, 0, 0.96) 92%)`;
+            }
+
             // 🔊 SPEAKER FLASHES (laterali) - più intensi
             speakerFlashes.forEach(flash => {
                 flash.style.opacity = midLevel * 1.2;
