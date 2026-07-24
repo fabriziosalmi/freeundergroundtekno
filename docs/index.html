@@ -227,6 +227,24 @@
             mix-blend-mode: overlay;
         }
         
+        /* ⚡ HYPER-INVERTED STROBE FLASH (1-Frame Invert on Beat #1 of 16-beat phrases) */
+        #hyperInvertFlash {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0;
+            background: white;
+            mix-blend-mode: difference;
+            will-change: opacity;
+        }
+        #hyperInvertFlash.active {
+            opacity: 1;
+        }
+        
         /* VORTEX ROTATION - rimosso in v1.3.6: era 8 cerchi concentrici 2-6px
            con shadowBlur 15 sui kick → terzo layer di "gabbia" attorno alla
            pupilla, sopra tunnel-ring e LAYER 1 pulse-rings (anch'essi rimossi).
@@ -1289,6 +1307,8 @@
     
     <!-- CROWD STROBE (folla) -->
     <div id="crowdStrobe"></div>
+    <!-- ⚡ HYPER-INVERTED STROBE FLASH -->
+    <div id="hyperInvertFlash"></div>
     
     
     <!-- 🌀 DISTORTION ZONES - zone di distorsione parziale -->
@@ -1400,6 +1420,8 @@
         const circlePulse = document.getElementById('circlePulse');
         const speakerFlashes = document.querySelectorAll('.speaker-flash');
         const crowdStrobe = document.getElementById('crowdStrobe');
+        const hyperInvertFlash = document.getElementById('hyperInvertFlash');
+        let hyperInvertPending = false;
         const bgCanvas = document.getElementById('proceduralBg');
         const bgCtx = bgCanvas.getContext('2d');
         const vhsLines = document.getElementById('vhsLines');
@@ -1568,6 +1590,8 @@
         // BPM pulse field state
         let bpmPulsePhase = 0;
         let bpmPulseIntensity = 0;
+        let bpmPrePulse = 0;          // 🔮 Pre-onset anticipation ramp (-25ms lead time)
+        let bpmCombinedPulse = 0;     // Unified pre-ramp + post-decay pulse
         // BPM sync state (set inside drawProceduralBg, consumed by pupil motion in animate())
         let bpmSyncAngle = 0;
         let bpmStable = false;
@@ -2153,11 +2177,27 @@
                     const _phase = beatLocked ? beatPhase : ((time % avgInterval) / avgInterval);
                     bpmSyncAngle = _phase * Math.PI * 2;
                     bpmPulsePhase = _phase;
-                    bpmPulseIntensity = Math.pow(1 - bpmPulsePhase, 3); // cubic decay
-                    bpmAvgInterval = avgInterval; // expose to drawPupil for BPM-locked rotation + exhale
+                    bpmPulseIntensity = Math.pow(1 - bpmPulsePhase, 3); // cubic decay post-beat
+                    bpmAvgInterval = avgInterval;
+
+                    // 🔮 PRE-ONSET ANTICIPATION ENGINE (-25ms lead time)
+                    const ANTICIPATE_MS = 25;
+                    const anticipatePhaseWidth = Math.min(0.2, ANTICIPATE_MS / avgInterval);
+                    const anticipateStartPhase = 1.0 - anticipatePhaseWidth;
+                    if (_phase >= anticipateStartPhase) {
+                        const normPre = (_phase - anticipateStartPhase) / anticipatePhaseWidth;
+                        bpmPrePulse = Math.pow(normPre, 2); // quadratic ease-in pre-onset ramp
+                    } else {
+                        bpmPrePulse = 0;
+                    }
+                    bpmCombinedPulse = Math.max(bpmPulseIntensity, bpmPrePulse);
                 }
             }
-            if (!bpmStable) bpmPulseIntensity *= Math.pow(0.95, frameScale);
+            if (!bpmStable) {
+                bpmPulseIntensity *= Math.pow(0.95, frameScale);
+                bpmPrePulse = 0;
+                bpmCombinedPulse = bpmPulseIntensity;
+            }
 
             // Pupil dilation: steady beats make the pupil grow
             if (_beatH && _beatH.length >= 3) {
@@ -2344,13 +2384,13 @@
             }
 
             // ===== LAYER 0.5: Radial BPM Wave =====
-            if (bpmPulseIntensity > 0.05) {
-                const waveRadius = (1 - bpmPulseIntensity) * minDim * 0.6;
-                const waveAlpha = bpmPulseIntensity * 0.15;
+            if (bpmCombinedPulse > 0.05) {
+                const waveRadius = (1 - bpmCombinedPulse) * minDim * 0.6;
+                const waveAlpha = bpmCombinedPulse * 0.15;
                 ctx.beginPath();
                 ctx.arc(cx, cy, waveRadius, 0, Math.PI * 2);
                 ctx.strokeStyle = `rgba(255,255,255,${waveAlpha})`;
-                ctx.lineWidth = 2 + bpmPulseIntensity * 3;
+                ctx.lineWidth = 2 + bpmCombinedPulse * 3;
                 ctx.stroke();
             }
 
@@ -2363,7 +2403,7 @@
             // _rhythmFactor: 1 quando il kick spara, 0.25 quando assente. Hex e spirale
             // sotto pad senza drums vengono attenuati di 4x — restano vivi ma quieti.
             const _rhythmFactor = 0.25 + 0.75 * bassCharge;
-            const hexBpmBoost = bpmPulseIntensity * 0.3;
+            const hexBpmBoost = bpmCombinedPulse * 0.3;
             // Base abbassata 0.6 → 0.4 — meno presente di default.
             const hexAlpha = (0.4 + bassLevel * 1.0 + hexBpmBoost) * _active * _rhythmFactor;
             // Early-exit: in silenzio profondo / no-rhythm il blit hex è invisibile
@@ -3014,7 +3054,7 @@
             // (e con raveMode/marathonMode tramite gain bump), ma il colore resta neutro.
             const _glowGain = raveMode ? 40 : marathonMode ? 25 : 30;
             pupilCtx.shadowColor = 'rgba(245,248,252,0.85)';
-            pupilCtx.shadowBlur = bass > 0.5 ? (10 + bass * _glowGain) * (0.35 + 0.65 * _act) : 0;
+            pupilCtx.shadowBlur = (bass > 0.5 || bpmPrePulse > 0.05) ? (10 + (bass + bpmPrePulse * 0.4) * _glowGain) * (0.35 + 0.65 * _act) : 0;
             // Spherical pupil fill — radial gradient with off-center inner highlight
             // so the body reads as a SPHERE, not a flat disc. The base color follows
             // the 4-stage ritual progression (see ritualScore comment for the curve).
@@ -3979,6 +4019,12 @@
             }
             lastFrameTime = now;
 
+            // ⚡ 1-frame reset for hyperInvertFlash (ensures exact 16ms duration)
+            if (hyperInvertPending) {
+                hyperInvertFlash.classList.remove('active');
+                hyperInvertPending = false;
+            }
+
             // frameScale: how many 60fps-frames' worth of time this frame represents. At a
             // steady 60fps it is exactly 1.0 → every scaled term below reduces to the original
             // hand-tuned value (byte-identical). Clamped so a tab-switch / GC hitch can't
@@ -4521,6 +4567,12 @@
                 const _claimFlash   = () => _hasRhythm && _flashBudget--   > 0;
                 const _claimAccent  = () => _hasRhythm && _accentBudget--  > 0;
                 const _claimDistort = () => _hasRhythm && _distortBudget-- > 0;
+
+                // ⚡ 1-FRAME HYPER-INVERTED STROBE FLASH (Beat #1 of 16-beat phrases or 3-stack drop beats)
+                if (_hasRhythm && (beatCount % 16 === 1 || (beatCount % 4 === 1 && kickStack >= 3))) {
+                    hyperInvertFlash.classList.add('active');
+                    hyperInvertPending = true;
+                }
 
                 // Crowd strobe on beat - AUMENTATO
                 crowdStrobe.style.opacity = isMobile ? '0.95' : '1';
