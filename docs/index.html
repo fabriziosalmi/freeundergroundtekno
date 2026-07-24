@@ -245,6 +245,27 @@
             opacity: 1;
         }
         
+        /* 🌊 WHOLE-VIEWPORT INTELLIGENT DISTORTION OVERLAY (Fisheye + Rotation + Fluid Displacement) */
+        #viewportDistortionOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 180;
+            backdrop-filter: url(#fxViewportDistortion);
+            -webkit-backdrop-filter: url(#fxViewportDistortion);
+            opacity: 0;
+            transform-origin: center center;
+            transform: scale(var(--viewport-scale, 1)) rotate(var(--viewport-rot, 0deg));
+            transition: opacity 0.12s ease-out;
+            will-change: opacity, transform;
+        }
+        #viewportDistortionOverlay.active {
+            opacity: 1;
+        }
+        
         /* VORTEX ROTATION - rimosso in v1.3.6: era 8 cerchi concentrici 2-6px
            con shadowBlur 15 sui kick → terzo layer di "gabbia" attorno alla
            pupilla, sopra tunnel-ring e LAYER 1 pulse-rings (anch'essi rimossi).
@@ -1278,6 +1299,10 @@
                 <feImage id="fxFisheyeMap" preserveAspectRatio="none" result="map"/>
                 <feDisplacementMap in="SourceGraphic" in2="map" scale="82" xChannelSelector="R" yChannelSelector="G"/>
             </filter>
+            <filter id="fxViewportDistortion" x="-20%" y="-20%" width="140%" height="140%">
+                <feTurbulence id="fxViewportNoise" type="fractalNoise" baseFrequency="0.015 0.03" numOctaves="2" result="noise"/>
+                <feDisplacementMap id="fxViewportMap" in="SourceGraphic" in2="noise" scale="0" xChannelSelector="R" yChannelSelector="G"/>
+            </filter>
         </defs>
     </svg>
 
@@ -1309,6 +1334,8 @@
     <div id="crowdStrobe"></div>
     <!-- ⚡ HYPER-INVERTED STROBE FLASH -->
     <div id="hyperInvertFlash"></div>
+    <!-- 🌊 WHOLE-VIEWPORT INTELLIGENT DISTORTION OVERLAY -->
+    <div id="viewportDistortionOverlay"></div>
     
     
     <!-- 🌀 DISTORTION ZONES - zone di distorsione parziale -->
@@ -1422,6 +1449,14 @@
         const crowdStrobe = document.getElementById('crowdStrobe');
         const hyperInvertFlash = document.getElementById('hyperInvertFlash');
         let hyperInvertPending = false;
+        const fxViewportMap = document.getElementById('fxViewportMap');
+        const viewportDistortionOverlay = document.getElementById('viewportDistortionOverlay');
+        let currentViewportDistortion = 0;
+        let targetViewportDistortion = 0;
+        let currentViewportScale = 1;
+        let targetViewportScale = 1;
+        let currentViewportRot = 0;
+        let targetViewportRot = 0;
         const bgCanvas = document.getElementById('proceduralBg');
         const bgCtx = bgCanvas.getContext('2d');
         const vhsLines = document.getElementById('vhsLines');
@@ -4574,6 +4609,13 @@
                     hyperInvertPending = true;
                 }
 
+                // 🌊 WHOLE-VIEWPORT SHOCKWAVE DISTORTION + FISHEYE + ROTATION SPIKE on kick onset
+                if (_hasRhythm && kickStack >= 2) {
+                    targetViewportDistortion = Math.max(targetViewportDistortion, 60 * (bassLevel * 0.85 + 0.15));
+                    targetViewportScale = 1 + (bassLevel * 0.08);
+                    targetViewportRot = (Math.random() - 0.5) * 10;
+                }
+
                 // Crowd strobe on beat - AUMENTATO
                 crowdStrobe.style.opacity = isMobile ? '0.95' : '1';
                 setTimeout(() => {
@@ -5237,6 +5279,41 @@
                 flash.style.opacity = midLevel * 1.2;
                 flash.style.filter = `blur(${30 + midLevel * 50}px)`;
             });
+
+            // 🌊 WHOLE-VIEWPORT INTELLIGENT DISTORTION ENGINE (Fisheye + Rotation + GPU Displacement)
+            const baseMidDistort = (midLevel > 0.40 ? (midLevel - 0.40) * 45 : 0);
+            const baseTrebleDistort = (trebleLevel > 0.45 ? (trebleLevel - 0.45) * 40 : 0);
+            const continuousDistortTarget = (baseMidDistort + baseTrebleDistort) * activity;
+            targetViewportDistortion = Math.max(targetViewportDistortion, continuousDistortTarget);
+
+            // Dynamic Fisheye & BPM-locked Rotation Wave
+            const bpmRotWave = Math.sin(bpmSyncAngle) * 5 * (midLevel * 0.8 + 0.2) * activity;
+            targetViewportRot = targetViewportRot * 0.85 + bpmRotWave * 0.15;
+            targetViewportScale = 1 + (currentViewportDistortion / 60) * 0.07;
+
+            // Smooth spring interpolation & decay
+            currentViewportDistortion += (targetViewportDistortion - currentViewportDistortion) * 0.20 * frameScale;
+            currentViewportScale += (targetViewportScale - currentViewportScale) * 0.20 * frameScale;
+            currentViewportRot += (targetViewportRot - currentViewportRot) * 0.20 * frameScale;
+
+            targetViewportDistortion *= Math.pow(0.82, frameScale);
+            targetViewportScale += (1 - targetViewportScale) * 0.15 * frameScale;
+            targetViewportRot *= Math.pow(0.85, frameScale);
+
+            // Performance Gate: only execute GPU filter & transforms when scale > 0.5 or rotation active
+            if (fxViewportMap && viewportDistortionOverlay) {
+                if (currentViewportDistortion > 0.5 || Math.abs(currentViewportRot) > 0.2) {
+                    viewportDistortionOverlay.classList.add('active');
+                    fxViewportMap.setAttribute('scale', currentViewportDistortion.toFixed(1));
+                    viewportDistortionOverlay.style.setProperty('--viewport-scale', currentViewportScale.toFixed(3));
+                    viewportDistortionOverlay.style.setProperty('--viewport-rot', currentViewportRot.toFixed(2) + 'deg');
+                } else {
+                    viewportDistortionOverlay.classList.remove('active');
+                    fxViewportMap.setAttribute('scale', '0');
+                    viewportDistortionOverlay.style.setProperty('--viewport-scale', '1');
+                    viewportDistortionOverlay.style.setProperty('--viewport-rot', '0deg');
+                }
+            }
 
             // body.silent pauses purely-CSS animations (dust, vhs, grain). Hysteresis
             // around the 0.85 threshold to avoid flicker on the edge of breakdowns.
