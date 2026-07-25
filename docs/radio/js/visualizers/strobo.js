@@ -20,6 +20,8 @@ const Strobo = (function() {
     }
 
     function draw(canvas, ctx, dataArray, analyser) {
+        if (!ctx) return;
+
         // Calcola intensità
         const bassSum = dataArray.slice(0, 50).reduce((a, b) => a + b, 0);
         const midSum = dataArray.slice(50, 150).reduce((a, b) => a + b, 0);
