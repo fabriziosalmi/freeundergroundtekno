@@ -26,7 +26,7 @@ jobs:
       # upstream repository not to change under us.
       - name: Run slopless
         continue-on-error: true
-        uses: fabriziosalmi/slopless@b3a4017bc0e382013da28564dab3b5ee4e23f981 # v1.12.1
+        uses: fabriziosalmi/slopless@982d806db6ac9abb538e1810187987428e9cc1a0 # v1.13.0
         with:
           patterns: "docs/**/*.js bench/**/*.js *.md"
           format: sarif
