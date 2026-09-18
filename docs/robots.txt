@@ -1,0 +1,10 @@
+# Servito come https://listen.free-tekno.com/robots.txt
+#
+# Questo file deve esistere nell'origine: il dominio sta dietro Cloudflare, e
+# quando l'origine non serve un robots.txt Cloudflare risponde con il proprio,
+# gestito, che non dichiara nessuna sitemap.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://listen.free-tekno.com/sitemap.xml

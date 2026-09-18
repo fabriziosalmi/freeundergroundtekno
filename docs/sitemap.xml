@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sito statico: nessun generatore produce questa sitemap, quindi e' scritta a
+  mano e va aggiornata quando si aggiunge o si toglie una pagina.
+
+  Ogni URL qui dentro e' stato verificato a 200 prima di essere elencato.
+
+  Niente <lastmod>: una data scritta a mano diventa falsa al primo cambiamento
+  della pagina, e una lastmod sbagliata e' peggio di una assente.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://listen.free-tekno.com/</loc><priority>1.0</priority></url>
+  <url><loc>https://listen.free-tekno.com/radio/</loc><priority>0.8</priority></url>
+  <url><loc>https://listen.free-tekno.com/video/</loc><priority>0.8</priority></url>
+  <url><loc>https://listen.free-tekno.com/rave-framework/example-scene.html</loc><priority>0.5</priority></url>
+  <url><loc>https://listen.free-tekno.com/privacy.html</loc><priority>0.3</priority></url>
+</urlset>
