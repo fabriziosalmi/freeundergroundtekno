@@ -1,0 +1,27 @@
+# .airgap.yml — AGSSH-STD-001 conformance declaration for https://listen.free-tekno.com/
+target_profile: Silver
+level: L2
+
+surfaces:
+  - url: https://listen.free-tekno.com/
+    kind: site
+    stateless: true
+
+backend: github-pages
+
+dns:
+  zone: free-tekno.com
+
+pipeline:
+  enforce_ci_rules: false
+
+allow:
+  connect:      ["https://radio.freeundergroundtekno.org"]
+  storage:      []
+  embeds:       []
+  subresources: ["radio.freeundergroundtekno.org"]
+
+waivers:
+  budget: { max_count: 3, max_weight: 6, max_window_days: 30 }
+
+deviations: []
