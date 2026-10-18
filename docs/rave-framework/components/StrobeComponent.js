@@ -53,14 +53,14 @@ class StrobeComponent extends BaseComponent {
         
         if (!audioData || !this.enabled) return;
         
-        // Get metric value
+        // Safely extract metric value
         let value = 0;
         if (this.metric === 'punch') {
-            value = audioData.metrics.punch || 0;
+            value = (audioData.metrics && audioData.metrics.punch != null) ? audioData.metrics.punch : 0;
         } else if (this.metric === 'peak') {
-            value = audioData.metrics.peak || 0;
-        } else if (this.metric === 'kick' && audioData.beat) {
-            value = audioData.beat.kick ? 1 : 0;
+            value = (audioData.metrics && audioData.metrics.peak != null) ? audioData.metrics.peak : 0;
+        } else if (this.metric === 'kick') {
+            value = (audioData.beat && audioData.beat.kick) ? 1 : 0;
         }
         
         // Trigger strobe if above threshold

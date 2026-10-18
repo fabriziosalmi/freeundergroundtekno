@@ -78,14 +78,25 @@ class YouTubeStreamer {
 
   async checkPageReachable() {
     this.log('INFO', `Checking page: ${this.pageUrl}`);
-    try {
-      execSync(`curl -s --max-time 10 "${this.pageUrl}" > /dev/null`, { stdio: 'pipe' });
-      this.log('SUCCESS', '✓ Page is reachable');
-      return true;
-    } catch {
-      this.log('ERROR', `Cannot reach ${this.pageUrl}`);
-      return false;
-    }
+    return new Promise((resolve) => {
+      const curl = spawn('curl', ['-s', '--max-time', '10', this.pageUrl, '-o', '/dev/null']);
+      let hasError = false;
+
+      curl.on('close', (code) => {
+        if (code === 0) {
+          this.log('SUCCESS', '✓ Page is reachable');
+          resolve(true);
+        } else {
+          this.log('ERROR', `Cannot reach ${this.pageUrl}`);
+          resolve(false);
+        }
+      });
+
+      curl.on('error', () => {
+        this.log('ERROR', `Cannot reach ${this.pageUrl}`);
+        resolve(false);
+      });
+    });
   }
 
   async launchBrowser() {
